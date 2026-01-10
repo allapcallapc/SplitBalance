@@ -34,8 +34,13 @@ class PaymentSplitsProvider with ChangeNotifier {
 
       _splits.clear();
       _splits.addAll(CsvService.paymentSplitsFromCsv(csvContent));
-      // Sort by start date (newest first)
-      _splits.sort((a, b) => b.startDate.compareTo(a.startDate));
+      // Sort by end date (newest first, nulls last)
+      _splits.sort((a, b) {
+        if (a.endDate == null && b.endDate == null) return 0;
+        if (a.endDate == null) return 1; // nulls last
+        if (b.endDate == null) return -1; // nulls last
+        return b.endDate!.compareTo(a.endDate!);
+      });
       _error = null;
     } catch (e) {
       _error = 'Failed to load payment splits: $e';
@@ -86,8 +91,13 @@ class PaymentSplitsProvider with ChangeNotifier {
 
     try {
       _splits.add(split);
-      // Sort by start date (newest first)
-      _splits.sort((a, b) => b.startDate.compareTo(a.startDate));
+      // Sort by end date (newest first, nulls last)
+      _splits.sort((a, b) {
+        if (a.endDate == null && b.endDate == null) return 0;
+        if (a.endDate == null) return 1; // nulls last
+        if (b.endDate == null) return -1; // nulls last
+        return b.endDate!.compareTo(a.endDate!);
+      });
       await savePaymentSplits(configProvider);
       _error = null;
     } catch (e) {
@@ -116,8 +126,13 @@ class PaymentSplitsProvider with ChangeNotifier {
 
     try {
       _splits[index] = updatedSplit;
-      // Sort by start date (newest first)
-      _splits.sort((a, b) => b.startDate.compareTo(a.startDate));
+      // Sort by end date (newest first, nulls last)
+      _splits.sort((a, b) {
+        if (a.endDate == null && b.endDate == null) return 0;
+        if (a.endDate == null) return 1; // nulls last
+        if (b.endDate == null) return -1; // nulls last
+        return b.endDate!.compareTo(a.endDate!);
+      });
       await savePaymentSplits(configProvider);
       _error = null;
     } catch (e) {

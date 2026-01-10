@@ -84,10 +84,16 @@ class CalculationService {
         person2Paid += bill.amount;
       }
 
+      // Collect all end dates for containsDate logic
+      final allEndDates = splits
+          .where((s) => s.endDate != null)
+          .map((s) => s.endDate!)
+          .toList();
+
       // Find matching payment split
       PaymentSplit? matchingSplit;
       for (final split in splits) {
-        if (split.containsDate(bill.date) && split.appliesToCategory(bill.category)) {
+        if (split.containsDate(bill.date, allEndDates) && split.appliesToCategory(bill.category)) {
           // Use the most specific split (non-"all" category takes precedence)
           if (matchingSplit == null ||
               (split.category != 'all' && matchingSplit.category == 'all')) {

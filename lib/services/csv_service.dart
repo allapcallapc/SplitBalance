@@ -44,10 +44,13 @@ class CsvService {
   }
 
   // Serialize payment splits to CSV string
+  // Note: "all" category splits are not saved - they're UI-only for bulk changes
   static String paymentSplitsToCsv(List<PaymentSplit> splits) {
     final rows = <List<String>>[];
     rows.add(PaymentSplit.csvHeader());
-    rows.addAll(splits.map((split) => split.toCsvRow()));
+    // Filter out "all" category splits - they're not persisted
+    final splitsToSave = splits.where((split) => split.category != 'all').toList();
+    rows.addAll(splitsToSave.map((split) => split.toCsvRow()));
     
     return const ListToCsvConverter().convert(rows);
   }
