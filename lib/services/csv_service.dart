@@ -19,7 +19,11 @@ class CsvService {
       return [];
     }
     
-    final converter = const CsvToListConverter();
+    // Auto-detect delimiter: check if first line contains semicolons
+    final firstLine = csvContent.split('\n').first.trim();
+    final fieldDelimiter = firstLine.contains(';') ? ';' : ',';
+    
+    final converter = CsvToListConverter(fieldDelimiter: fieldDelimiter);
     final rows = converter.convert(csvContent);
     
     if (rows.isEmpty) {
@@ -61,7 +65,11 @@ class CsvService {
       return [];
     }
     
-    final converter = const CsvToListConverter();
+    // Auto-detect delimiter: check if first line contains semicolons
+    final firstLine = csvContent.split('\n').first.trim();
+    final fieldDelimiter = firstLine.contains(';') ? ';' : ',';
+    
+    final converter = CsvToListConverter(fieldDelimiter: fieldDelimiter);
     final rows = converter.convert(csvContent);
     
     if (rows.isEmpty) {
@@ -100,7 +108,11 @@ class CsvService {
       return [];
     }
     
-    final converter = const CsvToListConverter();
+    // Auto-detect delimiter: check if first line contains semicolons
+    final firstLine = csvContent.split('\n').first.trim();
+    final fieldDelimiter = firstLine.contains(';') ? ';' : ',';
+    
+    final converter = CsvToListConverter(fieldDelimiter: fieldDelimiter);
     final rows = converter.convert(csvContent);
     
     if (rows.isEmpty) {
@@ -139,7 +151,11 @@ class CsvService {
       return {'person1Name': '', 'person2Name': ''};
     }
     
-    final converter = const CsvToListConverter();
+    // Auto-detect delimiter: check if first line contains semicolons
+    final firstLine = csvContent.split('\n').first.trim();
+    final fieldDelimiter = firstLine.contains(';') ? ';' : ',';
+    
+    final converter = CsvToListConverter(fieldDelimiter: fieldDelimiter);
     final rows = converter.convert(csvContent);
     
     if (rows.isEmpty) {

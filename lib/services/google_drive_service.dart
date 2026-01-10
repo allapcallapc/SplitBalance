@@ -553,7 +553,14 @@ class GoogleDriveService {
       final downloadResponse = await authenticatedClient.get(Uri.parse(downloadUrl));
       
       if (downloadResponse.statusCode == 200) {
-        return utf8.decode(downloadResponse.bodyBytes);
+        // Try UTF-8 first, fall back to Latin1 if UTF-8 decoding fails
+        try {
+          return utf8.decode(downloadResponse.bodyBytes);
+        } on FormatException {
+          // If UTF-8 decoding fails, try Latin1 (ISO-8859-1)
+          // This handles files encoded in Windows-1252 or ISO-8859-1
+          return latin1.decode(downloadResponse.bodyBytes);
+        }
       } else {
         throw Exception('Failed to download file: ${downloadResponse.statusCode}');
       }
