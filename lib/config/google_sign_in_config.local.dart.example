@@ -1,0 +1,12 @@
+/// Local Google Sign-In Configuration
+/// 
+/// This file contains your Client ID and is NOT committed to git.
+/// 
+/// To set up:
+/// 1. Copy this file to google_sign_in_config.local.dart
+/// 2. Replace YOUR_CLIENT_ID_HERE with your actual Client ID from Google Cloud Console
+/// 3. Update web/index.html with the same Client ID in the meta tag
+/// 
+/// Your Client ID format: xxx-xxxxx.apps.googleusercontent.com
+
+const String localWebClientId = 'YOUR_CLIENT_ID_HERE';
