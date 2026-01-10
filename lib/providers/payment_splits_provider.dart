@@ -161,6 +161,27 @@ class PaymentSplitsProvider with ChangeNotifier {
     return _splits[index];
   }
 
+  // Remove all payment splits that reference a specific category
+  // This is called when a category is deleted
+  Future<void> removeSplitsByCategory(String categoryName, ConfigProvider configProvider) async {
+    final categoryLower = categoryName.toLowerCase().trim();
+    bool removedAny = false;
+    
+    // Remove splits in reverse order to maintain correct indices
+    for (int i = _splits.length - 1; i >= 0; i--) {
+      final splitCategory = _splits[i].category.toLowerCase().trim();
+      if (splitCategory == categoryLower) {
+        _splits.removeAt(i);
+        removedAny = true;
+      }
+    }
+    
+    // Save if any splits were removed
+    if (removedAny) {
+      await savePaymentSplits(configProvider);
+    }
+  }
+
   void clearError() {
     _error = null;
     notifyListeners();

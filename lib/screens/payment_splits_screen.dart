@@ -1533,11 +1533,9 @@ class _CategoriesTab extends StatelessWidget {
           );
         }
         
-        // Use read instead of watch to avoid unnecessary rebuilds
-        // We only need bills and splits for the isCategoryInUse check, not to rebuild on changes
-        // Get the values here after early returns to ensure they're in scope when used
-        final billsData = context.read<BillsProvider>().bills;
-        final splitsData = context.read<PaymentSplitsProvider>().splits;
+        // Use watch to rebuild when bills or splits change so "in use" status updates correctly
+        final billsData = context.watch<BillsProvider>().bills;
+        final splitsData = context.watch<PaymentSplitsProvider>().splits;
         
         // Show error banner if there's an error but we have categories to display
         final hasError = categoriesProvider.error != null;
@@ -1626,8 +1624,8 @@ class _CategoriesTab extends StatelessWidget {
                       padding: const EdgeInsets.all(8),
                       itemBuilder: (context, index) {
                         final category = categoriesProvider.categories[index];
-                        // Check if category is in use using the bills and splits we read earlier
-                        // This avoids reading from context during itemBuilder execution
+                        // Check if category is in use using the bills and splits watched in build method
+                        // billsData and splitsData are watched, so the widget rebuilds when they change
                         final isInUse = categoriesProvider.isCategoryInUse(
                           category.name,
                           billsData,
@@ -1868,7 +1866,13 @@ class _CategoriesTab extends StatelessWidget {
 
     if (confirmed == true && context.mounted) {
       final categoriesProvider = context.read<CategoriesProvider>();
+      final splitsProvider = context.read<PaymentSplitsProvider>();
       final configProvider = context.read<ConfigProvider>();
+      
+      // Remove payment splits that reference this category
+      await splitsProvider.removeSplitsByCategory(category.name, configProvider);
+      
+      // Delete the category
       await categoriesProvider.deleteCategory(
         index,
         configProvider,

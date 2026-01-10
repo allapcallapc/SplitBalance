@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/category.dart' as models;
+import '../models/bill.dart';
+import '../models/payment_split.dart';
 import '../services/csv_service.dart';
 import 'config_provider.dart';
 
@@ -179,6 +181,7 @@ class CategoriesProvider with ChangeNotifier {
   }
 
   // Delete a category
+  // Payment splits referencing this category should be removed separately (see PaymentSplitsProvider.removeSplitsByCategory)
   Future<void> deleteCategory(int index, ConfigProvider configProvider, {required bool isCategoryUsed}) async {
     if (index < 0 || index >= _categories.length) {
       _error = 'Invalid category index';
@@ -187,7 +190,7 @@ class CategoriesProvider with ChangeNotifier {
     }
 
     if (isCategoryUsed) {
-      _error = 'Cannot delete category that is in use';
+      _error = 'Cannot delete category that is in use by bills';
       notifyListeners();
       return;
     }
@@ -196,20 +199,15 @@ class CategoriesProvider with ChangeNotifier {
     await saveCategories(configProvider);
   }
 
-  // Check if a category is in use (used by bills or splits)
-  bool isCategoryInUse(String categoryName, List bills, List splits) {
-    final categoryLower = categoryName.toLowerCase();
+  // Check if a category is in use (used by bills)
+  // Note: Payment splits don't prevent category deletion - they will be removed automatically
+  bool isCategoryInUse(String categoryName, List<Bill> bills, List<PaymentSplit> splits) {
+    final categoryLower = categoryName.toLowerCase().trim();
     
-    // Check bills
+    // Only check bills - splits don't prevent deletion (they'll be removed automatically)
     for (final bill in bills) {
-      if (bill.category.toLowerCase() == categoryLower) {
-        return true;
-      }
-    }
-
-    // Check splits (only non-"all" categories)
-    for (final split in splits) {
-      if (split.category != 'all' && split.category.toLowerCase() == categoryLower) {
+      final billCategory = bill.category.toLowerCase().trim();
+      if (billCategory == categoryLower) {
         return true;
       }
     }

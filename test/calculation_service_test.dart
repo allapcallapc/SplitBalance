@@ -3,6 +3,7 @@ import 'package:splitbalance/models/bill.dart';
 import 'package:splitbalance/models/payment_split.dart';
 import 'package:splitbalance/models/category.dart';
 import 'package:splitbalance/services/calculation_service.dart';
+import 'package:splitbalance/providers/categories_provider.dart';
 
 void main() {
   group('CalculationService - Balance Calculations', () {
@@ -671,6 +672,522 @@ void main() {
       // Food-specific split should be used (80/20), not the 'all' split (50/50)
       expect(result.person1Expected, 80.0);
       expect(result.person2Expected, 20.0);
+    });
+  });
+
+  group('CalculationService - Category Paid Amounts', () {
+    const String person1 = 'Alice';
+    const String person2 = 'Bob';
+    
+    final DateTime baseDate = DateTime(2024, 1, 15);
+    
+    List<Category> getCategories([List<String>? names]) {
+      return (names ?? ['Food', 'Rent', 'Utilities', 'Entertainment'])
+          .map((name) => Category(name: name))
+          .toList();
+    }
+
+    test('Category paid amounts - single person pays all bills in category', () {
+      final bills = [
+        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
+        Bill(date: baseDate, amount: 50.0, paidBy: person1, category: 'Food'),
+        Bill(date: baseDate, amount: 75.0, paidBy: person1, category: 'Food'),
+      ];
+      
+      final splits = [
+        PaymentSplit(
+          category: 'all',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+      ];
+      
+      final categories = getCategories();
+      
+      final result = CalculationService.calculateBalances(
+        bills: bills,
+        splits: splits,
+        categories: categories,
+        person1Name: person1,
+        person2Name: person2,
+      );
+      
+      expect(result.categoryBalances.containsKey('Food'), true);
+      final foodBalance = result.categoryBalances['Food']!;
+      expect(foodBalance.person1Paid, 225.0); // 100 + 50 + 75
+      expect(foodBalance.person2Paid, 0.0);
+    });
+
+    test('Category paid amounts - both people pay bills in same category', () {
+      final bills = [
+        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
+        Bill(date: baseDate, amount: 50.0, paidBy: person2, category: 'Food'),
+        Bill(date: baseDate, amount: 75.0, paidBy: person1, category: 'Food'),
+        Bill(date: baseDate, amount: 25.0, paidBy: person2, category: 'Food'),
+      ];
+      
+      final splits = [
+        PaymentSplit(
+          category: 'all',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+      ];
+      
+      final categories = getCategories();
+      
+      final result = CalculationService.calculateBalances(
+        bills: bills,
+        splits: splits,
+        categories: categories,
+        person1Name: person1,
+        person2Name: person2,
+      );
+      
+      expect(result.categoryBalances.containsKey('Food'), true);
+      final foodBalance = result.categoryBalances['Food']!;
+      expect(foodBalance.person1Paid, 175.0); // 100 + 75
+      expect(foodBalance.person2Paid, 75.0);  // 50 + 25
+    });
+
+    test('Category paid amounts - multiple categories tracked separately', () {
+      final bills = [
+        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
+        Bill(date: baseDate, amount: 50.0, paidBy: person2, category: 'Food'),
+        Bill(date: baseDate, amount: 200.0, paidBy: person1, category: 'Rent'),
+        Bill(date: baseDate, amount: 30.0, paidBy: person2, category: 'Utilities'),
+      ];
+      
+      final splits = [
+        PaymentSplit(
+          category: 'all',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+      ];
+      
+      final categories = getCategories();
+      
+      final result = CalculationService.calculateBalances(
+        bills: bills,
+        splits: splits,
+        categories: categories,
+        person1Name: person1,
+        person2Name: person2,
+      );
+      
+      expect(result.categoryBalances.length, 3);
+      
+      final foodBalance = result.categoryBalances['Food']!;
+      expect(foodBalance.person1Paid, 100.0);
+      expect(foodBalance.person2Paid, 50.0);
+      
+      final rentBalance = result.categoryBalances['Rent']!;
+      expect(rentBalance.person1Paid, 200.0);
+      expect(rentBalance.person2Paid, 0.0);
+      
+      final utilitiesBalance = result.categoryBalances['Utilities']!;
+      expect(utilitiesBalance.person1Paid, 0.0);
+      expect(utilitiesBalance.person2Paid, 30.0);
+    });
+
+    test('Category paid amounts - person pays bills across multiple categories', () {
+      final bills = [
+        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
+        Bill(date: baseDate, amount: 200.0, paidBy: person1, category: 'Rent'),
+        Bill(date: baseDate, amount: 50.0, paidBy: person1, category: 'Utilities'),
+      ];
+      
+      final splits = [
+        PaymentSplit(
+          category: 'all',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+      ];
+      
+      final categories = getCategories();
+      
+      final result = CalculationService.calculateBalances(
+        bills: bills,
+        splits: splits,
+        categories: categories,
+        person1Name: person1,
+        person2Name: person2,
+      );
+      
+      // Total person1 paid across all categories
+      expect(result.person1Paid, 350.0); // 100 + 200 + 50
+      
+      // Category-specific paid amounts
+      final foodBalance = result.categoryBalances['Food']!;
+      expect(foodBalance.person1Paid, 100.0);
+      
+      final rentBalance = result.categoryBalances['Rent']!;
+      expect(rentBalance.person1Paid, 200.0);
+      
+      final utilitiesBalance = result.categoryBalances['Utilities']!;
+      expect(utilitiesBalance.person1Paid, 50.0);
+      
+      // Person2 paid nothing in any category
+      expect(foodBalance.person2Paid, 0.0);
+      expect(rentBalance.person2Paid, 0.0);
+      expect(utilitiesBalance.person2Paid, 0.0);
+    });
+
+    test('Category paid amounts - complex scenario with multiple bills per category', () {
+      final bills = [
+        // Food category
+        Bill(date: baseDate, amount: 50.0, paidBy: person1, category: 'Food'),
+        Bill(date: baseDate.add(const Duration(days: 1)), amount: 30.0, paidBy: person2, category: 'Food'),
+        Bill(date: baseDate.add(const Duration(days: 2)), amount: 20.0, paidBy: person1, category: 'Food'),
+        Bill(date: baseDate.add(const Duration(days: 3)), amount: 40.0, paidBy: person2, category: 'Food'),
+        // Rent category
+        Bill(date: baseDate, amount: 500.0, paidBy: person1, category: 'Rent'),
+        Bill(date: baseDate.add(const Duration(days: 10)), amount: 500.0, paidBy: person1, category: 'Rent'),
+        // Utilities category
+        Bill(date: baseDate, amount: 60.0, paidBy: person2, category: 'Utilities'),
+        Bill(date: baseDate.add(const Duration(days: 5)), amount: 40.0, paidBy: person2, category: 'Utilities'),
+      ];
+      
+      final splits = [
+        PaymentSplit(
+          category: 'all',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+      ];
+      
+      final categories = getCategories();
+      
+      final result = CalculationService.calculateBalances(
+        bills: bills,
+        splits: splits,
+        categories: categories,
+        person1Name: person1,
+        person2Name: person2,
+      );
+      
+      // Verify category paid amounts are correctly aggregated
+      final foodBalance = result.categoryBalances['Food']!;
+      expect(foodBalance.person1Paid, 70.0);  // 50 + 20
+      expect(foodBalance.person2Paid, 70.0);  // 30 + 40
+      
+      final rentBalance = result.categoryBalances['Rent']!;
+      expect(rentBalance.person1Paid, 1000.0); // 500 + 500
+      expect(rentBalance.person2Paid, 0.0);
+      
+      final utilitiesBalance = result.categoryBalances['Utilities']!;
+      expect(utilitiesBalance.person1Paid, 0.0);
+      expect(utilitiesBalance.person2Paid, 100.0); // 60 + 40
+      
+      // Verify totals match
+      expect(result.person1Paid, 1070.0); // 70 (Food) + 1000 (Rent)
+      expect(result.person2Paid, 170.0);  // 70 (Food) + 100 (Utilities)
+    });
+
+    test('Category paid amounts - zero amounts when no bills in category', () {
+      final bills = [
+        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
+      ];
+      
+      final splits = [
+        PaymentSplit(
+          category: 'all',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+      ];
+      
+      final categories = getCategories(['Food', 'Rent', 'Utilities']);
+      
+      final result = CalculationService.calculateBalances(
+        bills: bills,
+        splits: splits,
+        categories: categories,
+        person1Name: person1,
+        person2Name: person2,
+      );
+      
+      // Only Food category should have a balance
+      expect(result.categoryBalances.length, 1);
+      expect(result.categoryBalances.containsKey('Food'), true);
+      expect(result.categoryBalances.containsKey('Rent'), false);
+      expect(result.categoryBalances.containsKey('Utilities'), false);
+      
+      final foodBalance = result.categoryBalances['Food']!;
+      expect(foodBalance.person1Paid, 100.0);
+      expect(foodBalance.person2Paid, 0.0);
+    });
+
+    test('Category paid amounts - category-specific split does not affect paid amounts', () {
+      final bills = [
+        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
+        Bill(date: baseDate, amount: 100.0, paidBy: person2, category: 'Rent'),
+      ];
+      
+      final splits = [
+        PaymentSplit(
+          category: 'Food',
+          person1: person1,
+          person1Percentage: 70.0,
+          person2: person2,
+          person2Percentage: 30.0,
+        ),
+        PaymentSplit(
+          category: 'Rent',
+          person1: person1,
+          person1Percentage: 30.0,
+          person2: person2,
+          person2Percentage: 70.0,
+        ),
+      ];
+      
+      final categories = getCategories();
+      
+      final result = CalculationService.calculateBalances(
+        bills: bills,
+        splits: splits,
+        categories: categories,
+        person1Name: person1,
+        person2Name: person2,
+      );
+      
+      // Paid amounts should reflect who actually paid, regardless of split percentages
+      final foodBalance = result.categoryBalances['Food']!;
+      expect(foodBalance.person1Paid, 100.0); // Person1 paid the bill
+      expect(foodBalance.person2Paid, 0.0);
+      
+      final rentBalance = result.categoryBalances['Rent']!;
+      expect(rentBalance.person1Paid, 0.0);
+      expect(rentBalance.person2Paid, 100.0); // Person2 paid the bill
+      
+      // Expected amounts should reflect the split percentages
+      expect(foodBalance.person1Expected, 70.0); // 70% of 100
+      expect(foodBalance.person2Expected, 30.0); // 30% of 100
+      expect(rentBalance.person1Expected, 30.0); // 30% of 100
+      expect(rentBalance.person2Expected, 70.0); // 70% of 100
+    });
+  });
+
+  group('CategoriesProvider - isCategoryInUse', () {
+    const String person1 = 'Alice';
+    const String person2 = 'Bob';
+    final DateTime baseDate = DateTime(2024, 1, 15);
+
+    test('Category not in use when no bills or splits', () {
+      final provider = CategoriesProvider();
+      
+      final result = provider.isCategoryInUse('Food', [], []);
+      
+      expect(result, false);
+    });
+
+    test('Category in use when bill uses it', () {
+      final provider = CategoriesProvider();
+      final bills = [
+        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
+      ];
+      
+      final result = provider.isCategoryInUse('Food', bills, []);
+      
+      expect(result, true);
+    });
+
+    test('Category not in use when bill uses different category', () {
+      final provider = CategoriesProvider();
+      final bills = [
+        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
+      ];
+      
+      final result = provider.isCategoryInUse('Rent', bills, []);
+      
+      expect(result, false);
+    });
+
+    test('Category NOT in use when split uses it - splits dont prevent deletion', () {
+      final provider = CategoriesProvider();
+      final splits = [
+        PaymentSplit(
+          category: 'Food',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+      ];
+      
+      // Categories referenced in splits don't prevent deletion - they'll be removed automatically
+      final result = provider.isCategoryInUse('Food', [], splits);
+      
+      expect(result, false);
+    });
+
+    test('Category not in use when only referenced in splits - splits dont prevent deletion', () {
+      final provider = CategoriesProvider();
+      final splits = [
+        PaymentSplit(
+          category: 'Food',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+      ];
+      
+      // Categories referenced in splits don't prevent deletion - they'll be removed automatically
+      final result = provider.isCategoryInUse('Food', [], splits);
+      
+      expect(result, false);
+    });
+
+    test('Category not in use when split has "all" category', () {
+      final provider = CategoriesProvider();
+      final splits = [
+        PaymentSplit(
+          category: 'all',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+      ];
+      
+      final result = provider.isCategoryInUse('Food', [], splits);
+      
+      expect(result, false);
+    });
+
+    test('Category not in use when split uses different category', () {
+      final provider = CategoriesProvider();
+      final splits = [
+        PaymentSplit(
+          category: 'Rent',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+      ];
+      
+      final result = provider.isCategoryInUse('Food', [], splits);
+      
+      expect(result, false);
+    });
+
+    test('Category matching is case-insensitive', () {
+      final provider = CategoriesProvider();
+      final bills = [
+        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'FOOD'),
+      ];
+      
+      final result = provider.isCategoryInUse('food', bills, []);
+      
+      expect(result, true);
+    });
+
+    test('Category with multiple bills - only matching one counts', () {
+      final provider = CategoriesProvider();
+      final bills = [
+        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
+        Bill(date: baseDate, amount: 200.0, paidBy: person1, category: 'Rent'),
+      ];
+      
+      expect(provider.isCategoryInUse('Food', bills, []), true);
+      expect(provider.isCategoryInUse('Rent', bills, []), true);
+      expect(provider.isCategoryInUse('Utilities', bills, []), false);
+    });
+
+    test('Category with multiple splits - splits dont prevent deletion', () {
+      final provider = CategoriesProvider();
+      final splits = [
+        PaymentSplit(
+          category: 'Food',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+        PaymentSplit(
+          category: 'Rent',
+          person1: person1,
+          person1Percentage: 60.0,
+          person2: person2,
+          person2Percentage: 40.0,
+        ),
+        PaymentSplit(
+          category: 'all',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+      ];
+      
+      // Splits don't prevent deletion - all should return false
+      expect(provider.isCategoryInUse('Food', [], splits), false);
+      expect(provider.isCategoryInUse('Rent', [], splits), false);
+      expect(provider.isCategoryInUse('Utilities', [], splits), false);
+      expect(provider.isCategoryInUse('Entertainment', [], splits), false);
+    });
+
+    test('Category checked in bills only - splits dont prevent deletion', () {
+      final provider = CategoriesProvider();
+      final bills = [
+        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
+      ];
+      final splits = [
+        PaymentSplit(
+          category: 'Rent',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+      ];
+      
+      // Only bills prevent deletion - Food is in use (bill), Rent is not (only in split)
+      expect(provider.isCategoryInUse('Food', bills, splits), true);
+      expect(provider.isCategoryInUse('Rent', bills, splits), false);
+      expect(provider.isCategoryInUse('Utilities', bills, splits), false);
+    });
+
+    test('Multiple categories - only bills prevent deletion', () {
+      final provider = CategoriesProvider();
+      final bills = [
+        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
+        Bill(date: baseDate, amount: 200.0, paidBy: person1, category: 'Food'),
+      ];
+      final splits = [
+        PaymentSplit(
+          category: 'Rent',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+      ];
+      
+      // Food is in use (via bills) - prevents deletion
+      expect(provider.isCategoryInUse('Food', bills, splits), true);
+      // Rent is NOT in use (only referenced in split, which doesn't prevent deletion)
+      expect(provider.isCategoryInUse('Rent', bills, splits), false);
+      // Utilities is NOT in use
+      expect(provider.isCategoryInUse('Utilities', bills, splits), false);
+      // Entertainment is NOT in use
+      expect(provider.isCategoryInUse('Entertainment', bills, splits), false);
     });
   });
 }

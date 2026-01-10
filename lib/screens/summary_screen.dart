@@ -199,138 +199,119 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Person 1 Summary
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          result.person1Name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Divider(),
-                        _buildSummaryRow(
-                          l10n.paid,
-                          currencyFormat.format(result.person1Paid),
-                          Colors.blue,
-                        ),
-                        _buildSummaryRow(
-                          l10n.expected,
-                          currencyFormat.format(result.person1Expected),
-                          Colors.grey,
-                        ),
-                        const Divider(),
-                        _buildSummaryRow(
-                          l10n.difference,
-                          currencyFormat.format(result.person1Paid - result.person1Expected),
-                          result.person1Paid > result.person1Expected
-                              ? Colors.green
-                              : Colors.red,
-                          isBold: true,
-                        ),
-                      ],
-                    ),
+                // Expense Summary
+                Text(
+                  l10n.summary,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Person 2 Summary
                 Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          result.person2Name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                  child: Table(
+                    columnWidths: const {
+                      0: FlexColumnWidth(1),
+                      1: FlexColumnWidth(1),
+                      2: FlexColumnWidth(1),
+                      3: FlexColumnWidth(1),
+                      4: FlexColumnWidth(1),
+                      5: FlexColumnWidth(1),
+                    },
+                    children: [
+                      // Header row
+                      TableRow(
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: Theme.of(context).dividerColor,
+                              width: 1,
+                            ),
                           ),
                         ),
-                        const Divider(),
-                        _buildSummaryRow(
-                          l10n.paid,
-                          currencyFormat.format(result.person2Paid),
-                          Colors.blue,
-                        ),
-                        _buildSummaryRow(
-                          l10n.expected,
-                          currencyFormat.format(result.person2Expected),
-                          Colors.grey,
-                        ),
-                        const Divider(),
-                        _buildSummaryRow(
-                          l10n.difference,
-                          currencyFormat.format(result.person2Paid - result.person2Expected),
-                          result.person2Paid > result.person2Expected
-                              ? Colors.green
-                              : Colors.red,
-                          isBold: true,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Category Breakdown (if available)
-                if (result.categoryBalances.isNotEmpty) ...[
-                  Text(
-                    l10n.categoryBreakdown,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ...result.categoryBalances.values.map((catBalance) {
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ExpansionTile(
-                        title: Text(
-                          catBalance.category,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        children: [
+                          _buildTableHeaderCell(l10n.category),
+                          _buildTableHeaderCell('Total', isRightAligned: true),
+                          _buildTableHeaderCell('${result.person1Name} ${l10n.paid}', isRightAligned: true),
+                          _buildTableHeaderCell('${result.person1Name} ${l10n.expected}', isRightAligned: true),
+                          _buildTableHeaderCell('${result.person2Name} ${l10n.paid}', isRightAligned: true),
+                          _buildTableHeaderCell('${result.person2Name} ${l10n.expected}', isRightAligned: true),
+                        ],
+                      ),
+                      // Category rows
+                      ...(result.categoryBalances.values.toList()
+                        ..sort((a, b) => a.category.compareTo(b.category))).map((catBalance) {
+                        final total = catBalance.person1Paid + catBalance.person2Paid;
+                        return TableRow(
+                          children: [
+                            _buildTableCell(catBalance.category),
+                            _buildTableCell(currencyFormat.format(total), isRightAligned: true),
+                            _buildTableCell(
+                              currencyFormat.format(catBalance.person1Paid),
+                              isRightAligned: true,
+                              color: Colors.blue[700],
+                            ),
+                            _buildTableExpectedCell(
+                              catBalance.person1Paid,
+                              catBalance.person1Expected,
+                              currencyFormat,
+                            ),
+                            _buildTableCell(
+                              currencyFormat.format(catBalance.person2Paid),
+                              isRightAligned: true,
+                              color: Colors.blue[700],
+                            ),
+                            _buildTableExpectedCell(
+                              catBalance.person2Paid,
+                              catBalance.person2Expected,
+                              currencyFormat,
+                            ),
+                          ],
+                        );
+                      }),
+                      // Total row
+                      TableRow(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey[800]
+                              : Colors.grey[100],
                         ),
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              children: [
-                                _buildSummaryRow(
-                                  '${result.person1Name} ${l10n.paid}',
-                                  currencyFormat.format(catBalance.person1Paid),
-                                  Colors.blue,
-                                ),
-                                _buildSummaryRow(
-                                  '${result.person1Name} ${l10n.expected}',
-                                  currencyFormat.format(catBalance.person1Expected),
-                                  Colors.grey,
-                                ),
-                                const SizedBox(height: 8),
-                                _buildSummaryRow(
-                                  '${result.person2Name} ${l10n.paid}',
-                                  currencyFormat.format(catBalance.person2Paid),
-                                  Colors.blue,
-                                ),
-                                _buildSummaryRow(
-                                  '${result.person2Name} ${l10n.expected}',
-                                  currencyFormat.format(catBalance.person2Expected),
-                                  Colors.grey,
-                                ),
-                              ],
-                            ),
+                          _buildTableCell('Total', isBold: true),
+                          _buildTableCell(
+                            currencyFormat.format(result.person1Paid + result.person2Paid),
+                            isRightAligned: true,
+                            isBold: true,
+                          ),
+                          _buildTableCell(
+                            currencyFormat.format(result.person1Paid),
+                            isRightAligned: true,
+                            color: Colors.blue[700],
+                            isBold: true,
+                          ),
+                          _buildTableExpectedCell(
+                            result.person1Paid,
+                            result.person1Expected,
+                            currencyFormat,
+                            isTotalRow: true,
+                          ),
+                          _buildTableCell(
+                            currencyFormat.format(result.person2Paid),
+                            isRightAligned: true,
+                            color: Colors.blue[700],
+                            isBold: true,
+                          ),
+                          _buildTableExpectedCell(
+                            result.person2Paid,
+                            result.person2Expected,
+                            currencyFormat,
+                            isTotalRow: true,
                           ),
                         ],
                       ),
-                    );
-                  }),
-                ],
+                    ],
+                  ),
+                ),
 
                 // Statistics
                 const SizedBox(height: 24),
@@ -415,4 +396,91 @@ class _SummaryScreenState extends State<SummaryScreen> {
       ),
     );
   }
+
+  Widget _buildTableHeaderCell(String text, {bool isRightAligned = false}) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Text(
+        text,
+        textAlign: isRightAligned ? TextAlign.right : TextAlign.left,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTableCell(
+    String text, {
+    bool isRightAligned = false,
+    Color? color,
+    bool isBold = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Text(
+        text,
+        textAlign: isRightAligned ? TextAlign.right : TextAlign.left,
+        style: TextStyle(
+          fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+          fontSize: isBold ? 16 : 14,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTableExpectedCell(
+    double paid,
+    double expected,
+    NumberFormat currencyFormat, {
+    bool isTotalRow = false,
+  }) {
+    final difference = paid - expected;
+    final isBalanced = difference.abs() < 0.01;
+    final isOverpaid = difference > 0.01;
+
+    Color textColor;
+    IconData? icon;
+    Color iconColor;
+
+    if (isBalanced) {
+      textColor = Colors.grey[700]!;
+      icon = Icons.check;
+      iconColor = Colors.green[600]!;
+    } else if (isOverpaid) {
+      textColor = Colors.green[700]!;
+      icon = Icons.arrow_upward;
+      iconColor = Colors.green[600]!;
+    } else {
+      textColor = Colors.red[700]!;
+      icon = Icons.arrow_downward;
+      iconColor = Colors.red[600]!;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Text(
+            currencyFormat.format(expected),
+            style: TextStyle(
+              color: textColor,
+              fontWeight: isTotalRow ? FontWeight.bold : FontWeight.w500,
+              fontSize: isTotalRow ? 16 : 14,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Icon(
+            icon,
+            size: isTotalRow ? 18 : 16,
+            color: iconColor,
+          ),
+        ],
+      ),
+    );
+  }
+
 }
