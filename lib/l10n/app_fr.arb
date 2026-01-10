@@ -1,0 +1,242 @@
+{
+  "@@locale": "fr",
+  "appTitle": "SplitBalance",
+  "bills": "Factures",
+  "splitsAndCategories": "Répartitions et Catégories",
+  "summary": "Résumé",
+  "settings": "Paramètres",
+  "addBill": "Ajouter une facture",
+  "editBill": "Modifier la facture",
+  "deleteBill": "Supprimer la facture",
+  "areYouSureDeleteBill": "Êtes-vous sûr de vouloir supprimer cette facture ?",
+  "cancel": "Annuler",
+  "delete": "Supprimer",
+  "edit": "Modifier",
+  "save": "Enregistrer",
+  "add": "Ajouter",
+  "retry": "Réessayer",
+  "refresh": "Actualiser",
+  "addBillTooltip": "Ajouter une facture",
+  "refreshTooltip": "Actualiser",
+  "error": "Erreur : {error}",
+  "@error": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noBillsYet": "Aucune facture pour le moment",
+  "addYourFirstBill": "Ajouter votre première facture",
+  "bill": "Facture",
+  "date": "Date",
+  "amount": "Montant",
+  "paidBy": "Payé par",
+  "category": "Catégorie",
+  "selectWhoPaid": "Veuillez sélectionner qui a payé",
+  "selectCategory": "Veuillez sélectionner une catégorie",
+  "enterValidAmount": "Veuillez entrer un montant valide",
+  "details": "Détails",
+  "selectStorageFolder": "Sélectionner le dossier de stockage",
+  "folderSelected": "Dossier sélectionné ! Vérification des données du dossier...",
+  "signOut": "Se déconnecter ?",
+  "signOutConfirmation": "Voulez-vous vous déconnecter ? Vous pourrez vous reconnecter plus tard.",
+  "signOutButton": "Se déconnecter",
+  "refreshFolders": "Actualiser les dossiers",
+  "enterPersonNames": "Entrer les noms des personnes",
+  "enterPersonNamesPrompt": "Veuillez entrer les noms des deux personnes pour ce dossier :",
+  "folderContainsDifferentNames": "Le dossier contient des données avec des noms différents. Veuillez entrer les noms corrects :",
+  "person1Name": "Nom de la personne 1",
+  "person2Name": "Nom de la personne 2",
+  "enterFirstName": "Entrer le nom de la première personne",
+  "enterSecondName": "Entrer le nom de la deuxième personne",
+  "enterBothPersonNames": "Veuillez entrer les deux noms de personnes",
+  "changeFolder": "Changer de dossier",
+  "createCategories": "Créer des catégories",
+  "createCategoriesPrompt": "Vous devez créer au moins une catégorie avant de pouvoir ajouter des factures.\n\nVeuillez aller à l'onglet \"Répartitions et Catégories\" dans la navigation en bas pour créer des catégories.",
+  "changePersonNames": "Changer les noms des personnes",
+  "goToCategories": "Aller aux catégories",
+  "pleaseSignInFirst": "Veuillez d'abord vous connecter",
+  "errorLoadingFolders": "Erreur lors du chargement des dossiers : {error}",
+  "@errorLoadingFolders": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "createNewFolder": "Créer un nouveau dossier",
+  "folderCreatedSuccessfully": "Dossier \"{folderName}\" créé avec succès",
+  "@folderCreatedSuccessfully": {
+    "placeholders": {
+      "folderName": {
+        "type": "String"
+      }
+    }
+  },
+  "errorCreatingFolder": "Erreur lors de la création du dossier : {error}",
+  "@errorCreatingFolder": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "configSaved": "Configuration enregistrée avec succès",
+  "errorSavingConfig": "Erreur lors de l'enregistrement de la configuration : {error}",
+  "@errorSavingConfig": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "configuration": "Configuration",
+  "signInRequired": "Connexion requise",
+  "signInRequiredMessage": "Veuillez vous connecter avec votre compte Google pour accéder à toutes les fonctionnalités de SplitBalance.",
+  "signInWithGoogle": "Se connecter avec Google",
+  "folderSelectionRequired": "Sélection de dossier requise",
+  "folderSelectionRequiredMessage": "Veuillez sélectionner un dossier Google Drive pour stocker vos données.",
+  "personNamesRequired": "Noms des personnes requis",
+  "personNamesRequiredMessage": "Veuillez entrer les noms des deux personnes utilisant ce dossier.",
+  "navigateToFolder": "Naviguer vers le dossier",
+  "loading": "Chargement...",
+  "loadingPath": "Chargement du chemin...",
+  "create": "Créer",
+  "myDrive": "Mon Drive",
+  "unnamed": "Sans nom",
+  "folderSelectedAndSaved": "Dossier \"{folderName}\" sélectionné et enregistré. Vérification des données du dossier...",
+  "@folderSelectedAndSaved": {
+    "placeholders": {
+      "folderName": {
+        "type": "String"
+      }
+    }
+  },
+  "selectFolderFirst": "Sélectionnez d'abord un dossier",
+  "folderMustBeSelected": "Un dossier doit être sélectionné",
+  "theme": "Thème",
+  "light": "Clair",
+  "dark": "Sombre",
+  "pink": "Rose",
+  "language": "Langue",
+  "english": "Anglais",
+  "french": "Français",
+  "clearAllConfiguration": "Effacer toute la configuration ?",
+  "clearAllConfigMessage": "Cela va :\n\n• Vous déconnecter de Google\n• Effacer la sélection du dossier\n• Effacer les noms des personnes\n• Effacer tous les paramètres enregistrés\n\nCette action ne peut pas être annulée.",
+  "clearAllConfigurationButton": "Effacer toute la configuration",
+  "clearAll": "Tout effacer",
+  "allConfigCleared": "Toute la configuration a été effacée",
+  "calculateBalances": "Calculer les soldes",
+  "addPaymentSplit": "Ajouter une répartition de paiement",
+  "editPaymentSplit": "Modifier la répartition de paiement",
+  "startDate": "Date de début",
+  "endDate": "Date de fin",
+  "allCategories": "Toutes les catégories",
+  "personPercentage": "{personName} Pourcentage",
+  "@personPercentage": {
+    "placeholders": {
+      "personName": {
+        "type": "String"
+      }
+    }
+  },
+  "personPercentageDisplay": "{personName} Pourcentage : {percentage}%",
+  "@personPercentageDisplay": {
+    "placeholders": {
+      "personName": {
+        "type": "String"
+      },
+      "percentage": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentSplitPersonDisplay": "{personName} : {percentage}%",
+  "@paymentSplitPersonDisplay": {
+    "placeholders": {
+      "personName": {
+        "type": "String"
+      },
+      "percentage": {
+        "type": "String"
+      }
+    }
+  },
+  "deletePaymentSplit": "Supprimer la répartition de paiement",
+  "deletePaymentSplitMessage": "Êtes-vous sûr de vouloir supprimer cette répartition de paiement ?",
+  "noPaymentSplits": "Aucune répartition de paiement pour le moment",
+  "noCategories": "Aucune catégorie pour le moment",
+  "addCategory": "Ajouter une catégorie",
+  "editCategory": "Modifier la catégorie",
+  "deleteCategory": "Supprimer la catégorie",
+  "deleteCategoryMessage": "Êtes-vous sûr de vouloir supprimer \"{categoryName}\" ?",
+  "@deleteCategoryMessage": {
+    "placeholders": {
+      "categoryName": {
+        "type": "String"
+      }
+    }
+  },
+  "categoryInUse": "Impossible de supprimer une catégorie qui est utilisée",
+  "categoryInUseSubtitle": "Cette catégorie est utilisée par des factures ou des répartitions de paiement. Veuillez d'abord les supprimer ou les modifier.",
+  "enterCategoryName": "Veuillez entrer un nom de catégorie",
+  "dismiss": "Ignorer",
+  "paymentSplits": "Répartitions de paiement",
+  "categories": "Catégories",
+  "recalculate": "Recalculer",
+  "noBalanceCalculated": "Aucun solde calculé",
+  "allBalanced": "Tout équilibré !",
+  "netBalance": "Solde net",
+  "paid": "Payé",
+  "expected": "Attendu",
+  "difference": "Différence",
+  "categoryBreakdown": "Répartition par catégorie",
+  "statistics": "Statistiques",
+  "totalBills": "Total des factures",
+  "totalAmount": "Montant total",
+  "saveBill": "Enregistrer la facture",
+  "enterAmount": "Veuillez entrer un montant",
+  "detailsOptional": "Détails (optionnel)",
+  "noCategoriesAvailable": "Aucune catégorie disponible. Veuillez ajouter des catégories dans l'écran Répartitions et Catégories.",
+  "errorSavingBill": "Erreur lors de l'enregistrement de la facture : {error}",
+  "@errorSavingBill": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "to": "à",
+  "addCategoriesToOrganize": "Ajoutez des catégories pour organiser vos factures",
+  "inUseCannotDelete": "En cours d'utilisation (ne peut pas être supprimé)",
+  "googleDriveConnection": "Connexion Google Drive",
+  "googleDriveFolder": "Dossier Google Drive",
+  "selectGoogleDriveFolderPrompt": "Veuillez sélectionner un dossier Google Drive où vos données seront stockées :",
+  "selectGoogleDriveFolderMessage": "Veuillez sélectionner un dossier Google Drive où vos données seront stockées. Vous devez sélectionner un dossier avant d'accéder aux autres fonctionnalités.",
+  "personNames": "Noms des personnes",
+  "selectOrNavigateFolder": "Sélectionnez ou naviguez dans un dossier :",
+  "saveConfiguration": "Enregistrer la configuration",
+  "refresh": "Actualiser",
+  "goBack": "Retour",
+  "navigateIntoFolder": "Naviguer dans le dossier",
+  "selectThisFolder": "Sélectionner ce dossier",
+  "allBalancedNoOneOwes": "Tout équilibré ! Personne ne doit rien à personne.",
+  "personOwesPerson": "{person1} doit {amount} à {person2}",
+  "@personOwesPerson": {
+    "placeholders": {
+      "person1": {
+        "type": "String"
+      },
+      "person2": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "currentlyUsedFolder": "Dossier actuellement utilisé :",
+  "folderName": "Nom du dossier",
+  "enterFolderName": "Entrez le nom du dossier"
+}

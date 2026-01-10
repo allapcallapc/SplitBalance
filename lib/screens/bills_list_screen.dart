@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/bills_provider.dart';
 import '../providers/config_provider.dart';
 import '../models/bill.dart';
-import '../widgets/google_sign_in_status.dart';
 import 'add_edit_bill_screen.dart';
 
 class BillsListScreen extends StatefulWidget {
@@ -32,21 +32,40 @@ class _BillsListScreenState extends State<BillsListScreen> {
     }
   }
 
+  String _getCategoryInitials(String category) {
+    final trimmed = category.trim();
+    if (trimmed.isEmpty) {
+      return '??';
+    }
+    final words = trimmed.split(' ');
+    if (words.length >= 2) {
+      // If multiple words, use first letter of first two words
+      return '${words[0][0]}${words[1][0]}'.toUpperCase();
+    } else if (trimmed.length >= 2) {
+      // If single word with 2+ characters, use first two letters
+      return trimmed.substring(0, 2).toUpperCase();
+    } else {
+      // If only one character, repeat it
+      return '${trimmed[0]}${trimmed[0]}'.toUpperCase();
+    }
+  }
+
   Future<void> _deleteBill(BuildContext context, int index, Bill bill) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Bill'),
-        content: Text('Are you sure you want to delete this bill?\n\n${bill.details.isNotEmpty ? bill.details : "${DateFormat('yyyy-MM-dd').format(bill.date)} - \$${bill.amount.toStringAsFixed(2)}"}'),
+        title: Text(l10n.deleteBill),
+        content: Text('${l10n.areYouSureDeleteBill}\n\n${bill.details.isNotEmpty ? bill.details : "${DateFormat('yyyy-MM-dd').format(bill.date)} - \$${bill.amount.toStringAsFixed(2)}"}'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
@@ -66,11 +85,21 @@ class _BillsListScreenState extends State<BillsListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bills'),
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/logo.png',
+              height: 32,
+              width: 32,
+            ),
+            const SizedBox(width: 12),
+            Text(l10n.bills),
+          ],
+        ),
         actions: [
-          const GoogleSignInStatus(),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () async {
@@ -84,12 +113,12 @@ class _BillsListScreenState extends State<BillsListScreen> {
                 await _loadData();
               }
             },
-            tooltip: 'Add Bill',
+            tooltip: l10n.addBillTooltip,
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
-            tooltip: 'Refresh',
+            tooltip: l10n.refreshTooltip,
           ),
         ],
       ),
@@ -105,7 +134,7 @@ class _BillsListScreenState extends State<BillsListScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Error: ${billsProvider.error}',
+                    l10n.error(billsProvider.error!),
                     style: const TextStyle(color: Colors.red),
                     textAlign: TextAlign.center,
                   ),
@@ -115,7 +144,7 @@ class _BillsListScreenState extends State<BillsListScreen> {
                       billsProvider.clearError();
                       _loadData();
                     },
-                    child: const Text('Retry'),
+                    child: Text(l10n.retry),
                   ),
                 ],
               ),
@@ -133,9 +162,9 @@ class _BillsListScreenState extends State<BillsListScreen> {
                     color: Colors.grey,
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'No bills yet',
-                    style: TextStyle(
+                  Text(
+                    l10n.noBillsYet,
+                    style: const TextStyle(
                       fontSize: 18,
                       color: Colors.grey,
                     ),
@@ -154,7 +183,7 @@ class _BillsListScreenState extends State<BillsListScreen> {
                       }
                     },
                     icon: const Icon(Icons.add),
-                    label: const Text('Add Your First Bill'),
+                    label: Text(l10n.addYourFirstBill),
                   ),
                 ],
               ),
@@ -175,32 +204,31 @@ class _BillsListScreenState extends State<BillsListScreen> {
                   leading: CircleAvatar(
                     backgroundColor: Theme.of(context).primaryColor,
                     child: Text(
-                      currencyFormat.format(bill.amount)[1], // First digit
-                      style: const TextStyle(color: Colors.white),
+                      _getCategoryInitials(bill.category),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  title: Text(
-                    bill.details.isNotEmpty ? bill.details : 'Bill',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 4),
-                      Text('Date: ${dateFormat.format(bill.date)}'),
-                      Text('Amount: ${currencyFormat.format(bill.amount)}'),
-                      Text('Paid by: ${bill.paidBy}'),
-                      Text('Category: ${bill.category}'),
+                      Text('${l10n.date}: ${dateFormat.format(bill.date)}'),
+                      Text('${l10n.amount}: ${currencyFormat.format(bill.amount)}'),
+                      Text('${l10n.paidBy}: ${bill.paidBy}'),
+                      Text('${l10n.category}: ${bill.category}'),
                     ],
                   ),
                   trailing: PopupMenuButton(
                     itemBuilder: (context) => [
                       PopupMenuItem(
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Icon(Icons.edit, size: 20),
-                            SizedBox(width: 8),
-                            Text('Edit'),
+                            const Icon(Icons.edit, size: 20),
+                            const SizedBox(width: 8),
+                            Text(l10n.edit),
                           ],
                         ),
                         onTap: () {
@@ -224,11 +252,11 @@ class _BillsListScreenState extends State<BillsListScreen> {
                         },
                       ),
                       PopupMenuItem(
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Icon(Icons.delete, size: 20, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text('Delete', style: TextStyle(color: Colors.red)),
+                            const Icon(Icons.delete, size: 20, color: Colors.red),
+                            const SizedBox(width: 8),
+                            Text(l10n.delete, style: const TextStyle(color: Colors.red)),
                           ],
                         ),
                         onTap: () {

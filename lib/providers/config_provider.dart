@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:convert';
@@ -26,6 +27,9 @@ class ConfigProvider with ChangeNotifier {
   GoogleDriveService get driveService => _driveService;
   bool get isSignedIn => _driveService.isSignedIn;
   GoogleSignInAccount? get currentUser => _driveService.currentUser;
+  AppThemeMode get themeMode => _config.themeMode;
+  AppLanguage get language => _config.language;
+  Locale get locale => Locale(_config.language.localeCode);
   
   // Get detailed error information from the service
   String? get serviceLastError => _driveService.lastError;
@@ -364,8 +368,9 @@ class ConfigProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
 
-      // Reset config to default
-      _config = AppConfig(person1Name: '', person2Name: '');
+      // Reset config to default (keep language preference)
+      final currentLanguage = _config.language;
+      _config = AppConfig(person1Name: '', person2Name: '', language: currentLanguage);
       _error = null;
     } catch (e) {
       _error = 'Failed to clear configuration: $e';
@@ -471,6 +476,18 @@ class ConfigProvider with ChangeNotifier {
       print('Error saving config: $e');
       notifyListeners();
     }
+  }
+
+  Future<void> setThemeMode(AppThemeMode themeMode) async {
+    _config = _config.copyWith(themeMode: themeMode);
+    await _saveConfig();
+    notifyListeners();
+  }
+
+  Future<void> setLanguage(AppLanguage language) async {
+    _config = _config.copyWith(language: language);
+    await _saveConfig();
+    notifyListeners();
   }
 
   void clearError() {

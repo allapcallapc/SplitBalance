@@ -3,6 +3,7 @@ import '../models/bill.dart';
 import '../models/payment_split.dart';
 import '../models/category.dart' as models;
 import '../services/calculation_service.dart';
+import '../l10n/app_localizations.dart';
 
 class CalculationProvider with ChangeNotifier {
   BalanceResult? _balanceResult;
@@ -44,21 +45,22 @@ class CalculationProvider with ChangeNotifier {
   }
 
   // Get formatted balance message
-  String getBalanceMessage() {
+  String getBalanceMessage(AppLocalizations l10n) {
     if (_balanceResult == null) {
-      return 'No balance calculated';
+      return l10n.noBalanceCalculated;
     }
 
     final result = _balanceResult!;
+    final currencyFormat = '\$${result.netBalance.abs().toStringAsFixed(2)}';
     
     if (result.netBalance.abs() < 0.01) {
-      return 'All balanced! No one owes anyone.';
+      return l10n.allBalancedNoOneOwes;
     }
 
     if (result.netBalance > 0) {
-      return '${result.person1Name} owes ${result.person2Name} \$${result.netBalance.toStringAsFixed(2)}';
+      return l10n.personOwesPerson(result.person1Name, result.person2Name, currencyFormat);
     } else {
-      return '${result.person2Name} owes ${result.person1Name} \$${(-result.netBalance).toStringAsFixed(2)}';
+      return l10n.personOwesPerson(result.person2Name, result.person1Name, currencyFormat);
     }
   }
 

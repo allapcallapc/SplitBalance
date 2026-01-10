@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/calculation_provider.dart';
 import '../providers/bills_provider.dart';
 import '../providers/payment_splits_provider.dart';
 import '../providers/categories_provider.dart';
 import '../providers/config_provider.dart';
-import '../widgets/google_sign_in_status.dart';
 
 class SummaryScreen extends StatefulWidget {
   const SummaryScreen({super.key});
@@ -54,17 +54,27 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Summary'),
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/logo.png',
+              height: 32,
+              width: 32,
+            ),
+            const SizedBox(width: 12),
+            Text(l10n.summary),
+          ],
+        ),
         actions: [
-          const GoogleSignInStatus(),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _calculateBalances,
-            tooltip: 'Recalculate',
+            tooltip: l10n.recalculate,
           ),
         ],
       ),
@@ -86,7 +96,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Error: ${calculationProvider.error}',
+                    l10n.error(calculationProvider.error!),
                     style: TextStyle(color: Colors.red[700]),
                     textAlign: TextAlign.center,
                   ),
@@ -96,7 +106,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       calculationProvider.clearError();
                       _calculateBalances();
                     },
-                    child: const Text('Retry'),
+                    child: Text(l10n.retry),
                   ),
                 ],
               ),
@@ -115,9 +125,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     color: Colors.grey,
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'No balance calculated',
-                    style: TextStyle(
+                  Text(
+                    l10n.noBalanceCalculated,
+                    style: const TextStyle(
                       fontSize: 18,
                       color: Colors.grey,
                     ),
@@ -125,7 +135,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   const SizedBox(height: 8),
                   ElevatedButton(
                     onPressed: _calculateBalances,
-                    child: const Text('Calculate Balances'),
+                    child: Text(l10n.calculateBalances),
                   ),
                 ],
               ),
@@ -141,33 +151,45 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 // Net Balance Card
                 Card(
                   color: result.netBalance.abs() < 0.01
-                      ? Colors.green[50]
-                      : (result.netBalance > 0 ? Colors.blue[50] : Colors.orange[50]),
+                      ? (Theme.of(context).brightness == Brightness.dark
+                          ? Colors.green.withOpacity(0.3)
+                          : Colors.green[50])
+                      : (result.netBalance > 0
+                          ? (Theme.of(context).brightness == Brightness.dark
+                              ? Colors.blue.withOpacity(0.3)
+                              : Colors.blue[50])
+                          : (Theme.of(context).brightness == Brightness.dark
+                              ? Colors.orange.withOpacity(0.3)
+                              : Colors.orange[50])),
                   child: Padding(
                     padding: const EdgeInsets.all(24.0),
                     child: Column(
                       children: [
                         Text(
                           result.netBalance.abs() < 0.01
-                              ? 'All Balanced!'
-                              : 'Net Balance',
+                              ? l10n.allBalanced
+                              : l10n.netBalance,
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                             color: result.netBalance.abs() < 0.01
-                                ? Colors.green[900]
-                                : Colors.black87,
+                                ? (Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.green[300]
+                                    : Colors.green[900])
+                                : Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          calculationProvider.getBalanceMessage(),
+                          calculationProvider.getBalanceMessage(l10n),
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: result.netBalance.abs() < 0.01
-                                ? Colors.green[900]
-                                : Colors.black87,
+                                ? (Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.green[300]
+                                    : Colors.green[900])
+                                : Theme.of(context).colorScheme.onSurface,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -193,18 +215,18 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         ),
                         const Divider(),
                         _buildSummaryRow(
-                          'Paid',
+                          l10n.paid,
                           currencyFormat.format(result.person1Paid),
                           Colors.blue,
                         ),
                         _buildSummaryRow(
-                          'Expected',
+                          l10n.expected,
                           currencyFormat.format(result.person1Expected),
                           Colors.grey,
                         ),
                         const Divider(),
                         _buildSummaryRow(
-                          'Difference',
+                          l10n.difference,
                           currencyFormat.format(result.person1Paid - result.person1Expected),
                           result.person1Paid > result.person1Expected
                               ? Colors.green
@@ -233,18 +255,18 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         ),
                         const Divider(),
                         _buildSummaryRow(
-                          'Paid',
+                          l10n.paid,
                           currencyFormat.format(result.person2Paid),
                           Colors.blue,
                         ),
                         _buildSummaryRow(
-                          'Expected',
+                          l10n.expected,
                           currencyFormat.format(result.person2Expected),
                           Colors.grey,
                         ),
                         const Divider(),
                         _buildSummaryRow(
-                          'Difference',
+                          l10n.difference,
                           currencyFormat.format(result.person2Paid - result.person2Expected),
                           result.person2Paid > result.person2Expected
                               ? Colors.green
@@ -259,9 +281,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
                 // Category Breakdown (if available)
                 if (result.categoryBalances.isNotEmpty) ...[
-                  const Text(
-                    'Category Breakdown',
-                    style: TextStyle(
+                  Text(
+                    l10n.categoryBreakdown,
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
@@ -281,23 +303,23 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             child: Column(
                               children: [
                                 _buildSummaryRow(
-                                  '${result.person1Name} Paid',
+                                  '${result.person1Name} ${l10n.paid}',
                                   currencyFormat.format(catBalance.person1Paid),
                                   Colors.blue,
                                 ),
                                 _buildSummaryRow(
-                                  '${result.person1Name} Expected',
+                                  '${result.person1Name} ${l10n.expected}',
                                   currencyFormat.format(catBalance.person1Expected),
                                   Colors.grey,
                                 ),
                                 const SizedBox(height: 8),
                                 _buildSummaryRow(
-                                  '${result.person2Name} Paid',
+                                  '${result.person2Name} ${l10n.paid}',
                                   currencyFormat.format(catBalance.person2Paid),
                                   Colors.blue,
                                 ),
                                 _buildSummaryRow(
-                                  '${result.person2Name} Expected',
+                                  '${result.person2Name} ${l10n.expected}',
                                   currencyFormat.format(catBalance.person2Expected),
                                   Colors.grey,
                                 ),
@@ -318,21 +340,21 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Statistics',
-                          style: TextStyle(
+                        Text(
+                          l10n.statistics,
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         const Divider(),
                         _buildSummaryRow(
-                          'Total Bills',
+                          l10n.totalBills,
                           '${billsProvider.bills.length}',
                           Colors.grey,
                         ),
                         _buildSummaryRow(
-                          'Total Amount',
+                          l10n.totalAmount,
                           currencyFormat.format(
                             billsProvider.bills.fold(
                               0.0,
@@ -342,12 +364,12 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           Colors.blue,
                         ),
                         _buildSummaryRow(
-                          'Payment Splits',
+                          l10n.paymentSplits,
                           '${splitsProvider.splits.length}',
                           Colors.grey,
                         ),
                         _buildSummaryRow(
-                          'Categories',
+                          l10n.categories,
                           '${categoriesProvider.categories.length}',
                           Colors.grey,
                         ),

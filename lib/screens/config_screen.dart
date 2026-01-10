@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/config_provider.dart';
 import '../providers/bills_provider.dart';
 import '../providers/payment_splits_provider.dart';
 import '../providers/categories_provider.dart';
 import '../services/csv_service.dart';
-import '../widgets/google_sign_in_status.dart';
+import '../models/app_config.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 
 class ConfigScreen extends StatefulWidget {
@@ -297,11 +298,11 @@ class _ConfigScreenState extends State<ConfigScreen> {
       context: context,
       barrierDismissible: true, // Allow dismissing by tapping outside
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.folder, color: Colors.blue),
-            SizedBox(width: 12),
-            Expanded(child: Text('Select Storage Folder')),
+            const Icon(Icons.folder, color: Colors.blue),
+            const SizedBox(width: 12),
+            Expanded(child: Text(AppLocalizations.of(context)!.selectStorageFolder)),
           ],
         ),
         content: SizedBox(
@@ -309,9 +310,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Please select a Google Drive folder where your data will be stored:',
-                style: TextStyle(fontSize: 14),
+              Text(
+                AppLocalizations.of(context)!.selectGoogleDriveFolderPrompt,
+                style: const TextStyle(fontSize: 14),
               ),
               const SizedBox(height: 16),
               SizedBox(
@@ -383,15 +384,16 @@ class _ConfigScreenState extends State<ConfigScreen> {
               Navigator.pop(context, null); // Close folder dialog first
               // Allow sign out to go back to login step
               if (mounted) {
+                final l10n = AppLocalizations.of(context)!;
                 final confirmed = await showDialog<bool>(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('Sign Out?'),
-                    content: const Text('Do you want to sign out? You can sign back in later.'),
+                    title: Text(l10n.signOut),
+                    content: Text(l10n.signOutConfirmation),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancel'),
+                        child: Text(l10n.cancel),
                       ),
                       ElevatedButton(
                         onPressed: () => Navigator.pop(context, true),
@@ -399,7 +401,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                           backgroundColor: Colors.red,
                           foregroundColor: Colors.white,
                         ),
-                        child: const Text('Sign Out'),
+                        child: Text(l10n.signOutButton),
                       ),
                     ],
                   ),
@@ -442,7 +444,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
               }
             },
             icon: const Icon(Icons.refresh),
-            label: const Text('Refresh Folders'),
+            label: Text(AppLocalizations.of(context)!.refreshFolders),
           ),
         ],
       ),
@@ -660,11 +662,11 @@ class _ConfigScreenState extends State<ConfigScreen> {
       context: context,
       barrierDismissible: true, // Allow dismissing by tapping outside
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.person, color: Colors.blue),
-            SizedBox(width: 12),
-            Expanded(child: Text('Enter Person Names')),
+            const Icon(Icons.person, color: Colors.blue),
+            const SizedBox(width: 12),
+            Expanded(child: Text(AppLocalizations.of(context)!.enterPersonNames)),
           ],
         ),
         content: SizedBox(
@@ -805,23 +807,24 @@ class _ConfigScreenState extends State<ConfigScreen> {
     final result = await showDialog<String>(
       context: context,
       barrierDismissible: true, // Allow dismissing by tapping outside
-      builder: (dialogContext) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.category, color: Colors.orange),
-            SizedBox(width: 12),
-            Expanded(child: Text('Create Categories')),
-          ],
-        ),
+      builder: (dialogContext) {
+        final l10n = AppLocalizations.of(dialogContext)!;
+        return AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.category, color: Colors.orange),
+              const SizedBox(width: 12),
+              Expanded(child: Text(l10n.createCategories)),
+            ],
+          ),
         content: SizedBox(
           width: double.maxFinite,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'You need to create at least one category before you can add bills.\n\n'
-                'Please go to the "Splits & Categories" tab in the bottom navigation to create categories.',
-                style: TextStyle(fontSize: 14),
+              Text(
+                l10n.createCategoriesPrompt,
+                style: const TextStyle(fontSize: 14),
               ),
             ],
           ),
@@ -831,14 +834,14 @@ class _ConfigScreenState extends State<ConfigScreen> {
             onPressed: () {
               Navigator.pop(dialogContext, 'cancel'); // Cancel - allow going back
             },
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () async {
               // Allow changing person names - go back
               Navigator.pop(dialogContext, 'change_names');
             },
-            child: const Text('Change Person Names'),
+            child: Text(l10n.changePersonNames),
           ),
           ElevatedButton(
             onPressed: () {
@@ -848,10 +851,11 @@ class _ConfigScreenState extends State<ConfigScreen> {
               backgroundColor: Colors.orange,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Go to Categories'),
+            child: Text(l10n.goToCategories),
           ),
         ],
-      ),
+      );
+      },
     );
 
     // Handle dialog result after dialog is closed
@@ -971,7 +975,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
   Future<void> _loadFolders(ConfigProvider configProvider, [String? parentFolderId]) async {
     if (!configProvider.isSignedIn) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please sign in first')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.pleaseSignInFirst)),
       );
       return;
     }
@@ -1055,29 +1059,30 @@ class _ConfigScreenState extends State<ConfigScreen> {
   Future<void> _createFolder(ConfigProvider configProvider) async {
     if (!configProvider.isSignedIn) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please sign in first')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.pleaseSignInFirst)),
       );
       return;
     }
 
     final nameController = TextEditingController();
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Create New Folder'),
+        title: Text(l10n.createNewFolder),
         content: TextField(
           controller: nameController,
-          decoration: const InputDecoration(
-            labelText: 'Folder Name',
-            hintText: 'Enter folder name',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: l10n.folderName,
+            hintText: l10n.enterFolderName,
+            border: const OutlineInputBorder(),
           ),
           autofocus: true,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           ElevatedButton(
             onPressed: () {
@@ -1085,7 +1090,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                 Navigator.pop(context, true);
               }
             },
-            child: const Text('Create'),
+            child: Text(l10n.create),
           ),
         ],
       ),
@@ -1190,10 +1195,17 @@ class _ConfigScreenState extends State<ConfigScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Configuration'),
-        actions: const [
-          GoogleSignInStatus(),
-        ],
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/logo.png',
+              height: 32,
+              width: 32,
+            ),
+            const SizedBox(width: 12),
+            Text(AppLocalizations.of(context)!.configuration),
+          ],
+        ),
       ),
       body: Consumer2<ConfigProvider, CategoriesProvider>(
         builder: (context, configProvider, categoriesProvider, child) {
@@ -1256,45 +1268,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Welcome/Login Required Message
-                if (!configProvider.isSignedIn) ...[
-                  Card(
-                    color: Colors.blue[50],
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.info_outline, color: Colors.blue[700]),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'Sign in required',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue[900],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Please sign in with your Google account to access all features of SplitBalance.',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.blue[800],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
                 // Folder Selection Required Message
                 if (configProvider.isSignedIn && configProvider.driveService.folderId == null) ...[
                   Card(
@@ -1322,7 +1295,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'Please select a Google Drive folder where your data will be stored. You must select a folder before accessing other features.',
+                            AppLocalizations.of(context)!.selectGoogleDriveFolderMessage,
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.orange[800],
@@ -1351,7 +1324,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                             ),
                             const SizedBox(width: 12),
                             Text(
-                              'Google Drive Connection',
+                              AppLocalizations.of(context)!.googleDriveConnection,
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -1432,7 +1405,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                       strokeWidth: 2,
                                     ),
                                   )
-                                : const Text('Sign Out'),
+                                : Text(AppLocalizations.of(context)!.signOutButton),
                           ),
                         ] else ...[
                           ElevatedButton.icon(
@@ -1459,7 +1432,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                       strokeWidth: 2,
                                     ),
                                   )
-                                : const Text('Sign In with Google'),
+                                : Text(AppLocalizations.of(context)!.signInWithGoogle),
                           ),
                         ],
                         if (configProvider.error != null) ...[
@@ -1521,7 +1494,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                       IconButton(
                                         icon: Icon(Icons.close, size: 18, color: Colors.orange[700]),
                                         onPressed: () => configProvider.clearRestoreError(),
-                                        tooltip: 'Dismiss',
+                                        tooltip: AppLocalizations.of(context)!.dismiss,
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
                                       ),
@@ -1787,9 +1760,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text(
-                            'Google Drive Folder',
-                            style: TextStyle(
+                          Text(
+                            AppLocalizations.of(context)!.googleDriveFolder,
+                            style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
@@ -1808,9 +1781,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                       children: [
                                         Icon(Icons.folder, color: Colors.blue[700], size: 20),
                                         const SizedBox(width: 8),
-                                        const Text(
-                                          'Currently Used Folder:',
-                                          style: TextStyle(
+                                        Text(
+                                          AppLocalizations.of(context)!.currentlyUsedFolder,
+                                          style: const TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
                                           ),
@@ -1819,15 +1792,18 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                     ),
                                     const SizedBox(height: 8),
                                     if (_loadingSelectedFolderPath) ...[
-                                      const Row(
+                                      Row(
                                         children: [
-                                          SizedBox(
+                                          const SizedBox(
                                             height: 16,
                                             width: 16,
                                             child: CircularProgressIndicator(strokeWidth: 2),
                                           ),
-                                          SizedBox(width: 8),
-                                          Text('Loading path...', style: TextStyle(fontSize: 12)),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            AppLocalizations.of(context)!.loadingPath,
+                                            style: const TextStyle(fontSize: 12),
+                                          ),
                                         ],
                                       ),
                                     ] else if (_hasSelectedFolderPath) ...[
@@ -1948,7 +1924,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                               }
                                             },
                                       icon: const Icon(Icons.arrow_forward, size: 16),
-                                      label: const Text('Navigate to Folder'),
+                                      label: Text(AppLocalizations.of(context)!.navigateToFolder),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.blue[700],
                                         foregroundColor: Colors.white,
@@ -1983,7 +1959,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                           ),
                                         )
                                       : const Icon(Icons.refresh),
-                                  label: Text(_loadingFolders ? 'Loading...' : 'Refresh'),
+                                  label: Text(_loadingFolders ? AppLocalizations.of(context)!.loading : AppLocalizations.of(context)!.refresh),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -1994,7 +1970,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                         await _createFolder(configProvider);
                                       },
                                 icon: const Icon(Icons.create_new_folder),
-                                label: const Text('Create'),
+                                label: Text(AppLocalizations.of(context)!.create),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.green,
                                   foregroundColor: Colors.white,
@@ -2018,7 +1994,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                           : () async {
                                               await _navigateBack(configProvider);
                                             },
-                                      tooltip: 'Go back',
+                                      tooltip: AppLocalizations.of(context)!.goBack,
                                     ),
                                     Expanded(
                                       child: SingleChildScrollView(
@@ -2064,9 +2040,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
                           ],
                           if (_hasFolders) ...[
                             const SizedBox(height: 16),
-                            const Text(
-                              'Select or navigate into a folder:',
-                              style: TextStyle(fontWeight: FontWeight.w500),
+                            Text(
+                              AppLocalizations.of(context)!.selectOrNavigateFolder,
+                              style: const TextStyle(fontWeight: FontWeight.w500),
                             ),
                             const SizedBox(height: 8),
                             SizedBox(
@@ -2076,11 +2052,12 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                 itemBuilder: (context, index) {
                                   final folder = _folders[index];
                                   final isSelected = folder.id == _selectedFolderId;
+                                  final itemL10n = AppLocalizations.of(context)!;
                                   return Card(
                                     margin: const EdgeInsets.symmetric(vertical: 4),
                                     color: isSelected ? Colors.blue[50] : null,
                                     child: ListTile(
-                                      title: Text(folder.name ?? 'Unnamed'),
+                                      title: Text(folder.name ?? itemL10n.unnamed),
                                       leading: const Icon(Icons.folder, color: Colors.blue),
                                       trailing: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -2096,7 +2073,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                                     await _navigateIntoFolder(configProvider, folder);
                                                   }
                                                 : null,
-                                            tooltip: 'Navigate into folder',
+                                            tooltip: itemL10n.navigateIntoFolder,
                                           ),
                                           IconButton(
                                             icon: const Icon(Icons.check),
@@ -2128,9 +2105,10 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                                     }
                                                     
                                                     if (mounted) {
+                                                      final snackL10n = AppLocalizations.of(context)!;
                                                       ScaffoldMessenger.of(context).showSnackBar(
                                                         SnackBar(
-                                                          content: Text('Folder "${folder.name}" selected and saved. Checking folder data...'),
+                                                          content: Text(snackL10n.folderSelectedAndSaved(folder.name ?? itemL10n.unnamed)),
                                                           backgroundColor: Colors.green,
                                                           duration: const Duration(seconds: 2),
                                                         ),
@@ -2138,7 +2116,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                                     }
                                                   }
                                                 : null,
-                                            tooltip: 'Select this folder',
+                                            tooltip: itemL10n.selectThisFolder,
                                             color: Colors.green,
                                           ),
                                         ],
@@ -2164,9 +2142,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text(
-                            'Person Names',
-                            style: TextStyle(
+                          Text(
+                            AppLocalizations.of(context)!.personNames,
+                            style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
@@ -2242,40 +2220,128 @@ class _ConfigScreenState extends State<ConfigScreen> {
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Text(
-                      'Save Configuration',
-                      style: TextStyle(fontSize: 16),
+                    child: Text(
+                      AppLocalizations.of(context)!.saveConfiguration,
+                      style: const TextStyle(fontSize: 16),
                     ),
                   ),
                   const SizedBox(height: 16),
                 ],
+
+                // Theme Selection Section - Available for all users
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.palette,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              AppLocalizations.of(context)!.theme,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        SegmentedButton<AppThemeMode>(
+                          segments: [
+                            ButtonSegment<AppThemeMode>(
+                              value: AppThemeMode.light,
+                              label: Text(AppLocalizations.of(context)!.light),
+                              icon: const Icon(Icons.light_mode),
+                            ),
+                            ButtonSegment<AppThemeMode>(
+                              value: AppThemeMode.dark,
+                              label: Text(AppLocalizations.of(context)!.dark),
+                              icon: const Icon(Icons.dark_mode),
+                            ),
+                            ButtonSegment<AppThemeMode>(
+                              value: AppThemeMode.pink,
+                              label: Text(AppLocalizations.of(context)!.pink),
+                              icon: const Icon(Icons.favorite),
+                            ),
+                          ],
+                          selected: {configProvider.themeMode},
+                          onSelectionChanged: (Set<AppThemeMode> selected) {
+                            if (selected.isNotEmpty) {
+                              configProvider.setThemeMode(selected.first);
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                        // Language Selection
+                        Row(
+                          children: [
+                            Icon(Icons.language, color: Theme.of(context).colorScheme.primary),
+                            const SizedBox(width: 12),
+                            Text(
+                              AppLocalizations.of(context)!.language,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        SegmentedButton<AppLanguage>(
+                          segments: [
+                            ButtonSegment<AppLanguage>(
+                              value: AppLanguage.english,
+                              label: Text(AppLocalizations.of(context)!.english),
+                              icon: const Icon(Icons.flag),
+                            ),
+                            ButtonSegment<AppLanguage>(
+                              value: AppLanguage.french,
+                              label: Text(AppLocalizations.of(context)!.french),
+                              icon: const Icon(Icons.flag),
+                            ),
+                          ],
+                          selected: {configProvider.language},
+                          onSelectionChanged: (Set<AppLanguage> selected) {
+                            if (selected.isNotEmpty) {
+                              configProvider.setLanguage(selected.first);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 // Clear Configuration Button - Only show if signed in
                 if (configProvider.isSignedIn) ...[
                   OutlinedButton.icon(
                   onPressed: configProvider.isLoading
                       ? null
                       : () async {
+                          final l10n = AppLocalizations.of(context)!;
                           final confirmed = await showDialog<bool>(
                             context: context,
                             builder: (context) => AlertDialog(
-                              title: const Text('Clear All Configuration?'),
-                              content: const Text(
-                                'This will:\n\n'
-                                '• Sign out from Google\n'
-                                '• Clear folder selection\n'
-                                '• Clear person names\n'
-                                '• Clear all saved settings\n\n'
-                                'This action cannot be undone.',
-                              ),
+                              title: Text(l10n.clearAllConfiguration),
+                              content: Text(l10n.clearAllConfigMessage),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.pop(context, false),
-                                  child: const Text('Cancel'),
+                                  child: Text(l10n.cancel),
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.pop(context, true),
                                   style: TextButton.styleFrom(foregroundColor: Colors.red),
-                                  child: const Text('Clear All'),
+                                  child: Text(l10n.clearAll),
                                 ),
                               ],
                             ),
@@ -2284,6 +2350,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                           if (confirmed == true && mounted) {
                             await configProvider.clearAllConfig();
                             if (mounted) {
+                              final snackL10n = AppLocalizations.of(context)!;
                               // Reset form fields
                               _person1Controller.clear();
                               _person2Controller.clear();
@@ -2294,8 +2361,8 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                 _folders.clear();
                               });
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('All configuration cleared'),
+                                SnackBar(
+                                  content: Text(snackL10n.allConfigCleared),
                                   backgroundColor: Colors.green,
                                 ),
                               );
@@ -2303,9 +2370,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
                           }
                         },
                   icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  label: const Text(
-                    'Clear All Configuration',
-                    style: TextStyle(color: Colors.red),
+                  label: Text(
+                    AppLocalizations.of(context)!.clearAllConfigurationButton,
+                    style: const TextStyle(color: Colors.red),
                   ),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),

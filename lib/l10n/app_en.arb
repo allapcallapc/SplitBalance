@@ -1,0 +1,647 @@
+{
+  "@@locale": "en",
+  "appTitle": "SplitBalance",
+  "@appTitle": {
+    "description": "The title of the application"
+  },
+  "bills": "Bills",
+  "@bills": {
+    "description": "Label for Bills navigation and screen"
+  },
+  "splitsAndCategories": "Splits & Categories",
+  "@splitsAndCategories": {
+    "description": "Label for Payment Splits & Categories navigation"
+  },
+  "summary": "Summary",
+  "@summary": {
+    "description": "Label for Summary navigation and screen"
+  },
+  "settings": "Settings",
+  "@settings": {
+    "description": "Label for Settings navigation"
+  },
+  "addBill": "Add Bill",
+  "@addBill": {
+    "description": "Title for adding a new bill"
+  },
+  "editBill": "Edit Bill",
+  "@editBill": {
+    "description": "Title for editing a bill"
+  },
+  "deleteBill": "Delete Bill",
+  "@deleteBill": {
+    "description": "Title for delete bill dialog"
+  },
+  "areYouSureDeleteBill": "Are you sure you want to delete this bill?",
+  "@areYouSureDeleteBill": {
+    "description": "Confirmation message for deleting a bill"
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Cancel button label"
+  },
+  "delete": "Delete",
+  "@delete": {
+    "description": "Delete button label"
+  },
+  "edit": "Edit",
+  "@edit": {
+    "description": "Edit button label"
+  },
+  "save": "Save",
+  "@save": {
+    "description": "Save button label"
+  },
+  "add": "Add",
+  "@add": {
+    "description": "Add button label"
+  },
+  "retry": "Retry",
+  "@retry": {
+    "description": "Retry button label"
+  },
+  "refresh": "Refresh",
+  "@refresh": {
+    "description": "Refresh button label"
+  },
+  "addBillTooltip": "Add Bill",
+  "@addBillTooltip": {
+    "description": "Tooltip for add bill button"
+  },
+  "refreshTooltip": "Refresh",
+  "@refreshTooltip": {
+    "description": "Tooltip for refresh button"
+  },
+  "error": "Error: {error}",
+  "@error": {
+    "description": "Error message prefix",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noBillsYet": "No bills yet",
+  "@noBillsYet": {
+    "description": "Message when there are no bills"
+  },
+  "addYourFirstBill": "Add Your First Bill",
+  "@addYourFirstBill": {
+    "description": "Button to add first bill"
+  },
+  "bill": "Bill",
+  "@bill": {
+    "description": "Generic bill label"
+  },
+  "date": "Date",
+  "@date": {
+    "description": "Date label"
+  },
+  "amount": "Amount",
+  "@amount": {
+    "description": "Amount label"
+  },
+  "paidBy": "Paid by",
+  "@paidBy": {
+    "description": "Label for who paid the bill"
+  },
+  "category": "Category",
+  "@category": {
+    "description": "Category label"
+  },
+  "selectWhoPaid": "Please select who paid",
+  "@selectWhoPaid": {
+    "description": "Validation message for paid by selection"
+  },
+  "selectCategory": "Please select a category",
+  "@selectCategory": {
+    "description": "Validation message for category selection"
+  },
+  "enterValidAmount": "Please enter a valid amount",
+  "@enterValidAmount": {
+    "description": "Validation message for amount"
+  },
+  "details": "Details",
+  "@details": {
+    "description": "Details label for bill"
+  },
+  "selectStorageFolder": "Select Storage Folder",
+  "@selectStorageFolder": {
+    "description": "Title for folder selection dialog"
+  },
+  "folderSelected": "Folder selected! Checking folder data...",
+  "@folderSelected": {
+    "description": "Message when folder is selected"
+  },
+  "signOut": "Sign Out?",
+  "@signOut": {
+    "description": "Title for sign out confirmation"
+  },
+  "signOutConfirmation": "Do you want to sign out? You can sign back in later.",
+  "@signOutConfirmation": {
+    "description": "Sign out confirmation message"
+  },
+  "signOutButton": "Sign Out",
+  "@signOutButton": {
+    "description": "Sign out button label"
+  },
+  "refreshFolders": "Refresh Folders",
+  "@refreshFolders": {
+    "description": "Label for refresh folders button"
+  },
+  "enterPersonNames": "Enter Person Names",
+  "@enterPersonNames": {
+    "description": "Title for person names dialog"
+  },
+  "enterPersonNamesPrompt": "Please enter the names of the two people for this folder:",
+  "@enterPersonNamesPrompt": {
+    "description": "Prompt message for entering person names"
+  },
+  "folderContainsDifferentNames": "The folder contains data with different person names. Please enter the correct names:",
+  "@folderContainsDifferentNames": {
+    "description": "Message when folder has different person names"
+  },
+  "person1Name": "Person 1 Name",
+  "@person1Name": {
+    "description": "Label for person 1 name field"
+  },
+  "person2Name": "Person 2 Name",
+  "@person2Name": {
+    "description": "Label for person 2 name field"
+  },
+  "enterFirstName": "Enter first person's name",
+  "@enterFirstName": {
+    "description": "Hint for person 1 name field"
+  },
+  "enterSecondName": "Enter second person's name",
+  "@enterSecondName": {
+    "description": "Hint for person 2 name field"
+  },
+  "enterBothPersonNames": "Please enter both person names",
+  "@enterBothPersonNames": {
+    "description": "Validation message for person names"
+  },
+  "changeFolder": "Change Folder",
+  "@changeFolder": {
+    "description": "Button to change folder"
+  },
+  "createCategories": "Create Categories",
+  "@createCategories": {
+    "description": "Title for create categories dialog"
+  },
+  "createCategoriesPrompt": "You need to create at least one category before you can add bills.\n\nPlease go to the \"Splits & Categories\" tab in the bottom navigation to create categories.",
+  "@createCategoriesPrompt": {
+    "description": "Prompt message for creating categories"
+  },
+  "changePersonNames": "Change Person Names",
+  "@changePersonNames": {
+    "description": "Button to change person names"
+  },
+  "goToCategories": "Go to Categories",
+  "@goToCategories": {
+    "description": "Button to navigate to categories"
+  },
+  "pleaseSignInFirst": "Please sign in first",
+  "@pleaseSignInFirst": {
+    "description": "Message when action requires sign in"
+  },
+  "errorLoadingFolders": "Error loading folders: {error}",
+  "@errorLoadingFolders": {
+    "description": "Error message when loading folders",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "createNewFolder": "Create New Folder",
+  "@createNewFolder": {
+    "description": "Title for create folder dialog"
+  },
+  "folderCreatedSuccessfully": "Folder \"{folderName}\" created successfully",
+  "@folderCreatedSuccessfully": {
+    "description": "Success message when folder is created",
+    "placeholders": {
+      "folderName": {
+        "type": "String"
+      }
+    }
+  },
+  "errorCreatingFolder": "Error creating folder: {error}",
+  "@errorCreatingFolder": {
+    "description": "Error message when creating folder",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "configSaved": "Configuration saved successfully",
+  "@configSaved": {
+    "description": "Success message when config is saved"
+  },
+  "errorSavingConfig": "Error saving config: {error}",
+  "@errorSavingConfig": {
+    "description": "Error message when saving config",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "configuration": "Configuration",
+  "@configuration": {
+    "description": "Title for configuration screen"
+  },
+  "signInRequired": "Sign in required",
+  "@signInRequired": {
+    "description": "Title for sign in required message"
+  },
+  "signInRequiredMessage": "Please sign in with your Google account to access all features of SplitBalance.",
+  "@signInRequiredMessage": {
+    "description": "Message about sign in requirement"
+  },
+  "signInWithGoogle": "Sign In with Google",
+  "@signInWithGoogle": {
+    "description": "Button label for Google sign in"
+  },
+  "folderSelectionRequired": "Folder Selection Required",
+  "@folderSelectionRequired": {
+    "description": "Title for folder selection required message"
+  },
+  "folderSelectionRequiredMessage": "Please select a Google Drive folder to store your data.",
+  "@folderSelectionRequiredMessage": {
+    "description": "Message about folder selection requirement"
+  },
+  "personNamesRequired": "Person Names Required",
+  "@personNamesRequired": {
+    "description": "Title for person names required message"
+  },
+  "personNamesRequiredMessage": "Please enter the names of both people using this folder.",
+  "@personNamesRequiredMessage": {
+    "description": "Message about person names requirement"
+  },
+  "navigateToFolder": "Navigate to Folder",
+  "@navigateToFolder": {
+    "description": "Button label to navigate to folder"
+  },
+  "loading": "Loading...",
+  "@loading": {
+    "description": "Loading indicator text"
+  },
+  "loadingPath": "Loading path...",
+  "@loadingPath": {
+    "description": "Loading path message"
+  },
+  "create": "Create",
+  "@create": {
+    "description": "Create button label"
+  },
+  "myDrive": "My Drive",
+  "@myDrive": {
+    "description": "Label for My Drive root folder"
+  },
+  "unnamed": "Unnamed",
+  "@unnamed": {
+    "description": "Label for unnamed folder"
+  },
+  "folderSelectedAndSaved": "Folder \"{folderName}\" selected and saved. Checking folder data...",
+  "@folderSelectedAndSaved": {
+    "description": "Message when folder is selected and saved",
+    "placeholders": {
+      "folderName": {
+        "type": "String"
+      }
+    }
+  },
+  "selectFolderFirst": "Select a folder first",
+  "@selectFolderFirst": {
+    "description": "Hint when folder is not selected"
+  },
+  "folderMustBeSelected": "Folder must be selected",
+  "@folderMustBeSelected": {
+    "description": "Helper text when folder is required"
+  },
+  "theme": "Theme",
+  "@theme": {
+    "description": "Theme label"
+  },
+  "light": "Light",
+  "@light": {
+    "description": "Light theme name"
+  },
+  "dark": "Dark",
+  "@dark": {
+    "description": "Dark theme name"
+  },
+  "pink": "Pink",
+  "@pink": {
+    "description": "Pink theme name"
+  },
+  "language": "Language",
+  "@language": {
+    "description": "Language label"
+  },
+  "english": "English",
+  "@english": {
+    "description": "English language name"
+  },
+  "french": "French",
+  "@french": {
+    "description": "French language name"
+  },
+  "clearAllConfiguration": "Clear All Configuration?",
+  "@clearAllConfiguration": {
+    "description": "Title for clear all config dialog"
+  },
+  "clearAllConfigMessage": "This will:\n\n• Sign out from Google\n• Clear folder selection\n• Clear person names\n• Clear all saved settings\n\nThis action cannot be undone.",
+  "@clearAllConfigMessage": {
+    "description": "Message for clearing all configuration"
+  },
+  "clearAllConfigurationButton": "Clear All Configuration",
+  "@clearAllConfigurationButton": {
+    "description": "Button label for clear all configuration"
+  },
+  "clearAll": "Clear All",
+  "@clearAll": {
+    "description": "Button label to clear all config"
+  },
+  "allConfigCleared": "All configuration cleared",
+  "@allConfigCleared": {
+    "description": "Success message when config is cleared"
+  },
+  "calculateBalances": "Calculate Balances",
+  "@calculateBalances": {
+    "description": "Button label to calculate balances"
+  },
+  "addPaymentSplit": "Add Payment Split",
+  "@addPaymentSplit": {
+    "description": "Button label to add payment split"
+  },
+  "editPaymentSplit": "Edit Payment Split",
+  "@editPaymentSplit": {
+    "description": "Title for editing payment split"
+  },
+  "startDate": "Start Date",
+  "@startDate": {
+    "description": "Label for start date"
+  },
+  "endDate": "End Date",
+  "@endDate": {
+    "description": "Label for end date"
+  },
+  "allCategories": "All Categories",
+  "@allCategories": {
+    "description": "Label for all categories option"
+  },
+  "personPercentage": "{personName} Percentage",
+  "@personPercentage": {
+    "description": "Label for person percentage",
+    "placeholders": {
+      "personName": {
+        "type": "String"
+      }
+    }
+  },
+  "personPercentageDisplay": "{personName} Percentage: {percentage}%",
+  "@personPercentageDisplay": {
+    "description": "Display for person percentage",
+    "placeholders": {
+      "personName": {
+        "type": "String"
+      },
+      "percentage": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentSplitPersonDisplay": "{personName}: {percentage}%",
+  "@paymentSplitPersonDisplay": {
+    "description": "Display format for payment split person",
+    "placeholders": {
+      "personName": {
+        "type": "String"
+      },
+      "percentage": {
+        "type": "String"
+      }
+    }
+  },
+  "deletePaymentSplit": "Delete Payment Split",
+  "@deletePaymentSplit": {
+    "description": "Title for delete payment split dialog"
+  },
+  "deletePaymentSplitMessage": "Are you sure you want to delete this payment split?",
+  "@deletePaymentSplitMessage": {
+    "description": "Confirmation message for deleting payment split"
+  },
+  "noPaymentSplits": "No payment splits yet",
+  "@noPaymentSplits": {
+    "description": "Message when there are no payment splits"
+  },
+  "noCategories": "No categories yet",
+  "@noCategories": {
+    "description": "Message when there are no categories"
+  },
+  "addCategory": "Add Category",
+  "@addCategory": {
+    "description": "Button label to add category"
+  },
+  "editCategory": "Edit Category",
+  "@editCategory": {
+    "description": "Title for editing category"
+  },
+  "deleteCategory": "Delete Category",
+  "@deleteCategory": {
+    "description": "Title for delete category dialog"
+  },
+  "deleteCategoryMessage": "Are you sure you want to delete \"{categoryName}\"?",
+  "@deleteCategoryMessage": {
+    "description": "Confirmation message for deleting category",
+    "placeholders": {
+      "categoryName": {
+        "type": "String"
+      }
+    }
+  },
+  "categoryInUse": "Cannot delete category that is in use",
+  "@categoryInUse": {
+    "description": "Error message when trying to delete category in use"
+  },
+  "categoryInUseSubtitle": "This category is being used by bills or payment splits. Please remove or change them first.",
+  "@categoryInUseSubtitle": {
+    "description": "Subtitle explaining why category cannot be deleted"
+  },
+  "enterCategoryName": "Please enter a category name",
+  "@enterCategoryName": {
+    "description": "Validation message for category name"
+  },
+  "dismiss": "Dismiss",
+  "@dismiss": {
+    "description": "Dismiss button label"
+  },
+  "paymentSplits": "Payment Splits",
+  "@paymentSplits": {
+    "description": "Tab label for Payment Splits"
+  },
+  "categories": "Categories",
+  "@categories": {
+    "description": "Tab label for Categories"
+  },
+  "recalculate": "Recalculate",
+  "@recalculate": {
+    "description": "Tooltip for recalculate button"
+  },
+  "noBalanceCalculated": "No balance calculated",
+  "@noBalanceCalculated": {
+    "description": "Message when no balance is calculated"
+  },
+  "allBalanced": "All Balanced!",
+  "@allBalanced": {
+    "description": "Message when balance is zero"
+  },
+  "netBalance": "Net Balance",
+  "@netBalance": {
+    "description": "Label for net balance"
+  },
+  "paid": "Paid",
+  "@paid": {
+    "description": "Label for amount paid"
+  },
+  "expected": "Expected",
+  "@expected": {
+    "description": "Label for expected amount"
+  },
+  "difference": "Difference",
+  "@difference": {
+    "description": "Label for difference amount"
+  },
+  "categoryBreakdown": "Category Breakdown",
+  "@categoryBreakdown": {
+    "description": "Label for category breakdown section"
+  },
+  "statistics": "Statistics",
+  "@statistics": {
+    "description": "Label for statistics section"
+  },
+  "totalBills": "Total Bills",
+  "@totalBills": {
+    "description": "Label for total bills count"
+  },
+  "totalAmount": "Total Amount",
+  "@totalAmount": {
+    "description": "Label for total amount"
+  },
+  "saveBill": "Save Bill",
+  "@saveBill": {
+    "description": "Button label to save bill"
+  },
+  "enterAmount": "Please enter an amount",
+  "@enterAmount": {
+    "description": "Validation message for amount field"
+  },
+  "detailsOptional": "Details (optional)",
+  "@detailsOptional": {
+    "description": "Label for optional details field"
+  },
+  "noCategoriesAvailable": "No categories available. Please add categories in the Payment Splits & Categories screen.",
+  "@noCategoriesAvailable": {
+    "description": "Message when no categories are available"
+  },
+  "errorSavingBill": "Error saving bill: {error}",
+  "@errorSavingBill": {
+    "description": "Error message when saving bill fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "to": "to",
+  "@to": {
+    "description": "Preposition for date ranges"
+  },
+  "addCategoriesToOrganize": "Add categories to organize your bills",
+  "@addCategoriesToOrganize": {
+    "description": "Hint message for adding categories"
+  },
+  "inUseCannotDelete": "In use (cannot delete)",
+  "@inUseCannotDelete": {
+    "description": "Label for category in use"
+  },
+  "googleDriveConnection": "Google Drive Connection",
+  "@googleDriveConnection": {
+    "description": "Label for Google Drive connection section"
+  },
+  "googleDriveFolder": "Google Drive Folder",
+  "@googleDriveFolder": {
+    "description": "Label for Google Drive folder section"
+  },
+  "selectGoogleDriveFolderPrompt": "Please select a Google Drive folder where your data will be stored:",
+  "@selectGoogleDriveFolderPrompt": {
+    "description": "Prompt message for selecting Google Drive folder in dialog"
+  },
+  "selectGoogleDriveFolderMessage": "Please select a Google Drive folder where your data will be stored. You must select a folder before accessing other features.",
+  "@selectGoogleDriveFolderMessage": {
+    "description": "Message explaining Google Drive folder requirement"
+  },
+  "personNames": "Person Names",
+  "@personNames": {
+    "description": "Section header for Person Names"
+  },
+  "selectOrNavigateFolder": "Select or navigate into a folder:",
+  "@selectOrNavigateFolder": {
+    "description": "Label for folder selection/navigation prompt"
+  },
+  "saveConfiguration": "Save Configuration",
+  "@saveConfiguration": {
+    "description": "Button label to save configuration"
+  },
+  "refresh": "Refresh",
+  "@refresh": {
+    "description": "Button label for refresh action"
+  },
+  "goBack": "Go back",
+  "@goBack": {
+    "description": "Tooltip for go back button in folder navigation"
+  },
+  "navigateIntoFolder": "Navigate into folder",
+  "@navigateIntoFolder": {
+    "description": "Tooltip for navigate into folder button"
+  },
+  "selectThisFolder": "Select this folder",
+  "@selectThisFolder": {
+    "description": "Tooltip for select folder button"
+  },
+  "allBalancedNoOneOwes": "All balanced! No one owes anyone.",
+  "@allBalancedNoOneOwes": {
+    "description": "Message when balance is zero and no one owes anyone"
+  },
+  "personOwesPerson": "{person1} owes {person2} {amount}",
+  "@personOwesPerson": {
+    "description": "Message when one person owes another",
+    "placeholders": {
+      "person1": {
+        "type": "String"
+      },
+      "person2": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "currentlyUsedFolder": "Currently Used Folder:",
+  "@currentlyUsedFolder": {
+    "description": "Label for the currently selected folder section"
+  },
+  "folderName": "Folder Name",
+  "@folderName": {
+    "description": "Label for folder name input field"
+  },
+  "enterFolderName": "Enter folder name",
+  "@enterFolderName": {
+    "description": "Hint text for folder name input field"
+  }
+}

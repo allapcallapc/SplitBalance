@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../l10n/app_localizations.dart';
 import '../models/bill.dart';
 import '../providers/bills_provider.dart';
 import '../providers/config_provider.dart';
@@ -72,16 +73,17 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
       return;
     }
 
+    final l10n = AppLocalizations.of(context)!;
     if (_selectedPaidBy == null || _selectedPaidBy!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select who paid')),
+        SnackBar(content: Text(l10n.selectWhoPaid)),
       );
       return;
     }
 
     if (_selectedCategory == null || _selectedCategory!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a category')),
+        SnackBar(content: Text(l10n.selectCategory)),
       );
       return;
     }
@@ -89,7 +91,7 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
     final amount = double.tryParse(_amountController.text.trim());
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid amount')),
+        SnackBar(content: Text(l10n.enterValidAmount)),
       );
       return;
     }
@@ -123,8 +125,9 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving bill: $e')),
+          SnackBar(content: Text(l10n.errorSavingBill(e.toString()))),
         );
       }
     }
@@ -132,12 +135,13 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final configProvider = context.watch<ConfigProvider>();
     final categoriesProvider = context.watch<CategoriesProvider>();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.bill == null ? 'Add Bill' : 'Edit Bill'),
+        title: Text(widget.bill == null ? l10n.addBill : l10n.editBill),
       ),
       body: Form(
         key: _formKey,
@@ -148,7 +152,7 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
             children: [
               // Date picker
               ListTile(
-                title: const Text('Date'),
+                title: Text(l10n.date),
                 subtitle: Text(DateFormat('yyyy-MM-dd').format(_selectedDate)),
                 trailing: const Icon(Icons.calendar_today),
                 onTap: () => _selectDate(context),
@@ -158,19 +162,19 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
               // Amount
               TextFormField(
                 controller: _amountController,
-                decoration: const InputDecoration(
-                  labelText: 'Amount',
+                decoration: InputDecoration(
+                  labelText: l10n.amount,
                   prefixText: '\$ ',
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
                 ),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Please enter an amount';
+                    return l10n.enterAmount;
                   }
                   final amount = double.tryParse(value.trim());
                   if (amount == null || amount <= 0) {
-                    return 'Please enter a valid amount';
+                    return l10n.enterValidAmount;
                   }
                   return null;
                 },
@@ -180,9 +184,9 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
               // Paid by dropdown
               DropdownButtonFormField<String>(
                 initialValue: _selectedPaidBy,
-                decoration: const InputDecoration(
-                  labelText: 'Paid By',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.paidBy,
+                  border: const OutlineInputBorder(),
                 ),
                 items: [
                   if (configProvider.config.person1Name.isNotEmpty)
@@ -203,7 +207,7 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
                 },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please select who paid';
+                    return l10n.selectWhoPaid;
                   }
                   return null;
                 },
@@ -213,9 +217,9 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
               // Category dropdown
               DropdownButtonFormField<String>(
                 initialValue: _selectedCategory,
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.category,
+                  border: const OutlineInputBorder(),
                 ),
                 items: categoriesProvider.categories
                     .map((category) => DropdownMenuItem<String>(
@@ -230,7 +234,7 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
                 },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please select a category';
+                    return l10n.selectCategory;
                   }
                   return null;
                 },
@@ -238,7 +242,7 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
               if (categoriesProvider.categories.isEmpty) ...[
                 const SizedBox(height: 8),
                 Text(
-                  'No categories available. Please add categories in the Payment Splits & Categories screen.',
+                  l10n.noCategoriesAvailable,
                   style: TextStyle(
                     color: Colors.orange[700],
                     fontSize: 12,
@@ -250,9 +254,9 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
               // Details
               TextFormField(
                 controller: _detailsController,
-                decoration: const InputDecoration(
-                  labelText: 'Details (optional)',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.detailsOptional,
+                  border: const OutlineInputBorder(),
                 ),
                 maxLines: 3,
               ),
@@ -264,9 +268,9 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: const Text(
-                  'Save Bill',
-                  style: TextStyle(fontSize: 16),
+                child: Text(
+                  l10n.saveBill,
+                  style: const TextStyle(fontSize: 16),
                 ),
               ),
             ],
