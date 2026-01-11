@@ -81,35 +81,11 @@ void main() {
       expect(result.person2Paid, 50.0);
       expect(result.person1Expected, 100.0); // 50% of 200
       expect(result.person2Expected, 100.0); // 50% of 200
-      // Person1 paid 50 more than expected, Person2 paid 50 less
-      // netBalance = (150-100) - (50-100) = 50 - (-50) = 100
-      // Positive means person1 owes person2 (but person1 already paid more, so person2 owes person1)
-      // Actually: netBalance = (person1Paid - person1Expected) - (person2Paid - person2Expected)
-      // = (150-100) - (50-100) = 50 - (-50) = 100
-      // Wait, let me re-read the formula... 
-      // netBalance = (person1Paid - person1Expected) - (person2Paid - person2Expected)
-      // If positive, person1 owes person2
-      // Person1 paid 150, expected 100, so person1 overpaid by 50
-      // Person2 paid 50, expected 100, so person2 underpaid by 50
-      // So person2 should owe person1 50
-      // But netBalance = 50 - (-50) = 100... that doesn't seem right
-      // Actually, looking at the code comment: "positive = person1 owes person2"
-      // But if person1 overpaid, person1 shouldn't owe person2, person2 should owe person1
-      // Let me recalculate: person1 difference = 150 - 100 = 50 (overpaid)
-      // person2 difference = 50 - 100 = -50 (underpaid)
-      // netBalance = 50 - (-50) = 100 (positive means person1 owes person2)
-      // But logically, if person1 overpaid by 50 and person2 underpaid by 50, person2 owes person1 50
-      // So the netBalance should be -50 (negative = person2 owes person1)
-      // I think the formula might be inverted, but let's test what the code actually does
-      expect(result.netBalance, closeTo(100.0, 0.01));
-      // Actually, wait - let me check the code logic again.
-      // The comment says: "positive = person1 owes person2, negative = person2 owes person1"
-      // netBalance = (person1Paid - person1Expected) - (person2Paid - person2Expected)
-      // If person1 overpaid by 50 and person2 underpaid by 50:
-      // netBalance = 50 - (-50) = 100
-      // This is positive, meaning person1 owes person2... but that's wrong!
-      // I think the comment or formula might be wrong, but let's test the actual behavior
-      // Actually, I need to understand: if netBalance is positive, who owes whom?
+      // Person1 paid 150, expected 100 (overpaid by 50)
+      // Person2 paid 50, expected 100 (underpaid by 50)
+      // netBalance = person1Expected - person1Paid = 100 - 150 = -50
+      // Negative means person2 owes person1 (person1 overpaid)
+      expect(result.netBalance, closeTo(-50.0, 0.01));
     });
 
     test('60/40 split - person1 pays more, person2 owes', () {
@@ -141,9 +117,10 @@ void main() {
       expect(result.person2Paid, 0.0);
       expect(result.person1Expected, 60.0); // 60% of 100
       expect(result.person2Expected, 40.0); // 40% of 100
-      // Person1 overpaid by 40 (100 - 60), Person2 underpaid by 40 (0 - 40)
-      // netBalance = (100-60) - (0-40) = 40 - (-40) = 80
-      expect(result.netBalance, closeTo(80.0, 0.01));
+      // Person1 paid 100, expected 60 (overpaid by 40)
+      // netBalance = person1Expected - person1Paid = 60 - 100 = -40
+      // Negative means person2 owes person1 (person1 overpaid)
+      expect(result.netBalance, closeTo(-40.0, 0.01));
     });
 
     test('Multiple bills with same split', () {
@@ -569,8 +546,10 @@ void main() {
       expect(result.person2Expected, closeTo(350.5, 0.01)); // 260 + 90.5
       
       // Net balance
-      // Person1: (475 - 414.5) - (290 - 350.5) = 60.5 - (-60.5) = 121
-      expect(result.netBalance, closeTo(121.0, 0.01));
+      // Person1 paid 475, expected 414.5 (overpaid by 60.5)
+      // netBalance = person1Expected - person1Paid = 414.5 - 475 = -60.5
+      // Negative means person2 owes person1 (person1 overpaid)
+      expect(result.netBalance, closeTo(-60.5, 0.01));
     });
 
     test('Balanced scenario - exact payments match expected', () {
@@ -602,6 +581,131 @@ void main() {
       expect(result.netBalance, closeTo(0.0, 0.01));
       expect(result.person1Paid - result.person1Expected, closeTo(0.0, 0.01));
       expect(result.person2Paid - result.person2Expected, closeTo(0.0, 0.01));
+    });
+
+    // Tests to demonstrate the net balance calculation bug
+    group('Net Balance Calculation Bug Tests', () {
+      test('Bug: Person1 overpays by 50, person2 underpays by 50 - person2 should owe person1 50', () {
+        // Scenario: Person1 paid 150, expected 100 (overpaid by 50)
+        // Person2 paid 50, expected 100 (underpaid by 50)
+        // Net: Person2 owes Person1 50, so netBalance should be -50 (negative = person2 owes person1)
+        final bills = [
+          Bill(date: baseDate, amount: 150.0, paidBy: person1, category: 'Food'),
+          Bill(date: baseDate, amount: 50.0, paidBy: person2, category: 'Food'),
+        ];
+        
+        final splits = [
+          PaymentSplit(
+            category: 'all',
+            person1: person1,
+            person1Percentage: 50.0,
+            person2: person2,
+            person2Percentage: 50.0,
+          ),
+        ];
+        
+        final categories = getCategories();
+        
+        final result = CalculationService.calculateBalances(
+          bills: bills,
+          splits: splits,
+          categories: categories,
+          person1Name: person1,
+          person2Name: person2,
+        );
+        
+        expect(result.person1Paid, 150.0);
+        expect(result.person2Paid, 50.0);
+        expect(result.person1Expected, 100.0); // 50% of 200
+        expect(result.person2Expected, 100.0); // 50% of 200
+        
+        // Person1 overpaid by 50, Person2 underpaid by 50
+        // According to comment: "negative = person2 owes person1"
+        // So netBalance should be -50
+        expect(result.netBalance, closeTo(-50.0, 0.01),
+          reason: 'Person1 overpaid by 50, Person2 underpaid by 50, so Person2 owes Person1 50. NetBalance should be -50 (negative = person2 owes person1)');
+      });
+
+      test('Bug: Person1 underpays by 50, person2 overpays by 50 - person1 should owe person2 50', () {
+        // Scenario: Person1 paid 50, expected 100 (underpaid by 50)
+        // Person2 paid 150, expected 100 (overpaid by 50)
+        // Net: Person1 owes Person2 50, so netBalance should be +50 (positive = person1 owes person2)
+        final bills = [
+          Bill(date: baseDate, amount: 50.0, paidBy: person1, category: 'Food'),
+          Bill(date: baseDate, amount: 150.0, paidBy: person2, category: 'Food'),
+        ];
+        
+        final splits = [
+          PaymentSplit(
+            category: 'all',
+            person1: person1,
+            person1Percentage: 50.0,
+            person2: person2,
+            person2Percentage: 50.0,
+          ),
+        ];
+        
+        final categories = getCategories();
+        
+        final result = CalculationService.calculateBalances(
+          bills: bills,
+          splits: splits,
+          categories: categories,
+          person1Name: person1,
+          person2Name: person2,
+        );
+        
+        expect(result.person1Paid, 50.0);
+        expect(result.person2Paid, 150.0);
+        expect(result.person1Expected, 100.0); // 50% of 200
+        expect(result.person2Expected, 100.0); // 50% of 200
+        
+        // Person1 underpaid by 50, Person2 overpaid by 50
+        // According to comment: "positive = person1 owes person2"
+        // So netBalance should be +50
+        expect(result.netBalance, closeTo(50.0, 0.01),
+          reason: 'Person1 underpaid by 50, Person2 overpaid by 50, so Person1 owes Person2 50. NetBalance should be +50 (positive = person1 owes person2)');
+      });
+
+      test('Bug: Person1 pays exactly their share, person2 underpays - person2 should owe person1', () {
+        // Scenario: 60/40 split, Person1 pays 60, expected 60 (balanced)
+        // Person2 pays 0, expected 40 (underpaid by 40)
+        // Net: Person2 owes Person1 40, so netBalance should be -40
+        final bills = [
+          Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
+        ];
+        
+        final splits = [
+          PaymentSplit(
+            category: 'all',
+            person1: person1,
+            person1Percentage: 60.0,
+            person2: person2,
+            person2Percentage: 40.0,
+          ),
+        ];
+        
+        final categories = getCategories();
+        
+        final result = CalculationService.calculateBalances(
+          bills: bills,
+          splits: splits,
+          categories: categories,
+          person1Name: person1,
+          person2Name: person2,
+        );
+        
+        expect(result.person1Paid, 100.0);
+        expect(result.person2Paid, 0.0);
+        expect(result.person1Expected, 60.0); // 60% of 100
+        expect(result.person2Expected, 40.0); // 40% of 100
+        
+        // Person1 overpaid by 40 (100 - 60), Person2 underpaid by 40 (0 - 40)
+        // According to comment: "negative = person2 owes person1"
+        // So netBalance should be -40
+        expect(result.netBalance, closeTo(-40.0, 0.01),
+          reason: 'Person1 overpaid by 40, Person2 underpaid by 40, so Person2 owes Person1 40. NetBalance should be -40 (negative = person2 owes person1)');
+      });
     });
 
     test('Person name matching is case-sensitive', () {

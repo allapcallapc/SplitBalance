@@ -152,7 +152,10 @@ class CalculationService {
     // Calculate net balance
     // If person1 paid more than expected, person2 owes person1 (negative)
     // If person1 paid less than expected, person1 owes person2 (positive)
-    final netBalance = (person1Paid - person1Expected) - (person2Paid - person2Expected);
+    // netBalance = person1Expected - person1Paid
+    // Positive means person1 owes person2 (person1 underpaid)
+    // Negative means person2 owes person1 (person1 overpaid)
+    final netBalance = person1Expected - person1Paid;
 
     return BalanceResult(
       person1Name: person1Name,
