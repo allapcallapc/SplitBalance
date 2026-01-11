@@ -14,6 +14,10 @@ void main() {
   testWidgets('App launches correctly', (WidgetTester tester) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const SplitBalanceApp());
+    
+    // Wait for async initialization to complete
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
     // Verify that the app title is present in the config screen
     // (when not configured, the config screen should be visible)

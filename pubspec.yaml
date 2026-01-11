@@ -17,7 +17,6 @@ dependencies:
   googleapis_auth: ^1.4.1
   csv: ^5.0.2
   path_provider: ^2.1.1
-  intl: ^0.18.1
   shared_preferences: ^2.2.2
   cupertino_icons: ^1.0.2
   http: ^1.1.0
