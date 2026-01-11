@@ -42,22 +42,16 @@ class GoogleDriveService {
 
       print('Sign-in successful: ${_currentUser!.email}');
 
-      // Get authentication headers
-      final authHeaders = await _currentUser!.authHeaders;
+      // Get authentication - this ensures tokens are properly obtained
+      final auth = await _currentUser!.authentication;
       
-      if (authHeaders.isEmpty || !authHeaders.containsKey('Authorization')) {
-        print('Failed to get authentication headers');
+      if (auth.accessToken == null || auth.accessToken!.isEmpty) {
+        print('Failed to get access token');
         _currentUser = null;
         return false;
       }
 
-      // Validate token
-      final authValue = authHeaders['Authorization'] ?? '';
-      if (!authValue.startsWith('Bearer ') || authValue.length < 20) {
-        print('Invalid authentication token');
-        _currentUser = null;
-        return false;
-      }
+      print('Access token obtained successfully');
 
       // Create authenticated client for Google Drive API
       final authenticatedClient = GoogleAuthClient(_currentUser!);
@@ -88,14 +82,16 @@ class GoogleDriveService {
 
       print('Silent sign-in successful: ${_currentUser!.email}');
 
-      // Get authentication headers
-      final authHeaders = await _currentUser!.authHeaders;
+      // Get authentication - this ensures tokens are properly refreshed
+      final auth = await _currentUser!.authentication;
       
-      if (authHeaders.isEmpty || !authHeaders.containsKey('Authorization')) {
-        print('Failed to get authentication headers');
+      if (auth.accessToken == null || auth.accessToken!.isEmpty) {
+        print('Failed to get access token');
         _currentUser = null;
         return false;
       }
+
+      print('Access token obtained successfully');
 
       // Create authenticated client for Google Drive API
       final authenticatedClient = GoogleAuthClient(_currentUser!);
@@ -358,15 +354,16 @@ class GoogleAuthClient extends http.BaseClient {
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    // Get fresh authentication headers before each request
-    final authHeaders = await _user.authHeaders;
+    // Get fresh authentication token before each request
+    // Use authentication property which works better for token refresh
+    final auth = await _user.authentication;
     
-    if (authHeaders.isEmpty || !authHeaders.containsKey('Authorization')) {
-      throw Exception('Failed to get auth headers - user may need to sign in again');
+    if (auth.accessToken == null || auth.accessToken!.isEmpty) {
+      throw Exception('Failed to get access token - user may need to sign in again');
     }
     
-    // Add authentication headers to the request
-    request.headers.addAll(authHeaders);
+    // Add Authorization header with the access token
+    request.headers['Authorization'] = 'Bearer ${auth.accessToken}';
     
     // Send the request
     return await _client.send(request);
