@@ -8,6 +8,7 @@ import '../providers/categories_provider.dart';
 import '../services/csv_service.dart';
 import '../models/app_config.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
+import 'package:package_info_plus/package_info_plus.dart';
 
 class ConfigScreen extends StatefulWidget {
   const ConfigScreen({super.key});
@@ -35,6 +36,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
   String? _lastLoadedCategoriesFolderId; // Track which folder we loaded categories for
   // Navigation stack for folder browsing (breadcrumb)
   List<drive.File> _folderPath = <drive.File>[]; // Stack of folders we've navigated into
+  String _appVersion = ''; // App version string
 
   // Helper methods to safely check if lists are empty (for web compilation)
   // Use length instead of isEmpty/isNotEmpty to avoid undefined errors
@@ -82,6 +84,20 @@ class _ConfigScreenState extends State<ConfigScreen> {
     _folders = <drive.File>[];
     _folderPath = <drive.File>[];
     _selectedFolderPath = <drive.File>[];
+    // Load app version
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      setState(() {
+        _appVersion = packageInfo.version;
+      });
+    } catch (e) {
+      // If version loading fails, just leave it empty
+      print('Error loading app version: $e');
+    }
   }
 
   @override
@@ -2378,6 +2394,20 @@ class _ConfigScreenState extends State<ConfigScreen> {
                     side: const BorderSide(color: Colors.red),
                   ),
                 ),
+                ],
+                
+                // App Version Display
+                if (_appVersion.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  Center(
+                    child: Text(
+                      'Version $_appVersion',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ),
                 ],
               ],
             ),

@@ -137,18 +137,18 @@ packages:
     dependency: transitive
     description:
       name: google_identity_services_web
-      sha256: "5d187c46dc59e02646e10fe82665fc3884a9b71bc1c90c2b8b749316d33ee454"
+      sha256: "0c56c2c5d60d6dfaf9725f5ad4699f04749fb196ee5a70487a46ef184837ccf6"
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.3+1"
+    version: "0.3.0+2"
   google_sign_in:
     dependency: "direct main"
     description:
       name: google_sign_in
-      sha256: d0a2c3bcb06e607bb11e4daca48bd4b6120f0bbc4015ccebbe757d24ea60ed2a
+      sha256: fad6ddc80c427b0bba705f2116204ce1173e09cf299f85e053d57a55e5b2dd56
       url: "https://pub.dev"
     source: hosted
-    version: "6.3.0"
+    version: "6.2.2"
   google_sign_in_android:
     dependency: transitive
     description:
@@ -177,10 +177,10 @@ packages:
     dependency: transitive
     description:
       name: google_sign_in_web
-      sha256: "460547beb4962b7623ac0fb8122d6b8268c951cf0b646dd150d60498430e4ded"
+      sha256: f2b3af0ba52ff59439f18962fca71db860f09507a81da929fc0e719270b35db2
       url: "https://pub.dev"
     source: hosted
-    version: "0.12.4+4"
+    version: "0.12.3+3"
   googleapis:
     dependency: "direct main"
     description:
@@ -201,10 +201,10 @@ packages:
     dependency: "direct main"
     description:
       name: http
-      sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
+      sha256: a2bbf9d017fcced29139daa8ed2bba4ece450ab222871df93ca9eec6f80c34ba
       url: "https://pub.dev"
     source: hosted
-    version: "1.6.0"
+    version: "1.2.0"
   http_parser:
     dependency: transitive
     description:
@@ -285,6 +285,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.0"
+  package_info_plus:
+    dependency: "direct main"
+    description:
+      name: package_info_plus
+      sha256: "88bc797f44a94814f2213db1c9bd5badebafdfb8290ca9f78d4b9ee2a3db4d79"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.0.1"
+  package_info_plus_platform_interface:
+    dependency: transitive
+    description:
+      name: package_info_plus_platform_interface
+      sha256: "9bc8ba46813a4cc42c66ab781470711781940780fd8beddd0c3da62506d3a6c6"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.1"
   path:
     dependency: transitive
     description:
@@ -369,10 +385,10 @@ packages:
     dependency: "direct main"
     description:
       name: shared_preferences
-      sha256: "2939ae520c9024cb197fc20dee269cd8cdbf564c8b5746374ec6cacdc5169e64"
+      sha256: d3bbe5553a986e83980916ded2f0b435ef2e1893dfaa29d5a7a790d0eca12180
       url: "https://pub.dev"
     source: hosted
-    version: "2.5.4"
+    version: "2.2.3"
   shared_preferences_android:
     dependency: transitive
     description:
@@ -409,10 +425,10 @@ packages:
     dependency: transitive
     description:
       name: shared_preferences_web
-      sha256: c49bd060261c9a3f0ff445892695d6212ff603ef3115edbb448509d407600019
+      sha256: "7b15ffb9387ea3e237bb7a66b8a23d2147663d391cafc5c8f37b2e7b4bde5d21"
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.3"
+    version: "2.2.2"
   shared_preferences_windows:
     dependency: transitive
     description:
@@ -502,10 +518,18 @@ packages:
     dependency: transitive
     description:
       name: web
-      sha256: "868d88a33d8a87b18ffc05f9f030ba328ffefba92d6c127917a2ba740f9cfe4a"
+      sha256: "4188706108906f002b3a293509234588823c8c979dc83304e229ff400c996b05"
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.1"
+    version: "0.4.2"
+  win32:
+    dependency: transitive
+    description:
+      name: win32
+      sha256: d7cb55e04cd34096cd3a79b3330245f54cb96a370a1c27adb3c84b917de8b08e
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.15.0"
   xdg_directories:
     dependency: transitive
     description:

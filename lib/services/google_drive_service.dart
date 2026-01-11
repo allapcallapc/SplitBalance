@@ -163,8 +163,8 @@ class GoogleDriveService {
       print('');
 
       print('Step 3: Creating Drive API client...');
-      // Create authenticated client for Google Drive API
-      final authenticatedClient = GoogleAuthClient._(authHeaders);
+      // Create authenticated client for Google Drive API with token refresh support
+      final authenticatedClient = GoogleAuthClient._create(_currentUser!, authHeaders);
       _driveApi = drive.DriveApi(authenticatedClient);
       print('✅ Step 3 SUCCESS: Drive API client created');
       print('');
@@ -322,8 +322,8 @@ class GoogleDriveService {
         return false;
       }
 
-      // Create authenticated client for Google Drive API
-      final authenticatedClient = GoogleAuthClient._(authHeaders);
+      // Create authenticated client for Google Drive API with token refresh support
+      final authenticatedClient = GoogleAuthClient._create(_currentUser!, authHeaders);
       _driveApi = drive.DriveApi(authenticatedClient);
 
       return true;
@@ -544,7 +544,7 @@ class GoogleDriveService {
       
       // Use the authenticated client to download the file
       final authHeaders = await _currentUser!.authHeaders;
-      final authenticatedClient = GoogleAuthClient._(authHeaders);
+      final authenticatedClient = GoogleAuthClient._create(_currentUser!, authHeaders);
       final downloadUrl = 'https://www.googleapis.com/drive/v3/files/$fileId?alt=media';
       final downloadResponse = await authenticatedClient.get(Uri.parse(downloadUrl));
       
@@ -611,17 +611,41 @@ class GoogleDriveService {
   }
 }
 
-// Custom HTTP client for Google APIs
+// Custom HTTP client for Google APIs with automatic token refresh
+// This client automatically refreshes tokens before each request to prevent 401 errors
 class GoogleAuthClient extends http.BaseClient {
-  final Map<String, String> _headers;
+  final GoogleSignInAccount _user;
   final http.Client _client = http.Client();
 
-  GoogleAuthClient._(this._headers);
+  // Factory constructor that creates the client with user account
+  factory GoogleAuthClient._create(GoogleSignInAccount user, Map<String, String> initialHeaders) {
+    return GoogleAuthClient._(user);
+  }
+
+  GoogleAuthClient._(this._user);
 
   @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) {
-    request.headers.addAll(_headers);
-    return _client.send(request);
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    // Get fresh authentication headers before each request
+    // The authHeaders getter automatically handles token refresh if needed
+    // This ensures we always have a valid token and prevents 401 errors
+    try {
+      final authHeaders = await _user.authHeaders;
+      if (authHeaders.isEmpty) {
+        throw Exception('Failed to get auth headers - user may need to sign in again');
+      }
+      
+      // Add fresh headers to the request
+      request.headers.addAll(authHeaders);
+    } catch (e) {
+      print('Error getting auth headers: $e');
+      // If we can't get headers, the request will likely fail, but let it proceed
+      // so the caller gets a proper error response
+      throw Exception('Authentication failed: $e');
+    }
+    
+    // Send the request with fresh headers
+    return await _client.send(request);
   }
 
   @override
