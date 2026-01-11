@@ -247,6 +247,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get selectFolderFirst => 'Sélectionnez d\'abord un dossier';
 
   @override
+  String get selectFolderFirstToEnterPersonNames =>
+      'Veuillez d\'abord sélectionner un dossier pour entrer les noms des personnes';
+
+  @override
   String get folderMustBeSelected => 'Un dossier doit être sélectionné';
 
   @override

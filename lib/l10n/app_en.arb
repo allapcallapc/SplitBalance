@@ -318,6 +318,10 @@
   "@selectFolderFirst": {
     "description": "Hint when folder is not selected"
   },
+  "selectFolderFirstToEnterPersonNames": "Please select a folder first to enter person names",
+  "@selectFolderFirstToEnterPersonNames": {
+    "description": "Tip message when folder is not selected for person names section"
+  },
   "folderMustBeSelected": "Folder must be selected",
   "@folderMustBeSelected": {
     "description": "Helper text when folder is required"

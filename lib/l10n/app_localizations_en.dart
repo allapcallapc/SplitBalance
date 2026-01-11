@@ -245,6 +245,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectFolderFirst => 'Select a folder first';
 
   @override
+  String get selectFolderFirstToEnterPersonNames =>
+      'Please select a folder first to enter person names';
+
+  @override
   String get folderMustBeSelected => 'Folder must be selected';
 
   @override

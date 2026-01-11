@@ -530,6 +530,12 @@ abstract class AppLocalizations {
   /// **'Select a folder first'**
   String get selectFolderFirst;
 
+  /// Tip message when folder is not selected for person names section
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a folder first to enter person names'**
+  String get selectFolderFirstToEnterPersonNames;
+
   /// Helper text when folder is required
   ///
   /// In en, this message translates to:

@@ -114,6 +114,7 @@
     }
   },
   "selectFolderFirst": "Sélectionnez d'abord un dossier",
+  "selectFolderFirstToEnterPersonNames": "Veuillez d'abord sélectionner un dossier pour entrer les noms des personnes",
   "folderMustBeSelected": "Un dossier doit être sélectionné",
   "theme": "Thème",
   "light": "Clair",
