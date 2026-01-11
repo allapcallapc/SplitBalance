@@ -151,7 +151,7 @@ class _PaymentSplitsScreenState extends State<PaymentSplitsScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
+        children: const [
           _PaymentSplitsTab(),
           _CategoriesTab(),
         ],
@@ -481,7 +481,7 @@ class _PaymentSplitsTabHelper {
 
     // Ensure the current endDate is included in the dropdown items list
     // Normalize dates to just the date part (remove time) for proper comparison
-    final normalizeDate = (DateTime dt) => DateTime(dt.year, dt.month, dt.day);
+    DateTime normalizeDate(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
     final normalizedEndDate = endDate != null ? normalizeDate(endDate) : null;
     
     // Create a normalized list that includes the current date if it's not already there
@@ -514,7 +514,7 @@ class _PaymentSplitsTabHelper {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceVariant,
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(
@@ -1124,7 +1124,7 @@ class _SplitConfigTable extends StatelessWidget {
               // Header row with theme colors
               Container(
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceVariant,
+                  color: colorScheme.surfaceContainerHighest,
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(12),
                     topRight: Radius.circular(12),
@@ -1166,7 +1166,7 @@ class _SplitConfigTable extends StatelessWidget {
                       decoration: BoxDecoration(
                         border: Border(
                           left: BorderSide(
-                            color: colorScheme.outline.withOpacity(0.2),
+                            color: colorScheme.outline.withValues(alpha: 0.2),
                             width: 1,
                           ),
                         ),
@@ -1200,7 +1200,7 @@ class _SplitConfigTable extends StatelessWidget {
                 ),
               ),
               // Divider
-              Divider(height: 1, color: colorScheme.outline.withOpacity(0.2)),
+              Divider(height: 1, color: colorScheme.outline.withValues(alpha: 0.2)),
               // Data rows
               ...categories.asMap().entries.map((entry) {
                 final index = entry.key;
@@ -1218,7 +1218,7 @@ class _SplitConfigTable extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: index % 2 == 0 
                               ? colorScheme.surface 
-                              : colorScheme.surfaceVariant.withOpacity(0.3),
+                              : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                           ),
                           child: Row(
                             children: [
@@ -1270,7 +1270,7 @@ class _SplitConfigTable extends StatelessWidget {
                         height: 1,
                         indent: 0,
                         endIndent: 0,
-                        color: colorScheme.outline.withOpacity(0.1),
+                        color: colorScheme.outline.withValues(alpha: 0.1),
                       ),
                   ],
                 );
@@ -1295,6 +1295,7 @@ class PeriodHeader extends StatelessWidget {
   final VoidCallback onDelete;
 
   const PeriodHeader({
+    super.key,
     required this.periodEndDate,
     required this.dateFormat,
     required this.isMissing,
@@ -1313,7 +1314,7 @@ class PeriodHeader extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(
           left: BorderSide(
-            color: colorScheme.outline.withOpacity(0.2),
+            color: colorScheme.outline.withValues(alpha: 0.2),
             width: 1,
           ),
         ),
@@ -1354,7 +1355,7 @@ class PeriodHeader extends StatelessWidget {
                       icon: Icon(
                         Icons.delete_outline,
                         size: 16,
-                        color: colorScheme.error.withOpacity(0.7),
+                        color: colorScheme.error.withValues(alpha: 0.7),
                       ),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(
@@ -1412,7 +1413,7 @@ class _SplitCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final cellColor = index % 2 == 0 
       ? colorScheme.surface 
-      : colorScheme.surfaceVariant.withOpacity(0.3);
+      : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3);
 
     return Material(
       color: Colors.transparent,
@@ -1425,7 +1426,7 @@ class _SplitCell extends StatelessWidget {
             color: cellColor,
             border: Border(
               left: BorderSide(
-                color: colorScheme.outline.withOpacity(0.1),
+                color: colorScheme.outline.withValues(alpha: 0.1),
                 width: 1,
               ),
             ),
@@ -1437,14 +1438,14 @@ class _SplitCell extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.add_circle_outline,
-                      color: colorScheme.primary.withOpacity(0.5),
+                      color: colorScheme.primary.withValues(alpha: 0.5),
                       size: 20,
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Add',
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: colorScheme.primary.withOpacity(0.7),
+                        color: colorScheme.primary.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
@@ -1488,7 +1489,7 @@ class _SplitCell extends StatelessWidget {
                           icon: Icon(
                             Icons.close,
                             size: 14,
-                            color: colorScheme.error.withOpacity(0.7),
+                            color: colorScheme.error.withValues(alpha: 0.7),
                           ),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(
@@ -1534,6 +1535,8 @@ class _SplitCell extends StatelessWidget {
 }
 
 class _CategoriesTab extends StatelessWidget {
+  const _CategoriesTab();
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -1617,8 +1620,8 @@ class _CategoriesTab extends StatelessWidget {
                   ),
                   // Show loading indicator next to button if loading
                   if (categoriesProvider.isLoading)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8.0),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8.0),
                       child: SizedBox(
                         width: 20,
                         height: 20,
@@ -1695,16 +1698,37 @@ class _CategoriesTab extends StatelessWidget {
                                   onTap: () {
                                     Future.delayed(
                                       const Duration(milliseconds: 100),
-                                      () => _showEditCategoryDialog(
-                                        context,
-                                        category,
-                                        index,
-                                      ),
+                                      () {
+                                        if (context.mounted) {
+                                          _showEditCategoryDialog(
+                                            context,
+                                            category,
+                                            index,
+                                          );
+                                        }
+                                      },
                                     );
                                   },
                                 ),
                                 PopupMenuItem(
                                   enabled: !isInUse,
+                                  onTap: isInUse
+                                      ? null
+                                      : () {
+                                          Future.delayed(
+                                            const Duration(milliseconds: 100),
+                                            () {
+                                              if (context.mounted) {
+                                                _deleteCategory(
+                                                  context,
+                                                  category,
+                                                  index,
+                                                  isInUse,
+                                                );
+                                              }
+                                            },
+                                          );
+                                        },
                                   child: Row(
                                     children: [
                                       Icon(
@@ -1721,19 +1745,6 @@ class _CategoriesTab extends StatelessWidget {
                                       ),
                                     ],
                                   ),
-                                  onTap: isInUse
-                                      ? null
-                                      : () {
-                                          Future.delayed(
-                                            const Duration(milliseconds: 100),
-                                            () => _deleteCategory(
-                                              context,
-                                              category,
-                                              index,
-                                              isInUse,
-                                            ),
-                                          );
-                                        },
                                 ),
                               ],
                             ),

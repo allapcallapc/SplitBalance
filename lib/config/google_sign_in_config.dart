@@ -1,3 +1,5 @@
+library google_sign_in_config;
+
 /// Google Sign-In Configuration
 /// 
 /// This file contains the OAuth Client ID for Google Sign-In.

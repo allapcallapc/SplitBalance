@@ -179,14 +179,14 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 Card(
                   color: result.netBalance.abs() < 0.01
                       ? (Theme.of(context).brightness == Brightness.dark
-                          ? Colors.green.withOpacity(0.3)
+                          ? Colors.green.withValues(alpha: 0.3)
                           : Colors.green[50])
                       : (result.netBalance > 0
                           ? (Theme.of(context).brightness == Brightness.dark
-                              ? Colors.blue.withOpacity(0.3)
+                              ? Colors.blue.withValues(alpha: 0.3)
                               : Colors.blue[50])
                           : (Theme.of(context).brightness == Brightness.dark
-                              ? Colors.orange.withOpacity(0.3)
+                              ? Colors.orange.withValues(alpha: 0.3)
                               : Colors.orange[50])),
                   child: Padding(
                     padding: const EdgeInsets.all(24.0),

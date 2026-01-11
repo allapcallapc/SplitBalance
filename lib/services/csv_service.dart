@@ -173,7 +173,7 @@ class CsvService {
     
     try {
       final row = rows[startIndex];
-      final person1Name = row.length > 0 ? row[0].toString().trim() : '';
+      final person1Name = row.isNotEmpty ? row[0].toString().trim() : '';
       final person2Name = row.length > 1 ? row[1].toString().trim() : '';
       
       return {

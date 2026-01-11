@@ -183,7 +183,7 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
 
               // Paid by dropdown
               DropdownButtonFormField<String>(
-                value: _selectedPaidBy,
+                initialValue: _selectedPaidBy,
                 decoration: InputDecoration(
                   labelText: l10n.paidBy,
                   border: const OutlineInputBorder(),
@@ -216,7 +216,7 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
 
               // Category dropdown
               DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 decoration: InputDecoration(
                   labelText: l10n.category,
                   border: const OutlineInputBorder(),

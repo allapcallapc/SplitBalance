@@ -43,7 +43,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
     try {
       // Use length property directly - if _folders is undefined, this will throw
       // In that case, we catch and reinitialize
-      return _folders.length > 0;
+      return _folders.isNotEmpty;
     } catch (e) {
       // If _folders is undefined or not accessible, reinitialize it
       _folders = <drive.File>[];
@@ -55,7 +55,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
     try {
       // Use length property directly - if _folderPath is undefined, this will throw
       // In that case, we catch and reinitialize
-      return _folderPath.length > 0;
+      return _folderPath.isNotEmpty;
     } catch (e) {
       // If _folderPath is undefined or not accessible, reinitialize it
       _folderPath = <drive.File>[];
@@ -67,7 +67,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
     try {
       // Use length property directly - if _selectedFolderPath is undefined, this will throw
       // In that case, we catch and reinitialize
-      return _selectedFolderPath.length > 0;
+      return _selectedFolderPath.isNotEmpty;
     } catch (e) {
       // If _selectedFolderPath is undefined or not accessible, reinitialize it
       _selectedFolderPath = <drive.File>[];
@@ -360,7 +360,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                   _checkFolderDataAndRestoreState(configProvider);
                                 }
                               }
-                              if (mounted) {
+                              if (context.mounted) {
                                 Navigator.pop(context, 'selected'); // Return 'selected' to indicate folder was chosen
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
@@ -771,7 +771,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
               person1Controller.dispose();
               person2Controller.dispose();
 
-              if (mounted) {
+              if (context.mounted) {
                 Navigator.pop(context, true); // Success
               }
             },
@@ -929,7 +929,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
         
         // Get parent folder ID
         // Use length check instead of isNotEmpty to avoid undefined errors in web
-        if (folder.parents != null && folder.parents!.length > 0) {
+        if (folder.parents != null && folder.parents!.isNotEmpty) {
           final parentId = folder.parents!.first;
           // Stop if we reach root (parent is 'root')
           if (parentId == 'root') {
@@ -944,7 +944,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
       setState(() {
         _selectedFolderPath = path;
         // Use folder name from path if available, otherwise use the one we fetched
-        _selectedFolderName = path.length > 0 ? (path.last.name ?? folderName) : folderName;
+        _selectedFolderName = path.isNotEmpty ? (path.last.name ?? folderName) : folderName;
         _loadingSelectedFolderPath = false;
       });
     } catch (e) {
@@ -1308,9 +1308,8 @@ class _ConfigScreenState extends State<ConfigScreen> {
                   const SizedBox(height: 16),
                 ],
                 // Google Sign-In Section
-                Card(
-                  elevation: configProvider.isSignedIn ? 1 : 3,
-                  child: Padding(
+                  Card(
+                    child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1325,7 +1324,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                             const SizedBox(width: 12),
                             Text(
                               AppLocalizations.of(context)!.googleDriveConnection,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -1413,9 +1412,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                 ? null
                                 : () async {
                                     final success = await configProvider.signIn();
-                                    if (success && mounted) {
+                                    if (success && context.mounted) {
                                       await _loadFolders(configProvider);
-                                    } else if (mounted && configProvider.error != null) {
+                                    } else if (context.mounted && configProvider.error != null) {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(
                                           content: Text(configProvider.error!),
@@ -1877,7 +1876,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                           // Otherwise show loading indicator
                                           return Row(
                                             children: [
-                                              SizedBox(
+                                              const SizedBox(
                                                 height: 14,
                                                 width: 14,
                                                 child: CircularProgressIndicator(strokeWidth: 2),
@@ -2100,11 +2099,11 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                                     _loadSelectedFolderPath(configProvider);
                                                     
                                                     // Check folder data and restore state
-                                                    if (mounted) {
+                                                    if (context.mounted) {
                                                       _checkFolderDataAndRestoreState(configProvider);
                                                     }
                                                     
-                                                    if (mounted) {
+                                                    if (context.mounted) {
                                                       final snackL10n = AppLocalizations.of(context)!;
                                                       ScaffoldMessenger.of(context).showSnackBar(
                                                         SnackBar(
@@ -2347,9 +2346,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
                             ),
                           );
 
-                          if (confirmed == true && mounted) {
+                          if (confirmed == true && context.mounted) {
                             await configProvider.clearAllConfig();
-                            if (mounted) {
+                            if (context.mounted) {
                               final snackL10n = AppLocalizations.of(context)!;
                               // Reset form fields
                               _person1Controller.clear();

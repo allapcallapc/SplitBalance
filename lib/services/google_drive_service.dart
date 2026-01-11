@@ -55,7 +55,7 @@ class GoogleDriveService {
       if (timeSinceLastAttempt.inMinutes < 5) {
         final minutesRemaining = 5 - timeSinceLastAttempt.inMinutes;
         print('⏱️  Last restore attempt was ${timeSinceLastAttempt.inMinutes} minutes ago');
-        print('⏱️  Skipping restore attempt to avoid rate limiting (wait ${minutesRemaining} more minutes)');
+        print('⏱️  Skipping restore attempt to avoid rate limiting (wait $minutesRemaining more minutes)');
         return false;
       }
     }
@@ -87,7 +87,7 @@ class GoogleDriveService {
       print('🔐 ATTEMPTING SILENT SIGN-IN (Session Restoration)');
       print('═══════════════════════════════════════════════════════════');
       print('Timestamp: ${DateTime.now().toIso8601String()}');
-      final clientId = GoogleSignInConfig.webClientId;
+      const clientId = GoogleSignInConfig.webClientId;
       print('Client ID configured: true');
       print('Client ID: ${clientId.substring(0, clientId.indexOf('.'))}...${clientId.substring(clientId.lastIndexOf('.'))}');
       

@@ -112,11 +112,11 @@ class _BillsListScreenState extends State<BillsListScreen> {
       ),
     );
 
-    if (confirmed == true && mounted) {
+    if (confirmed == true && context.mounted) {
       final configProvider = context.read<ConfigProvider>();
       final billsProvider = context.read<BillsProvider>();
       await billsProvider.deleteBill(index, configProvider);
-      if (mounted && billsProvider.error != null) {
+      if (context.mounted && billsProvider.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(billsProvider.error!)),
         );
@@ -276,6 +276,7 @@ class _BillsListScreenState extends State<BillsListScreen> {
                           Future.delayed(
                             const Duration(milliseconds: 100),
                             () async {
+                              if (!context.mounted) return;
                               final result = await Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -285,7 +286,7 @@ class _BillsListScreenState extends State<BillsListScreen> {
                                   ),
                                 ),
                               );
-                              if (result == true && mounted) {
+                              if (result == true && context.mounted) {
                                 await _loadData();
                               }
                             },
@@ -303,7 +304,11 @@ class _BillsListScreenState extends State<BillsListScreen> {
                         onTap: () {
                           Future.delayed(
                             const Duration(milliseconds: 100),
-                            () => _deleteBill(context, index, bill),
+                            () {
+                              if (context.mounted) {
+                                _deleteBill(context, index, bill);
+                              }
+                            },
                           );
                         },
                       ),

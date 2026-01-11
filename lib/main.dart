@@ -50,7 +50,7 @@ class SplitBalanceApp extends StatelessWidget {
         surfaceContainer: const Color(0xFF2D2D2D), // Medium surface
         onSurface: Colors.white,
         // Ensure cards stand out more
-        surfaceVariant: const Color(0xFF3A3A3A), // Even lighter for cards
+        surfaceContainerHighest: const Color(0xFF3A3A3A), // Even lighter for cards
         onSurfaceVariant: Colors.white70,
       ),
       useMaterial3: true,
@@ -64,11 +64,11 @@ class SplitBalanceApp extends StatelessWidget {
         ),
       ),
       // Improve divider contrast
-      dividerColor: Colors.white.withOpacity(0.2),
+      dividerColor: Colors.white.withValues(alpha: 0.2),
       // Improve list tile contrast
-      listTileTheme: ListTileThemeData(
-        tileColor: const Color(0xFF2D2D2D),
-        selectedTileColor: const Color(0xFF3A3A3A),
+      listTileTheme: const ListTileThemeData(
+        tileColor: Color(0xFF2D2D2D),
+        selectedTileColor: Color(0xFF3A3A3A),
       ),
       // Improve input decoration in dark mode
       inputDecorationTheme: InputDecorationTheme(
@@ -76,11 +76,11 @@ class SplitBalanceApp extends StatelessWidget {
         fillColor: const Color(0xFF2D2D2D),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -134,13 +134,13 @@ class SplitBalanceApp extends StatelessWidget {
             title: 'SplitBalance',
             theme: _getThemeForMode(configProvider.themeMode),
             locale: configProvider.locale,
-            localizationsDelegates: [
+            localizationsDelegates: const [
               AppLocalizations.delegate,
               GlobalMaterialLocalizations.delegate,
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            supportedLocales: const [
+            supportedLocales: const <Locale>[
               Locale('en'),
               Locale('fr'),
             ],
