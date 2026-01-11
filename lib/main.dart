@@ -164,13 +164,26 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
   bool? _wasSignedIn;
+  int? _previousBodyIndex;
+  late final ValueNotifier<int> _navigationNotifier = ValueNotifier<int>(0);
+  late final List<Widget> _screens;
 
-  final List<Widget> _screens = const [
-    BillsListScreen(),
-    PaymentSplitsScreen(),
-    SummaryScreen(),
-    ConfigScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      const BillsListScreen(),
+      const PaymentSplitsScreen(),
+      SummaryScreen(navigationNotifier: _navigationNotifier),
+      const ConfigScreen(),
+    ];
+  }
+
+  @override
+  void dispose() {
+    _navigationNotifier.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -221,6 +234,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         // Always show ConfigScreen in body when nav bar should be hidden
         // but still use Scaffold structure to prevent widget tree changes
         final bodyIndex = shouldShowNavBar ? safeIndex : 3; // Force ConfigScreen (index 3) when no nav bar
+        
+        // Notify when navigation changes (for SummaryScreen to refresh)
+        if (bodyIndex != _previousBodyIndex) {
+          _navigationNotifier.value = bodyIndex;
+          _previousBodyIndex = bodyIndex;
+        }
         
         return Scaffold(
           body: IndexedStack(

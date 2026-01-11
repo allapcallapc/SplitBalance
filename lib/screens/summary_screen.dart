@@ -9,19 +9,41 @@ import '../providers/categories_provider.dart';
 import '../providers/config_provider.dart';
 
 class SummaryScreen extends StatefulWidget {
-  const SummaryScreen({super.key});
+  const SummaryScreen({super.key, this.navigationNotifier});
+
+  final ValueNotifier<int>? navigationNotifier;
 
   @override
   State<SummaryScreen> createState() => _SummaryScreenState();
 }
 
 class _SummaryScreenState extends State<SummaryScreen> {
+  int? _lastNavigationIndex;
+  
   @override
   void initState() {
     super.initState();
+    widget.navigationNotifier?.addListener(_onNavigationChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _calculateBalances();
     });
+  }
+
+  @override
+  void dispose() {
+    widget.navigationNotifier?.removeListener(_onNavigationChanged);
+    super.dispose();
+  }
+
+  void _onNavigationChanged() {
+    final currentIndex = widget.navigationNotifier?.value ?? -1;
+    // Refresh when navigating to summary screen (index 2)
+    if (currentIndex == 2 && _lastNavigationIndex != 2 && mounted) {
+      _lastNavigationIndex = currentIndex;
+      _calculateBalances();
+    } else {
+      _lastNavigationIndex = currentIndex;
+    }
   }
 
   Future<void> _calculateBalances() async {
@@ -31,6 +53,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
     final categoriesProvider = context.read<CategoriesProvider>();
     final calculationProvider = context.read<CalculationProvider>();
 
+    // Set calculating state immediately to show loading indicator
+    calculationProvider.setCalculating(true);
+
     // Ensure data is loaded
     if (configProvider.isSignedIn && configProvider.driveService.folderId != null) {
       await categoriesProvider.loadCategories(configProvider);
@@ -39,7 +64,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
     }
 
     // Calculate balances
-    calculationProvider.calculateBalances(
+    await calculationProvider.calculateBalances(
       bills: billsProvider.bills,
       splits: splitsProvider.splits,
       categories: categoriesProvider.categories,
@@ -81,7 +106,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
       body: Consumer4<CalculationProvider, BillsProvider, PaymentSplitsProvider, CategoriesProvider>(
         builder: (context, calculationProvider, billsProvider, splitsProvider, categoriesProvider, child) {
           if (calculationProvider.isCalculating) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
           }
 
           if (calculationProvider.error != null) {

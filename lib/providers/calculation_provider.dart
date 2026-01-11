@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import '../models/bill.dart';
 import '../models/payment_split.dart';
 import '../models/category.dart' as models;
@@ -14,17 +15,30 @@ class CalculationProvider with ChangeNotifier {
   bool get isCalculating => _isCalculating;
   String? get error => _error;
 
+  // Set calculating state (used to show loading indicator before data loading)
+  void setCalculating(bool value) {
+    _isCalculating = value;
+    if (value) {
+      _balanceResult = null; // Clear old result when starting
+    }
+    notifyListeners();
+  }
+
   // Calculate balances
-  void calculateBalances({
+  Future<void> calculateBalances({
     required List<Bill> bills,
     required List<PaymentSplit> splits,
     required List<models.Category> categories,
     required String person1Name,
     required String person2Name,
-  }) {
+  }) async {
     _isCalculating = true;
     _error = null;
+    _balanceResult = null; // Clear old result to prevent showing stale data
     notifyListeners();
+
+    // Wait for the next frame to ensure UI has rendered the loading indicator
+    await SchedulerBinding.instance.endOfFrame;
 
     try {
       _balanceResult = CalculationService.calculateBalances(
