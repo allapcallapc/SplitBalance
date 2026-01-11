@@ -1677,46 +1677,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                                   ),
                                                 ),
                                               ],
-                                              if (configProvider.serviceLastError != null) ...[
-                                                const SizedBox(height: 8),
-                                                Text(
-                                                  'Service Error:',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 12,
-                                                    color: Colors.grey[800],
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 4),
-                                                SelectableText(
-                                                  configProvider.serviceLastError!,
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    fontFamily: 'monospace',
-                                                    color: Colors.grey[900],
-                                                  ),
-                                                ),
-                                              ],
-                                              if (configProvider.serviceLastErrorDetails != null) ...[
-                                                const SizedBox(height: 8),
-                                                Text(
-                                                  'Service Details:',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 12,
-                                                    color: Colors.grey[800],
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 4),
-                                                SelectableText(
-                                                  configProvider.serviceLastErrorDetails!,
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    fontFamily: 'monospace',
-                                                    color: Colors.grey[900],
-                                                  ),
-                                                ),
-                                              ],
                                             ],
                                           ),
                                         ),

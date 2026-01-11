@@ -30,10 +30,6 @@ class ConfigProvider with ChangeNotifier {
   AppThemeMode get themeMode => _config.themeMode;
   AppLanguage get language => _config.language;
   Locale get locale => Locale(_config.language.localeCode);
-  
-  // Get detailed error information from the service
-  String? get serviceLastError => _driveService.lastError;
-  String? get serviceLastErrorDetails => _driveService.lastErrorDetails;
 
   ConfigProvider() {
     // Load config asynchronously to ensure app is fully initialized
@@ -138,8 +134,8 @@ class ConfigProvider with ChangeNotifier {
             print('❌ Could not restore Google Sign-In session');
             print('ℹ️  This may be due to rate limiting (10 min cooldown) or expired session');
             print('💡 User can click "Sign In" button to manually restore (bypasses rate limit)');
-            restoreError = _driveService.lastError ?? 'Session restoration failed';
-            restoreErrorDetails = _driveService.lastErrorDetails;
+            restoreError = 'Session restoration failed';
+            restoreErrorDetails = 'Unable to restore session. Please sign in manually.';
             // Don't clear was_signed_in flag - session may still be valid in browser
             // User can click sign-in button to verify
           }
@@ -173,16 +169,12 @@ class ConfigProvider with ChangeNotifier {
         // Enhance error details with specific guidance for common issues
         String enhancedDetails = restoreErrorDetails ?? 'Session restoration failed';
         
-        // Check for rate limiting hints (though we can't directly detect it from Dart)
-        if (restoreError.contains('unknown_reason') || 
-            restoreError.contains('IdentityCredentialError')) {
-          enhancedDetails += '\n\nCommon causes:\n';
-          enhancedDetails += '• Rate limiting: Google limits auto re-authn to once per 10 minutes\n';
-          enhancedDetails += '• CORS headers: Check OAuth authorized origins in Google Cloud Console\n';
-          enhancedDetails += '• Network error: Check browser console for "ERR_FAILED" messages\n';
-          enhancedDetails += '• Token expiration: Session may have expired, sign in again';
-          enhancedDetails += '\n\n💡 Solution: Click "Sign In with Google" button (bypasses rate limit)';
-        }
+        // Enhance error details with guidance
+        enhancedDetails += '\n\nCommon causes:\n';
+        enhancedDetails += '• Session expired: Please sign in again\n';
+        enhancedDetails += '• Network error: Check your internet connection\n';
+        enhancedDetails += '• OAuth configuration: Verify settings in Google Cloud Console\n';
+        enhancedDetails += '\n\n💡 Solution: Click "Sign In with Google" button';
         
         _restoreErrorDetails = enhancedDetails;
         print('⚠️  Storing restore error for UI display: $restoreError');

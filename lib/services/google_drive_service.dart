@@ -1,397 +1,117 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 import '../config/google_sign_in_config.dart';
 
+/// Service for interacting with Google Drive API
 class GoogleDriveService {
   static const List<String> _scopes = [
     drive.DriveApi.driveScope,
   ];
 
   late final GoogleSignIn _googleSignIn;
+  GoogleSignInAccount? _currentUser;
+  drive.DriveApi? _driveApi;
+  String? _folderId;
 
   GoogleDriveService() {
     _googleSignIn = GoogleSignIn(
       scopes: _scopes,
-      // For web, use the client ID from config - this enables popup-based sign-in
-      // IMPORTANT: The Client ID must match between:
-      // 1. lib/config/google_sign_in_config.dart
-      // 2. web/index.html meta tag
-      // 3. Google Cloud Console OAuth 2.0 Client ID configuration
       clientId: GoogleSignInConfig.webClientId,
-      // Force code flow for better web session persistence
-      // This ensures sessions are properly restored across page reloads
-      forceCodeForRefreshToken: false, // Use default, let the package handle it
+      // For web, don't force code flow - use standard OAuth popup
+      // This ensures full login flow instead of "Continue as" popup
     );
   }
 
-  GoogleSignInAccount? _currentUser;
-  drive.DriveApi? _driveApi;
-  String? _folderId;
-  DateTime? _lastRestoreAttempt; // Track when we last attempted to restore session
-
-  // Detailed error information for debugging
-  String? _lastError;
-  String? _lastErrorDetails;
-  StackTrace? _lastErrorStackTrace;
-
-  String? get lastError => _lastError;
-  String? get lastErrorDetails => _lastErrorDetails;
-  StackTrace? get lastErrorStackTrace => _lastErrorStackTrace;
-  
-  // Check if we should attempt silent sign-in (avoid rate limiting)
-  bool _shouldAttemptRestore() {
-    // If we already have a user and Drive API, we're signed in - no need to restore
-    if (_currentUser != null && _driveApi != null) {
-      print('✅ Already have active session - skipping restore attempt');
-      return false;
-    }
-    
-    // If we attempted restore recently (within 5 minutes), skip to avoid rate limiting
-    if (_lastRestoreAttempt != null) {
-      final timeSinceLastAttempt = DateTime.now().difference(_lastRestoreAttempt!);
-      if (timeSinceLastAttempt.inMinutes < 5) {
-        final minutesRemaining = 5 - timeSinceLastAttempt.inMinutes;
-        print('⏱️  Last restore attempt was ${timeSinceLastAttempt.inMinutes} minutes ago');
-        print('⏱️  Skipping restore attempt to avoid rate limiting (wait $minutesRemaining more minutes)');
-        return false;
-      }
-    }
-    
-    return true;
-  }
-
-  // Sign in silently (restore existing session without popup)
-  // IMPORTANT: This makes a network request to Google's servers.
-  // Only call this when necessary - Google sessions persist in browser storage,
-  // so we should avoid calling this on every page reload if we already have a session.
-  Future<bool> signInSilently({bool forceAttempt = false}) async {
-    // Check if we should skip this attempt (rate limiting protection)
-    if (!forceAttempt && !_shouldAttemptRestore()) {
-      // We already have a session or attempted recently - skip to avoid rate limiting
-      return _currentUser != null && _driveApi != null;
-    }
-    
-    // Clear previous errors
-    _lastError = null;
-    _lastErrorDetails = null;
-    _lastErrorStackTrace = null;
-    
-    // Record this attempt to avoid rate limiting
-    _lastRestoreAttempt = DateTime.now();
-
-    try {
-      print('═══════════════════════════════════════════════════════════');
-      print('🔐 ATTEMPTING SILENT SIGN-IN (Session Restoration)');
-      print('═══════════════════════════════════════════════════════════');
-      print('Timestamp: ${DateTime.now().toIso8601String()}');
-      const clientId = GoogleSignInConfig.webClientId;
-      print('Client ID configured: true');
-      print('Client ID: ${clientId.substring(0, clientId.indexOf('.'))}...${clientId.substring(clientId.lastIndexOf('.'))}');
-      
-      // Try to restore existing session without opening popup
-      // For web, this uses cookies/storage stored by the browser to restore the session
-      // Note: This makes a network request to Google's servers, which can trigger rate limiting
-      // Google's session persists in browser cookies/storage, so we only need to call this
-      // when the Dart objects (_currentUser, _driveApi) are null after a page reload
-      print('');
-      print('Step 1: Calling _googleSignIn.signInSilently()...');
-      print('Note: Google session should persist in browser storage - this just restores our Dart objects');
-      _currentUser = await _googleSignIn.signInSilently();
-      
-      if (_currentUser == null) {
-        // No existing session found
-        print('');
-        print('❌ RESULT: signInSilently() returned null');
-        print('No existing Google Sign-In session found');
-        print('');
-        print('Possible reasons:');
-        print('  ✓ User has never signed in before');
-        print('  ✓ User cleared browser cookies/storage');
-        print('  ✓ Session expired (tokens expired)');
-        print('  ✓ OAuth consent screen not published (for external users)');
-        print('  ✓ User revoked access');
-        print('  ✓ Different Google account session in browser');
-        print('');
-        
-        _lastError = 'No existing session found';
-        _lastErrorDetails = 'signInSilently() returned null. This means Google Sign-In library could not find a valid cached session.';
-        return false;
-      }
-
-      print('✅ Step 1 SUCCESS: Found user session');
-      print('   Email: ${_currentUser!.email}');
-      print('   Display Name: ${_currentUser!.displayName ?? 'N/A'}');
-      print('   ID: ${_currentUser!.id}');
-      print('');
-
-      // Get authentication headers (this requests the access token)
-      // This may refresh the token if needed
-      print('Step 2: Requesting authentication headers (access token)...');
-      print('This may attempt to refresh the token if it expired...');
-      
-      final authHeaders = await _currentUser!.authHeaders;
-      
-      if (authHeaders.isEmpty) {
-        print('');
-        print('❌ RESULT: authHeaders is empty');
-        print('Failed to get authentication headers');
-        print('');
-        print('This could indicate:');
-        print('  ✗ Token refresh failed');
-        print('  ✗ OAuth configuration issue');
-        print('  ✗ Network connectivity problem');
-        print('  ✗ Invalid or expired refresh token');
-        print('  ✗ OAuth consent screen permissions revoked');
-        print('');
-        
-        _lastError = 'Failed to get auth headers';
-        _lastErrorDetails = 'authHeaders is empty after requesting from GoogleSignInAccount. This typically means token refresh failed.';
-        return false;
-      }
-
-      print('✅ Step 2 SUCCESS: Obtained auth headers');
-      print('   Headers keys: ${authHeaders.keys.join(', ')}');
-      print('   Authorization header present: ${authHeaders.containsKey('Authorization')}');
-      if (authHeaders.containsKey('Authorization')) {
-        final authValue = authHeaders['Authorization'] ?? '';
-        print('   Authorization type: ${authValue.startsWith('Bearer ') ? 'Bearer token' : 'Other'}');
-        print('   Token length: ${authValue.length} characters');
-      }
-      print('');
-
-      print('Step 3: Creating Drive API client...');
-      // Create authenticated client for Google Drive API with token refresh support
-      final authenticatedClient = GoogleAuthClient._create(_currentUser!, authHeaders);
-      _driveApi = drive.DriveApi(authenticatedClient);
-      print('✅ Step 3 SUCCESS: Drive API client created');
-      print('');
-
-      print('═══════════════════════════════════════════════════════════');
-      print('✅ SESSION RESTORED SUCCESSFULLY');
-      print('   User: ${_currentUser!.email}');
-      print('   Session persisted in browser storage - no need to restore again unless it expires');
-      print('═══════════════════════════════════════════════════════════');
-      return true;
-    } catch (e, stackTrace) {
-      // FedCM errors are common on web and don't necessarily mean there's no session
-      // They're just warnings that FedCM couldn't be used, but the session might still exist
-      final errorStr = e.toString();
-      print('');
-      print('═══════════════════════════════════════════════════════════');
-      print('❌ ERROR DURING SILENT SIGN-IN');
-      print('═══════════════════════════════════════════════════════════');
-      print('Error Type: ${e.runtimeType}');
-      print('Error Message: $errorStr');
-      print('');
-      
-      // Store detailed error information
-      _lastError = errorStr;
-      _lastErrorDetails = 'Exception during signInSilently(): ${e.runtimeType}';
-      _lastErrorStackTrace = stackTrace;
-      
-      // Check for specific error patterns from browser console
-      // Note: We can't directly access browser console messages, but we can detect patterns
-      // in the error message or check if it's a known FedCM/IdentityCredentialError
-      
-      if (errorStr.contains('FedCM') || 
-          errorStr.contains('IdentityCredentialError') ||
-          errorStr.contains('unknown_reason')) {
-        // FedCM errors are expected and can be ignored
-        // The session might still be valid, but we can't restore it silently
-        print('⚠️  FEDCM / IDENTITY CREDENTIAL ERROR');
-        print('FedCM (Federated Credential Management) is a browser API.');
-        print('Errors here don\'t necessarily mean there is no session.');
-        print('');
-        print('Based on browser console logs, possible causes:');
-        print('  1. ⏱️  RATE LIMITING: Auto re-authn was triggered less than 10 minutes ago');
-        print('     → Solution: Wait 10 minutes before refreshing, or click "Sign In" button');
-        print('');
-        print('  2. 🌐 CORS HEADERS: Server did not send correct CORS headers');
-        print('     → Solution: Check OAuth configuration in Google Cloud Console');
-        print('     → Verify authorized JavaScript origins match your URL exactly');
-        print('     → Check authorized redirect URIs are configured');
-        print('');
-        print('  3. 🔌 NETWORK ERROR: ERR_FAILED when fetching ID assertion endpoint');
-        print('     → Solution: Check network connectivity');
-        print('     → Verify no browser extensions blocking requests');
-        print('     → Try in incognito/private window');
-        print('');
-        print('  4. 🔑 TOKEN ERROR: Error retrieving a token');
-        print('     → Solution: Session may have expired, user needs to sign in again');
-        print('     → This is normal if session was cleared or expired');
-        print('');
-        print('What to try:');
-        print('  ✓ Wait 10 minutes if you just signed in and refreshed immediately');
-        print('  ✓ Click "Sign In with Google" button (this bypasses rate limiting)');
-        print('  ✓ Check browser console for "Auto re-authn was previously triggered" message');
-        print('  ✓ Verify OAuth consent screen and authorized origins in Google Cloud Console');
-        print('');
-        
-        _lastErrorDetails = 'FedCM/IdentityCredential error. Common causes: rate limiting (10 min cooldown), CORS headers, network errors, or token retrieval failure. Check browser console for "Auto re-authn was previously triggered" message.';
-      } else if (errorStr.contains('popup_closed') || 
-                 errorStr.contains('popup_blocked')) {
-        print('⚠️  POPUP ERROR');
-        print('User interaction required but popup was blocked/closed');
-        print('');
-        
-        _lastErrorDetails = 'Popup blocked/closed: $errorStr';
-      } else if (errorStr.contains('access_denied') ||
-                 errorStr.contains('access_denied')) {
-        print('⚠️  ACCESS DENIED');
-        print('User denied access or revoked permissions');
-        print('');
-        
-        _lastErrorDetails = 'Access denied: $errorStr';
-      } else if (errorStr.contains('network') || 
-                 errorStr.contains('Network') ||
-                 errorStr.contains('Failed host lookup') ||
-                 errorStr.contains('Connection refused')) {
-        print('⚠️  NETWORK ERROR');
-        print('Network connectivity issue during sign-in');
-        print('');
-        
-        _lastErrorDetails = 'Network error: $errorStr';
-      } else if (errorStr.contains('redirect_uri_mismatch') ||
-                 errorStr.contains('redirect')) {
-        print('⚠️  REDIRECT URI MISMATCH');
-        print('OAuth configuration error: Redirect URI doesn\'t match');
-        print('Check Google Cloud Console → Credentials → Authorized redirect URIs');
-        print('');
-        
-        _lastErrorDetails = 'Redirect URI mismatch: $errorStr';
-      } else if (errorStr.contains('origin') || 
-                 errorStr.contains('JavaScript') ||
-                 errorStr.contains('origins')) {
-        print('⚠️  ORIGIN MISMATCH');
-        print('OAuth configuration error: JavaScript origin not authorized');
-        print('Check Google Cloud Console → Credentials → Authorized JavaScript origins');
-        print('');
-        
-        _lastErrorDetails = 'Origin mismatch: $errorStr';
-      } else if (errorStr.contains('invalid_client') ||
-                 errorStr.contains('client_id')) {
-        print('⚠️  CLIENT ID ERROR');
-        print('OAuth configuration error: Invalid or missing Client ID');
-        print('Check that Client ID matches in:');
-        print('  1. lib/config/google_sign_in_config.dart');
-        print('  2. web/index.html meta tag');
-        print('');
-        
-        _lastErrorDetails = 'Client ID error: $errorStr';
-      } else {
-        print('⚠️  UNEXPECTED ERROR');
-        print('Unknown error type - may indicate OAuth configuration issue');
-        print('');
-        
-        _lastErrorDetails = 'Unexpected error: $errorStr';
-      }
-      
-      print('Stack Trace:');
-      print(stackTrace);
-      print('');
-      print('═══════════════════════════════════════════════════════════');
-      
-      return false;
-    }
-  }
-
-  // Sign in - opens a popup for user authorization
-  // NOTE: This method is called when the user explicitly clicks "Sign In"
-  // It should NOT use signInSilently() because that's for automatic restoration only
+  /// Sign in with Google - opens full OAuth login popup
   Future<bool> signIn() async {
     try {
-      // When user explicitly clicks "Sign In", always use the interactive sign-in flow
-      // This ensures proper token initialization regardless of which popup method is used
-      // (full OAuth popup or "Sign In as" FedCM popup)
-      print('User-initiated sign-in - opening interactive sign-in flow');
+      print('Starting Google Sign-In...');
+      
+      // Sign in - this opens the full OAuth popup
+      // The package will show the full OAuth consent screen
       _currentUser = await _googleSignIn.signIn();
       
       if (_currentUser == null) {
-        // User closed the popup without signing in
-        print('User cancelled sign-in');
+        print('Sign-in cancelled by user');
         return false;
       }
 
-      print('Sign-in popup completed - user: ${_currentUser!.email}');
+      print('Sign-in successful: ${_currentUser!.email}');
+
+      // Get authentication headers
+      final authHeaders = await _currentUser!.authHeaders;
       
-      // Get authentication tokens - try using authentication property first
-      // With FedCM, authHeaders might return "Bearer null", but authentication.accessToken should work
-      print('Requesting authentication tokens...');
-      
-      // Try using the authentication property instead of authHeaders for FedCM compatibility
-      Map<String, String> authHeaders;
-      try {
-        final auth = await _currentUser!.authentication;
-        print('Got authentication object - accessToken: ${auth.accessToken != null ? "present (${auth.accessToken!.length} chars)" : "null"}, idToken: ${auth.idToken != null ? "present" : "null"}');
-        
-        if (auth.accessToken == null || auth.accessToken!.isEmpty) {
-          print('ERROR: accessToken is null or empty from authentication property');
-          // Fall back to authHeaders
-          print('Falling back to authHeaders...');
-          authHeaders = await _currentUser!.authHeaders;
-        } else {
-          // Manually construct auth headers from accessToken
-          authHeaders = {
-            'Authorization': 'Bearer ${auth.accessToken}',
-          };
-          print('Successfully constructed auth headers from accessToken');
-        }
-      } catch (e) {
-        print('Error getting authentication property: $e, falling back to authHeaders...');
-        authHeaders = await _currentUser!.authHeaders;
-      }
-      
-      // Validate the headers
-      if (authHeaders.isEmpty) {
-        print('ERROR: authHeaders is empty after all attempts');
+      if (authHeaders.isEmpty || !authHeaders.containsKey('Authorization')) {
+        print('Failed to get authentication headers');
         _currentUser = null;
         return false;
       }
-      
-      if (!authHeaders.containsKey('Authorization')) {
-        print('ERROR: Authorization header is missing');
-        _currentUser = null;
-        return false;
-      }
-      
+
+      // Validate token
       final authValue = authHeaders['Authorization'] ?? '';
-      
-      // Check if token is valid
-      if (authValue.isEmpty || 
-          authValue == 'Bearer null' || 
-          authValue == 'Bearer' ||
-          !authValue.startsWith('Bearer ') ||
-          authValue.substring(7).trim().isEmpty) {
-        print('ERROR: Invalid authentication token');
-        print('  Token value: "$authValue"');
+      if (!authValue.startsWith('Bearer ') || authValue.length < 20) {
+        print('Invalid authentication token');
         _currentUser = null;
         return false;
       }
-      
-      print('Authentication headers obtained successfully');
-      print('  Headers keys: ${authHeaders.keys.join(', ')}');
-      print('  Authorization token length: ${authValue.length} characters');
 
-      // Create authenticated client for Google Drive API with token refresh support
-      final authenticatedClient = GoogleAuthClient._create(_currentUser!, authHeaders);
+      // Create authenticated client for Google Drive API
+      final authenticatedClient = GoogleAuthClient(_currentUser!);
       _driveApi = drive.DriveApi(authenticatedClient);
-      print('Drive API client created successfully');
-
+      
+      print('Drive API client initialized successfully');
       return true;
     } catch (e, stackTrace) {
       print('Error during sign-in: $e');
       print('Stack trace: $stackTrace');
-      // Clear state on error
       _currentUser = null;
       _driveApi = null;
-      rethrow; // Re-throw to get actual error message for better debugging
+      rethrow;
     }
   }
 
-  // Sign out
+  /// Attempt to sign in silently (restore existing session)
+  Future<bool> signInSilently() async {
+    try {
+      print('Attempting silent sign-in...');
+      
+      _currentUser = await _googleSignIn.signInSilently();
+      
+      if (_currentUser == null) {
+        print('No existing session found');
+        return false;
+      }
+
+      print('Silent sign-in successful: ${_currentUser!.email}');
+
+      // Get authentication headers
+      final authHeaders = await _currentUser!.authHeaders;
+      
+      if (authHeaders.isEmpty || !authHeaders.containsKey('Authorization')) {
+        print('Failed to get authentication headers');
+        _currentUser = null;
+        return false;
+      }
+
+      // Create authenticated client for Google Drive API
+      final authenticatedClient = GoogleAuthClient(_currentUser!);
+      _driveApi = drive.DriveApi(authenticatedClient);
+      
+      print('Drive API client initialized successfully');
+      return true;
+    } catch (e) {
+      print('Silent sign-in failed: $e');
+      _currentUser = null;
+      _driveApi = null;
+      return false;
+    }
+  }
+
+  /// Sign out
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     _currentUser = null;
@@ -399,105 +119,52 @@ class GoogleDriveService {
     _folderId = null;
   }
 
-  // Check if signed in
+  /// Check if signed in
   bool get isSignedIn => _currentUser != null && _driveApi != null;
 
-  // Get current user
+  /// Get current user
   GoogleSignInAccount? get currentUser => _currentUser;
 
-  // Try to restore session by checking if user is already authenticated
-  // This is an alternative to signInSilently() that might work better on web
-  Future<bool> tryRestoreSession() async {
-    try {
-      // First, try the standard silent sign-in
-      final silentSuccess = await signInSilently();
-      if (silentSuccess) {
-        return true;
-      }
-
-      // If silent sign-in failed (possibly due to FedCM errors),
-      // try to check if there's a current user session
-      // Note: This might not work on all platforms, but it's worth trying
-      try {
-        // On web, Google Sign-In might have a session even if signInSilently() failed
-        // We can't directly check this, but we can try to get auth headers if a session exists
-        // This is a workaround for FedCM issues
-        return false; // If silent sign-in failed, we can't restore
-      } catch (e) {
-        print('Alternative session restore failed: $e');
-        return false;
-      }
-    } catch (e) {
-      print('Error in tryRestoreSession: $e');
-      return false;
-    }
-  }
-
-  // Set folder ID
+  /// Set folder ID
   void setFolderId(String folderId) {
     _folderId = folderId;
   }
 
-  // Get folder ID
+  /// Get folder ID
   String? get folderId => _folderId;
 
-  // List folders in Drive (optionally in a specific parent folder)
+  /// List folders in Drive (optionally in a specific parent folder)
   Future<List<drive.File>> listFolders([String? parentFolderId]) async {
     if (_driveApi == null) {
       throw StateError('Not signed in');
     }
 
     try {
-      print('listFolders: Starting folder list request');
-      print('  parentFolderId: $parentFolderId');
-      print('  _currentUser: ${_currentUser?.email ?? "null"}');
-      print('  _driveApi: ${_driveApi != null ? "initialized" : "null"}');
-      
       String query = "mimeType='application/vnd.google-apps.folder' and trashed=false";
       if (parentFolderId != null) {
         query += " and '$parentFolderId' in parents";
       } else {
-        // List root folders (folders with no parents or only in My Drive root)
         query += " and 'root' in parents";
       }
       
-      print('listFolders: Executing Drive API query: $query');
       final response = await _driveApi!.files.list(
         q: query,
         $fields: 'files(id, name)',
       );
 
-      print('listFolders: Received response from Drive API');
-      
-      // Ensure we always return a non-null list
-      // response.files can be null, so we need to handle that case
-      if (response.files == null) {
-        print('listFolders: Response files is null, returning empty list');
+      if (response.files == null || response.files!.isEmpty) {
         return <drive.File>[];
       }
       
-      // Explicitly convert to List<drive.File> to avoid type issues
-      // response.files is List<drive.File>?, so we need to handle null
-      final filesList = response.files!;
-      if (filesList.isEmpty) {
-        print('listFolders: Response files list is empty');
-        return <drive.File>[];
-      }
-      
-      print('listFolders: Successfully retrieved ${filesList.length} folders');
-      return List<drive.File>.from(filesList);
+      return List<drive.File>.from(response.files!);
     } catch (e, stackTrace) {
-      print('ERROR: listFolders: Exception occurred');
-      print('  Error type: ${e.runtimeType}');
-      print('  Error message: $e');
-      print('  Stack trace: $stackTrace');
-      print('  _currentUser: ${_currentUser?.email ?? "null"}');
-      print('  _driveApi: ${_driveApi != null ? "initialized" : "null"}');
+      print('Error listing folders: $e');
+      print('Stack trace: $stackTrace');
       rethrow;
     }
   }
 
-  // Create a new folder in a parent folder (or root if parentId is null)
+  /// Create a new folder in a parent folder (or root if parentId is null)
   Future<drive.File> createFolder(String folderName, [String? parentFolderId]) async {
     if (_driveApi == null) {
       throw StateError('Not signed in');
@@ -522,7 +189,7 @@ class GoogleDriveService {
     }
   }
 
-  // Get folder information by ID
+  /// Get folder information by ID
   Future<drive.File?> getFolder(String folderId) async {
     if (_driveApi == null) {
       throw StateError('Not signed in');
@@ -540,7 +207,7 @@ class GoogleDriveService {
     }
   }
 
-  // Get or create a file in the folder
+  /// Get or create a file in the folder
   Future<String> _getOrCreateFile(String fileName, String mimeType) async {
     if (_driveApi == null || _folderId == null) {
       throw StateError('Not signed in or folder not set');
@@ -571,7 +238,7 @@ class GoogleDriveService {
     }
   }
 
-  // Upload CSV content to Drive
+  /// Upload CSV content to Drive
   Future<void> uploadCsv(String fileName, String csvContent) async {
     if (_driveApi == null || _folderId == null) {
       throw StateError('Not signed in or folder not set');
@@ -598,7 +265,7 @@ class GoogleDriveService {
     }
   }
 
-  // Download CSV content from Drive
+  /// Download CSV content from Drive
   Future<String> downloadCsv(String fileName) async {
     if (_driveApi == null || _folderId == null) {
       throw StateError('Not signed in or folder not set');
@@ -617,8 +284,7 @@ class GoogleDriveService {
       final fileId = response.files!.first.id!;
       
       // Use the authenticated client to download the file
-      final authHeaders = await _currentUser!.authHeaders;
-      final authenticatedClient = GoogleAuthClient._create(_currentUser!, authHeaders);
+      final authenticatedClient = GoogleAuthClient(_currentUser!);
       final downloadUrl = 'https://www.googleapis.com/drive/v3/files/$fileId?alt=media';
       final downloadResponse = await authenticatedClient.get(Uri.parse(downloadUrl));
       
@@ -627,8 +293,6 @@ class GoogleDriveService {
         try {
           return utf8.decode(downloadResponse.bodyBytes);
         } on FormatException {
-          // If UTF-8 decoding fails, try Latin1 (ISO-8859-1)
-          // This handles files encoded in Windows-1252 or ISO-8859-1
           return latin1.decode(downloadResponse.bodyBytes);
         }
       } else {
@@ -644,139 +308,68 @@ class GoogleDriveService {
     }
   }
 
-  // Upload bills.csv
+  /// Upload bills.csv
   Future<void> uploadBills(String csvContent) async {
     await uploadCsv('bills.csv', csvContent);
   }
 
-  // Download bills.csv
+  /// Download bills.csv
   Future<String> downloadBills() async {
     return await downloadCsv('bills.csv');
   }
 
-  // Upload payment_splits.csv
+  /// Upload payment_splits.csv
   Future<void> uploadPaymentSplits(String csvContent) async {
     await uploadCsv('payment_splits.csv', csvContent);
   }
 
-  // Download payment_splits.csv
+  /// Download payment_splits.csv
   Future<String> downloadPaymentSplits() async {
     return await downloadCsv('payment_splits.csv');
   }
 
-  // Upload categories.csv
+  /// Upload categories.csv
   Future<void> uploadCategories(String csvContent) async {
     await uploadCsv('categories.csv', csvContent);
   }
 
-  // Download categories.csv
+  /// Download categories.csv
   Future<String> downloadCategories() async {
     return await downloadCsv('categories.csv');
   }
 
-  // Upload person_names.csv
+  /// Upload person_names.csv
   Future<void> uploadPersonNames(String csvContent) async {
     await uploadCsv('person_names.csv', csvContent);
   }
 
-  // Download person_names.csv
+  /// Download person_names.csv
   Future<String> downloadPersonNames() async {
     return await downloadCsv('person_names.csv');
   }
 }
 
-// Custom HTTP client for Google APIs with automatic token refresh
-// This client automatically refreshes tokens before each request to prevent 401 errors
+/// Custom HTTP client for Google APIs with automatic token refresh
 class GoogleAuthClient extends http.BaseClient {
   final GoogleSignInAccount _user;
   final http.Client _client = http.Client();
 
-  // Factory constructor that creates the client with user account
-  factory GoogleAuthClient._create(GoogleSignInAccount user, Map<String, String> initialHeaders) {
-    return GoogleAuthClient._(user);
-  }
-
-  GoogleAuthClient._(this._user);
+  GoogleAuthClient(this._user);
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     // Get fresh authentication headers before each request
-    // Try using authentication.accessToken first (works better with FedCM)
-    // Fall back to authHeaders if needed
-    try {
-      print('GoogleAuthClient: Getting auth headers for ${request.method} ${request.url}');
-      
-      Map<String, String> authHeaders;
-      try {
-        // Try using authentication property first - this works better with FedCM
-        final auth = await _user.authentication;
-        if (auth.accessToken != null && auth.accessToken!.isNotEmpty) {
-          authHeaders = {
-            'Authorization': 'Bearer ${auth.accessToken}',
-          };
-          print('GoogleAuthClient: Using accessToken from authentication property');
-        } else {
-          // Fall back to authHeaders
-          print('GoogleAuthClient: accessToken is null, falling back to authHeaders');
-          authHeaders = await _user.authHeaders;
-        }
-      } catch (e) {
-        // If authentication property fails, use authHeaders
-        print('GoogleAuthClient: Error getting authentication property: $e, using authHeaders');
-        authHeaders = await _user.authHeaders;
-      }
-      
-      if (authHeaders.isEmpty) {
-        print('ERROR: GoogleAuthClient: authHeaders is empty');
-        throw Exception('Failed to get auth headers - user may need to sign in again');
-      }
-      
-      // Check if Authorization header exists and has a valid token
-      if (!authHeaders.containsKey('Authorization')) {
-        print('ERROR: GoogleAuthClient: Authorization header is missing');
-        throw Exception('Authorization header is missing - user may need to sign in again');
-      }
-      
-      final authValue = authHeaders['Authorization'] ?? '';
-      print('GoogleAuthClient: Authorization header value: ${authValue.isNotEmpty ? "${authValue.substring(0, authValue.length > 50 ? 50 : authValue.length)}..." : "empty"}');
-      
-      // Check if token is valid (not null, not empty, not "Bearer null")
-      if (authValue.isEmpty || 
-          authValue == 'Bearer null' || 
-          authValue == 'Bearer' ||
-          !authValue.startsWith('Bearer ') ||
-          authValue.substring(7).trim().isEmpty) {
-        print('ERROR: GoogleAuthClient: Authorization token is invalid');
-        print('  Token value: "$authValue"');
-        throw Exception('Invalid authentication token - user may need to sign in again. Token value: "${authValue.length > 50 ? "${authValue.substring(0, 50)}..." : authValue}"');
-      }
-      
-      print('GoogleAuthClient: Valid authorization token found (length: ${authValue.length} characters)');
-      
-      // Add fresh headers to the request
-      request.headers.addAll(authHeaders);
-      
-      // Send the request with fresh headers
-      final response = await _client.send(request);
-      
-      // Log response status for debugging
-      print('GoogleAuthClient: Request completed with status ${response.statusCode}');
-      if (response.statusCode == 401) {
-        print('ERROR: GoogleAuthClient: Received 401 Unauthorized - authentication may have failed');
-        print('  This might indicate that tokens are invalid or expired');
-      }
-      
-      return response;
-    } catch (e, stackTrace) {
-      print('ERROR: GoogleAuthClient: Exception getting auth headers or sending request');
-      print('  Error: $e');
-      print('  Stack trace: $stackTrace');
-      print('  Request URL: ${request.url}');
-      print('  Request method: ${request.method}');
-      
-      // Re-throw with more context
-      throw Exception('Authentication failed when making ${request.method} request to ${request.url}: $e');
+    final authHeaders = await _user.authHeaders;
+    
+    if (authHeaders.isEmpty || !authHeaders.containsKey('Authorization')) {
+      throw Exception('Failed to get auth headers - user may need to sign in again');
     }
+    
+    // Add authentication headers to the request
+    request.headers.addAll(authHeaders);
+    
+    // Send the request
+    return await _client.send(request);
   }
 
   @override
