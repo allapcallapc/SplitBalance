@@ -1,7 +1,7 @@
 name: splitbalance
 description: A Flutter app for managing shared bills with Google Drive storage.
 publish_to: 'none'
-version: 0.1.1+2
+version: 0.1.2+3
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
