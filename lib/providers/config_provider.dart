@@ -318,7 +318,7 @@ class ConfigProvider with ChangeNotifier {
       } else if (errorMessage.contains('origin') || errorMessage.contains('JavaScript') || errorMessage.contains('origins')) {
         _error = 'Configuration Error: JavaScript origin not authorized.\n\nIn Google Cloud Console:\n1. Edit your OAuth 2.0 Client ID (Web application)\n2. Under "Authorized JavaScript origins", add:\n   • http://localhost:8080\n   • http://127.0.0.1:8080\n3. Under "Authorized redirect URIs", add:\n   • http://localhost:8080\n   • http://localhost:8080/\n   • http://127.0.0.1:8080\n   • http://127.0.0.1:8080/\n4. Click SAVE and wait a few seconds\n5. Try signing in again';
       } else if (errorMessage.contains('invalid_client') || errorMessage.contains('client_id')) {
-        _error = 'Configuration Error: Invalid or missing Client ID.\n\nPlease:\n1. Verify your Client ID in lib/config/google_sign_in_config.local.dart\n2. Verify web/index.html meta tag has the same Client ID\n3. Make sure you created a "Web application" OAuth client ID';
+        _error = 'Configuration Error: Invalid or missing Client ID.\n\nPlease:\n1. Verify your Client ID in lib/config/google_sign_in_config.dart\n2. Verify web/index.html meta tag has the same Client ID\n3. Make sure you created a "Web application" OAuth client ID';
       } else if (errorMessage.contains('popup_blocked') || errorMessage.contains('popup')) {
         _error = 'Popup blocked! Please allow popups for this site and try again.';
       } else {

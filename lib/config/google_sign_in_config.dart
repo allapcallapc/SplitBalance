@@ -1,23 +1,15 @@
 /// Google Sign-In Configuration
 /// 
-/// This file loads the Client ID from a local config file that is NOT committed to git.
+/// This file contains the OAuth Client ID for Google Sign-In.
 /// 
-/// Setup Instructions:
-/// 1. Copy google_sign_in_config.local.dart.example to google_sign_in_config.local.dart
-/// 2. Replace YOUR_CLIENT_ID_HERE with your actual Client ID in the local file
-/// 3. Update web/index.html with the same Client ID in the meta tag
+/// IMPORTANT: The Client ID must match in:
+/// 1. This file (lib/config/google_sign_in_config.dart)
+/// 2. web/index.html meta tag
+/// 3. Google Cloud Console OAuth 2.0 Client ID configuration
 /// 
-/// The local config file (google_sign_in_config.local.dart) is gitignored, 
-/// so your Client ID won't be committed to version control.
-
-// Import local config if it exists
-// If the file doesn't exist, this will cause an error - that's intentional
-// to remind you to create the local config file
-import 'google_sign_in_config.local.dart' as local_config;
+/// Note: OAuth Client IDs are public by design (used in client-side code),
+/// so it's safe to have this value here.
 
 class GoogleSignInConfig {
-  // Load from local config file (gitignored)
-  static const String? webClientId = local_config.localWebClientId == 'YOUR_CLIENT_ID_HERE'
-      ? null
-      : local_config.localWebClientId;
+  static const String webClientId = '95893356652-uve6eggod341cb46palt6joq8cn2fhuv.apps.googleusercontent.com';
 }

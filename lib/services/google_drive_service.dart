@@ -17,7 +17,7 @@ class GoogleDriveService {
       scopes: _scopes,
       // For web, use the client ID from config - this enables popup-based sign-in
       // IMPORTANT: The Client ID must match between:
-      // 1. lib/config/google_sign_in_config.local.dart
+      // 1. lib/config/google_sign_in_config.dart
       // 2. web/index.html meta tag
       // 3. Google Cloud Console OAuth 2.0 Client ID configuration
       clientId: GoogleSignInConfig.webClientId,
@@ -87,13 +87,9 @@ class GoogleDriveService {
       print('🔐 ATTEMPTING SILENT SIGN-IN (Session Restoration)');
       print('═══════════════════════════════════════════════════════════');
       print('Timestamp: ${DateTime.now().toIso8601String()}');
-      print('Client ID configured: ${GoogleSignInConfig.webClientId != null}');
-      if (GoogleSignInConfig.webClientId != null) {
-        final clientId = GoogleSignInConfig.webClientId!;
-        print('Client ID: ${clientId.substring(0, clientId.indexOf('.'))}...${clientId.substring(clientId.lastIndexOf('.'))}');
-      } else {
-        print('⚠️  WARNING: Client ID is null! Check configuration.');
-      }
+      final clientId = GoogleSignInConfig.webClientId;
+      print('Client ID configured: true');
+      print('Client ID: ${clientId.substring(0, clientId.indexOf('.'))}...${clientId.substring(clientId.lastIndexOf('.'))}');
       
       // Try to restore existing session without opening popup
       // For web, this uses cookies/storage stored by the browser to restore the session
@@ -280,7 +276,7 @@ class GoogleDriveService {
         print('⚠️  CLIENT ID ERROR');
         print('OAuth configuration error: Invalid or missing Client ID');
         print('Check that Client ID matches in:');
-        print('  1. lib/config/google_sign_in_config.local.dart');
+        print('  1. lib/config/google_sign_in_config.dart');
         print('  2. web/index.html meta tag');
         print('');
         

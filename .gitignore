@@ -49,4 +49,5 @@ app.*.map.json
 **/oauth_credentials.json
 
 # Local configuration with Client IDs (not committed to git)
-lib/config/google_sign_in_config.local.dart
+# Note: google_sign_in_config.local.dart is now committed since OAuth Client IDs are public by design
+# lib/config/google_sign_in_config.local.dart
