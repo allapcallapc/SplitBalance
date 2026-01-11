@@ -77,10 +77,20 @@ class CalculationService {
 
     // Process each bill
     for (final bill in bills) {
+      // Only process bills paid by person1 or person2
+      // Bills paid by others are ignored (don't count in paid or expected amounts)
+      final isPaidByPerson1 = bill.paidBy == person1Name;
+      final isPaidByPerson2 = bill.paidBy == person2Name;
+      
+      if (!isPaidByPerson1 && !isPaidByPerson2) {
+        // Bill paid by someone else - skip it entirely
+        continue;
+      }
+
       // Track who paid
-      if (bill.paidBy == person1Name) {
+      if (isPaidByPerson1) {
         person1Paid += bill.amount;
-      } else if (bill.paidBy == person2Name) {
+      } else {
         person2Paid += bill.amount;
       }
 
@@ -130,9 +140,9 @@ class CalculationService {
         categoryBalancesMap[categoryKey] = CategoryBalance(
           category: categoryKey,
           person1Paid: catBalance.person1Paid +
-              (bill.paidBy == person1Name ? bill.amount : 0),
+              (isPaidByPerson1 ? bill.amount : 0),
           person2Paid: catBalance.person2Paid +
-              (bill.paidBy == person2Name ? bill.amount : 0),
+              (isPaidByPerson2 ? bill.amount : 0),
           person1Expected: catBalance.person1Expected + person1Share,
           person2Expected: catBalance.person2Expected + person2Share,
         );

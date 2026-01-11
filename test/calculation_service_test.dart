@@ -629,12 +629,12 @@ void main() {
         person2Name: person2,
       );
       
-      // 'alice' != 'Alice', so person1Paid should be 0
+      // 'alice' != 'Alice', so the bill is paid by a third person and should be ignored entirely
       expect(result.person1Paid, 0.0);
       expect(result.person2Paid, 0.0);
-      // But the bill amount is still split 50/50
-      expect(result.person1Expected, 50.0);
-      expect(result.person2Expected, 50.0);
+      // Expected amounts should also be 0 because the bill is ignored (paid by third person)
+      expect(result.person1Expected, 0.0);
+      expect(result.person2Expected, 0.0);
     });
 
     test('Multiple splits for same category - most specific wins', () {
@@ -1188,6 +1188,128 @@ void main() {
       expect(provider.isCategoryInUse('Utilities', bills, splits), false);
       // Entertainment is NOT in use
       expect(provider.isCategoryInUse('Entertainment', bills, splits), false);
+    });
+  });
+
+  group('CalculationService - Expected Amount Validation', () {
+    const String person1 = 'Alice';
+    const String person2 = 'Bob';
+    final DateTime baseDate = DateTime(2024, 1, 15);
+    
+    List<Category> getCategories([List<String>? names]) {
+      return (names ?? ['Food', 'Rent', 'Utilities', 'Entertainment'])
+          .map((name) => Category(name: name))
+          .toList();
+    }
+
+    test('Expected amounts cannot exceed total paid by both people', () {
+      // Scenario: Third person pays a bill, but it should be ignored (not counted in paid or expected)
+      final bills = [
+        Bill(date: baseDate, amount: 100.0, paidBy: 'Charlie', category: 'Food'), // Third person pays - should be ignored
+        Bill(date: baseDate, amount: 50.0, paidBy: person1, category: 'Food'),
+      ];
+      
+      final splits = [
+        PaymentSplit(
+          category: 'all',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+      ];
+      
+      final categories = getCategories();
+      
+      final result = CalculationService.calculateBalances(
+        bills: bills,
+        splits: splits,
+        categories: categories,
+        person1Name: person1,
+        person2Name: person2,
+      );
+      
+      final totalPaid = result.person1Paid + result.person2Paid;
+      final totalExpected = result.person1Expected + result.person2Expected;
+      
+      // Expected amounts should not exceed total paid
+      // Third person's bill is ignored, so only person1's bill counts
+      expect(totalExpected, lessThanOrEqualTo(totalPaid), 
+        reason: 'Expected amounts ($totalExpected) should not exceed total paid ($totalPaid)');
+      expect(totalExpected, closeTo(50.0, 0.01)); // 50% of 50 (only person1's bill)
+      expect(totalPaid, closeTo(50.0, 0.01)); // Only person1 paid
+    });
+
+    test('Expected amounts match total paid when all bills are paid by person1 or person2', () {
+      final bills = [
+        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
+        Bill(date: baseDate, amount: 50.0, paidBy: person2, category: 'Food'),
+      ];
+      
+      final splits = [
+        PaymentSplit(
+          category: 'all',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+      ];
+      
+      final categories = getCategories();
+      
+      final result = CalculationService.calculateBalances(
+        bills: bills,
+        splits: splits,
+        categories: categories,
+        person1Name: person1,
+        person2Name: person2,
+      );
+      
+      final totalPaid = result.person1Paid + result.person2Paid;
+      final totalExpected = result.person1Expected + result.person2Expected;
+      
+      // When all bills are paid by person1 or person2, expected should equal total paid
+      expect(totalExpected, closeTo(totalPaid, 0.01));
+    });
+
+    test('Expected amounts are capped at total paid when third person pays', () {
+      // More complex scenario: mix of bills paid by different people
+      // Third person's bill should be ignored entirely
+      final bills = [
+        Bill(date: baseDate, amount: 200.0, paidBy: 'ThirdPerson', category: 'Rent'), // Should be ignored
+        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Rent'),
+        Bill(date: baseDate, amount: 50.0, paidBy: person2, category: 'Food'),
+      ];
+      
+      final splits = [
+        PaymentSplit(
+          category: 'all',
+          person1: person1,
+          person1Percentage: 60.0,
+          person2: person2,
+          person2Percentage: 40.0,
+        ),
+      ];
+      
+      final categories = getCategories();
+      
+      final result = CalculationService.calculateBalances(
+        bills: bills,
+        splits: splits,
+        categories: categories,
+        person1Name: person1,
+        person2Name: person2,
+      );
+      
+      final totalPaid = result.person1Paid + result.person2Paid; // Only 100 + 50 = 150
+      final totalExpected = result.person1Expected + result.person2Expected; // 60% + 40% of 150 = 150
+      
+      // Expected should equal total paid (150) because third person's bill is ignored
+      expect(totalExpected, lessThanOrEqualTo(totalPaid),
+        reason: 'Expected amounts should not exceed total paid');
+      expect(totalExpected, closeTo(150.0, 0.01)); // 60% of 100 + 40% of 100 + 60% of 50 + 40% of 50 = 60 + 40 + 30 + 20 = 150
+      expect(totalPaid, closeTo(150.0, 0.01)); // 100 + 50
     });
   });
 }
