@@ -317,67 +317,60 @@ class GoogleDriveService {
 
       print('Sign-in popup completed - user: ${_currentUser!.email}');
       
-      // Get authentication headers (this requests the access token)
-      // This MUST succeed for the interactive sign-in method
-      print('Requesting authentication headers...');
-      Map<String, String> authHeaders = await _currentUser!.authHeaders;
+      // Get authentication tokens - try using authentication property first
+      // With FedCM, authHeaders might return "Bearer null", but authentication.accessToken should work
+      print('Requesting authentication tokens...');
       
-      // Check if we got valid tokens - with FedCM, tokens might be "Bearer null" initially
-      // Try multiple times with a small delay if tokens are invalid
-      int retryCount = 0;
-      const maxRetries = 3;
-      bool tokensValid = false;
-      
-      while (retryCount < maxRetries && !tokensValid) {
-        if (authHeaders.isEmpty) {
-          print('WARNING: authHeaders is empty, retry ${retryCount + 1}/$maxRetries');
-          if (retryCount < maxRetries - 1) {
-            await Future.delayed(const Duration(milliseconds: 500));
-            authHeaders = await _currentUser!.authHeaders;
-          }
-          retryCount++;
-          continue;
-        }
-
-        if (!authHeaders.containsKey('Authorization')) {
-          print('WARNING: Authorization header is missing, retry ${retryCount + 1}/$maxRetries');
-          if (retryCount < maxRetries - 1) {
-            await Future.delayed(const Duration(milliseconds: 500));
-            authHeaders = await _currentUser!.authHeaders;
-          }
-          retryCount++;
-          continue;
-        }
+      // Try using the authentication property instead of authHeaders for FedCM compatibility
+      Map<String, String> authHeaders;
+      try {
+        final auth = await _currentUser!.authentication;
+        print('Got authentication object - accessToken: ${auth.accessToken != null ? "present (${auth.accessToken!.length} chars)" : "null"}, idToken: ${auth.idToken != null ? "present" : "null"}');
         
-        final authValue = authHeaders['Authorization'] ?? '';
-        
-        // Check if token is valid (not null, not empty, not "Bearer null")
-        if (authValue.isEmpty || 
-            authValue == 'Bearer null' || 
-            authValue == 'Bearer' ||
-            !authValue.startsWith('Bearer ') ||
-            authValue.substring(7).trim().isEmpty) {
-          print('WARNING: Invalid token "$authValue", retry ${retryCount + 1}/$maxRetries');
-          if (retryCount < maxRetries - 1) {
-            // Try waiting a bit longer and retry
-            await Future.delayed(const Duration(milliseconds: 500));
-            authHeaders = await _currentUser!.authHeaders;
-          }
-          retryCount++;
-          continue;
+        if (auth.accessToken == null || auth.accessToken!.isEmpty) {
+          print('ERROR: accessToken is null or empty from authentication property');
+          // Fall back to authHeaders
+          print('Falling back to authHeaders...');
+          authHeaders = await _currentUser!.authHeaders;
+        } else {
+          // Manually construct auth headers from accessToken
+          authHeaders = {
+            'Authorization': 'Bearer ${auth.accessToken}',
+          };
+          print('Successfully constructed auth headers from accessToken');
         }
-        
-        tokensValid = true;
+      } catch (e) {
+        print('Error getting authentication property: $e, falling back to authHeaders...');
+        authHeaders = await _currentUser!.authHeaders;
       }
       
-      if (!tokensValid) {
-        print('ERROR: Failed to get valid auth headers after $maxRetries attempts');
-        print('  Final authHeaders: $authHeaders');
+      // Validate the headers
+      if (authHeaders.isEmpty) {
+        print('ERROR: authHeaders is empty after all attempts');
+        _currentUser = null;
+        return false;
+      }
+      
+      if (!authHeaders.containsKey('Authorization')) {
+        print('ERROR: Authorization header is missing');
         _currentUser = null;
         return false;
       }
       
       final authValue = authHeaders['Authorization'] ?? '';
+      
+      // Check if token is valid
+      if (authValue.isEmpty || 
+          authValue == 'Bearer null' || 
+          authValue == 'Bearer' ||
+          !authValue.startsWith('Bearer ') ||
+          authValue.substring(7).trim().isEmpty) {
+        print('ERROR: Invalid authentication token');
+        print('  Token value: "$authValue"');
+        _currentUser = null;
+        return false;
+      }
+      
       print('Authentication headers obtained successfully');
       print('  Headers keys: ${authHeaders.keys.join(', ')}');
       print('  Authorization token length: ${authValue.length} characters');
@@ -708,11 +701,30 @@ class GoogleAuthClient extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     // Get fresh authentication headers before each request
-    // The authHeaders getter automatically handles token refresh if needed
-    // This ensures we always have a valid token and prevents 401 errors
+    // Try using authentication.accessToken first (works better with FedCM)
+    // Fall back to authHeaders if needed
     try {
       print('GoogleAuthClient: Getting auth headers for ${request.method} ${request.url}');
-      final authHeaders = await _user.authHeaders;
+      
+      Map<String, String> authHeaders;
+      try {
+        // Try using authentication property first - this works better with FedCM
+        final auth = await _user.authentication;
+        if (auth.accessToken != null && auth.accessToken!.isNotEmpty) {
+          authHeaders = {
+            'Authorization': 'Bearer ${auth.accessToken}',
+          };
+          print('GoogleAuthClient: Using accessToken from authentication property');
+        } else {
+          // Fall back to authHeaders
+          print('GoogleAuthClient: accessToken is null, falling back to authHeaders');
+          authHeaders = await _user.authHeaders;
+        }
+      } catch (e) {
+        // If authentication property fails, use authHeaders
+        print('GoogleAuthClient: Error getting authentication property: $e, using authHeaders');
+        authHeaders = await _user.authHeaders;
+      }
       
       if (authHeaders.isEmpty) {
         print('ERROR: GoogleAuthClient: authHeaders is empty');
@@ -720,8 +732,6 @@ class GoogleAuthClient extends http.BaseClient {
       }
       
       // Check if Authorization header exists and has a valid token
-      // IMPORTANT: With FedCM/"Continue as" popup, authHeaders might contain
-      // Authorization: Bearer null if tokens aren't properly initialized
       if (!authHeaders.containsKey('Authorization')) {
         print('ERROR: GoogleAuthClient: Authorization header is missing');
         throw Exception('Authorization header is missing - user may need to sign in again');
@@ -738,7 +748,6 @@ class GoogleAuthClient extends http.BaseClient {
           authValue.substring(7).trim().isEmpty) {
         print('ERROR: GoogleAuthClient: Authorization token is invalid');
         print('  Token value: "$authValue"');
-        print('  This often happens with FedCM/"Continue as" popup when tokens are not properly initialized');
         throw Exception('Invalid authentication token - user may need to sign in again. Token value: "${authValue.length > 50 ? "${authValue.substring(0, 50)}..." : authValue}"');
       }
       

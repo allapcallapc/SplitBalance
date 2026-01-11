@@ -1040,8 +1040,28 @@ class _ConfigScreenState extends State<ConfigScreen> {
         }
       });
       if (mounted) {
+        // Check if this is a FedCM/"Continue as" authentication issue
+        final errorString = e.toString();
+        String errorMessage;
+        if (errorString.contains('Bearer null') || 
+            errorString.contains('Invalid authentication token') ||
+            errorString.contains('invalid_token')) {
+          errorMessage = 'Authentication failed: The "Continue as" sign-in method is not fully supported. Please sign out and sign in again using the full Google sign-in popup.';
+        } else {
+          errorMessage = 'Error loading folders: $e';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading folders: $e')),
+          SnackBar(
+            content: Text(errorMessage),
+            duration: const Duration(seconds: 8),
+            action: SnackBarAction(
+              label: 'Sign Out',
+              onPressed: () {
+                configProvider.signOut();
+              },
+            ),
+          ),
         );
       }
     }
