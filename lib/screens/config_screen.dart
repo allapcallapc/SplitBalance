@@ -244,13 +244,13 @@ class _ConfigScreenState extends State<ConfigScreen> {
       
       // If folder changed (not just selected for first time), restore state
       if (previousFolderId != null && previousFolderId != newFolderId && newFolderId != null) {
-        // Folder changed - clear person names and reset prompts
-        _person1Controller.clear();
-        _person2Controller.clear();
+        // Folder changed - reset prompts to allow checking if person names are still valid
+        // Don't clear person names yet - let _checkFolderDataAndRestoreState decide
         _hasShownPersonNamePrompt = false;
         _hasShownCategoryPrompt = false;
         
         // Check folder data and restore/force person names
+        // This will check if current person names match the new folder and only prompt if needed
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && provider.isSignedIn) {
             _checkFolderDataAndRestoreState(provider);
@@ -367,9 +367,8 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                 
                                 // If folder changed (not just selected for first time), restore state
                                 if (previousFolderId != null && previousFolderId != folder.id) {
-                                  // Clear person names when folder changes
-                                  _person1Controller.clear();
-                                  _person2Controller.clear();
+                                  // Reset prompts to allow checking if person names are still valid
+                                  // Don't clear person names yet - let _checkFolderDataAndRestoreState decide
                                   _hasShownPersonNamePrompt = false;
                                   _hasShownCategoryPrompt = false;
                                 }
@@ -378,6 +377,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                 _loadSelectedFolderPath(configProvider);
                                 
                                 // Check folder data and restore state
+                                // This will check if current person names match the new folder and only prompt if needed
                                 if (mounted) {
                                   _checkFolderDataAndRestoreState(configProvider);
                                 }
@@ -553,31 +553,30 @@ class _ConfigScreenState extends State<ConfigScreen> {
         print('Error loading person names from Drive: $e');
       }
 
-      // Also extract person names from bills and payment splits as fallback
-      final Set<String> personNamesFromData = {};
-      // Add names from person_names.csv if available
-      for (final name in personNamesFromCsv) {
-        if (name.isNotEmpty) {
-          personNamesFromData.add(name);
-        }
-      }
-      // Extract from bills and payment splits
+      // Only check person_names.csv for matching - don't check bills/payment splits
+      // Bills and payment splits can contain other people's names and shouldn't trigger prompts
+      final hasPersonNamesCsv = personNamesFromCsv.isNotEmpty;
+      
+      // Extract person names from bills and payment splits only for suggestions (not for matching)
+      final Set<String> personNamesFromBillsAndSplits = {};
       for (final bill in billsProvider.bills) {
         if (bill.paidBy.isNotEmpty) {
-          personNamesFromData.add(bill.paidBy);
+          personNamesFromBillsAndSplits.add(bill.paidBy);
         }
       }
       for (final split in splitsProvider.splits) {
         if (split.person1.isNotEmpty) {
-          personNamesFromData.add(split.person1);
+          personNamesFromBillsAndSplits.add(split.person1);
         }
         if (split.person2.isNotEmpty) {
-          personNamesFromData.add(split.person2);
+          personNamesFromBillsAndSplits.add(split.person2);
         }
       }
-
-      final personNamesList = personNamesFromData.toList();
-      final hasPersonData = personNamesList.isNotEmpty;
+      
+      // Use names from person_names.csv for suggestions, fallback to bills/splits if CSV is empty
+      final personNamesList = personNamesFromCsv.isNotEmpty 
+          ? personNamesFromCsv 
+          : personNamesFromBillsAndSplits.toList();
       
       // Use Drive person names if available (most authoritative), otherwise use config
       // If we loaded from Drive, use those (already applied to config above), otherwise use config
@@ -585,20 +584,39 @@ class _ConfigScreenState extends State<ConfigScreen> {
       final currentPerson2 = hasDrivePersonNames ? drivePerson2 : configProvider.config.person2Name.trim();
       final hasCurrentNames = currentPerson1.isNotEmpty && currentPerson2.isNotEmpty;
 
-      // Check if current person names match what's in the folder
+      // Check if current person names match person_names.csv (only authoritative source for matching)
       bool namesMatch = false;
-      if (hasPersonData && hasCurrentNames) {
-        // Check if current names are in the folder data (order doesn't matter)
-        // Person names from data might be in any order, so we check if both names exist in the set
-        namesMatch = personNamesFromData.contains(currentPerson1) && 
-                     personNamesFromData.contains(currentPerson2) &&
-                     personNamesFromData.length == 2; // Ensure exactly 2 person names in folder data
+      if (hasPersonNamesCsv && hasCurrentNames) {
+        // Only check against person_names.csv - order doesn't matter
+        final csvNamesSet = personNamesFromCsv.toSet();
+        namesMatch = csvNamesSet.contains(currentPerson1) && 
+                     csvNamesSet.contains(currentPerson2) &&
+                     csvNamesSet.length == 2; // Ensure exactly 2 person names in CSV
       }
 
-      // If folder has no person data OR names don't match OR no current names, force person name selection
-      if (!hasPersonData || !namesMatch || !hasCurrentNames) {
-        // Clear person names if they don't match or folder has no data
-        if ((hasPersonData && !namesMatch) || !hasPersonData) {
+      // Only prompt for person names if they are not already selected and valid
+      // Skip prompting if: person names are already set AND (they match person_names.csv OR person_names.csv doesn't exist)
+      // Note: We only check person_names.csv for matching - bills/payment splits can have other names and don't trigger prompts
+      final shouldSkipPrompt = hasCurrentNames && (namesMatch || !hasPersonNamesCsv);
+      
+      // If person names are already selected and valid, don't prompt
+      if (shouldSkipPrompt) {
+        // Names are already set and valid - update controllers to ensure they match
+        if (mounted) {
+          setState(() {
+            _person1Controller.text = currentPerson1;
+            _person2Controller.text = currentPerson2;
+          });
+        }
+        // Check categories next
+        if (mounted) {
+          await _checkAndForceCategorySelection(configProvider, categoriesProvider);
+        }
+      } else {
+        // Person names are not set OR they don't match person_names.csv - need to prompt
+        // Only clear person names if they are set but don't match person_names.csv
+        // Don't clear if person_names.csv doesn't exist (keep existing names)
+        if (hasCurrentNames && hasPersonNamesCsv && !namesMatch) {
           setState(() {
             _person1Controller.clear();
             _person2Controller.clear();
@@ -612,13 +630,8 @@ class _ConfigScreenState extends State<ConfigScreen> {
           _hasShownPersonNamePrompt = true;
           await Future.delayed(const Duration(milliseconds: 300));
           if (mounted) {
-            _promptPersonNameSelection(configProvider, personNamesList);
+            _promptPersonNameSelection(configProvider, personNamesList, hasPersonNamesCsv);
           }
-        }
-      } else {
-        // Names match - check categories next
-        if (mounted) {
-          await _checkAndForceCategorySelection(configProvider, categoriesProvider);
         }
       }
     } catch (e) {
@@ -657,7 +670,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
   }
 
   // Prompt user to select person names (force selection)
-  Future<void> _promptPersonNameSelection(ConfigProvider configProvider, List<String> suggestedNames) async {
+  Future<void> _promptPersonNameSelection(ConfigProvider configProvider, List<String> suggestedNames, bool hasPersonNamesCsv) async {
     if (!mounted || !configProvider.isSignedIn) {
       return;
     }
@@ -700,7 +713,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
               Text(
                 suggestedNames.isEmpty
                     ? 'Please enter the names of the two people for this folder:'
-                    : 'The folder contains data with different person names. Please enter the correct names:',
+                    : hasPersonNamesCsv
+                        ? 'The person_names.csv file has different names than currently configured. Please enter the correct names:'
+                        : 'Please enter the names of the two people for this folder:',
                 style: const TextStyle(fontSize: 14),
               ),
               const SizedBox(height: 16),
@@ -2095,9 +2110,8 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                                     
                                                     // If folder changed (not just selected for first time), restore state
                                                     if (previousFolderId != null && previousFolderId != folder.id) {
-                                                      // Clear person names when folder changes
-                                                      _person1Controller.clear();
-                                                      _person2Controller.clear();
+                                                      // Reset prompts to allow checking if person names are still valid
+                                                      // Don't clear person names yet - let _checkFolderDataAndRestoreState decide
                                                       _hasShownPersonNamePrompt = false;
                                                       _hasShownCategoryPrompt = false;
                                                     }
@@ -2106,6 +2120,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                                     _loadSelectedFolderPath(configProvider);
                                                     
                                                     // Check folder data and restore state
+                                                    // This will check if current person names match the new folder and only prompt if needed
                                                     if (context.mounted) {
                                                       _checkFolderDataAndRestoreState(configProvider);
                                                     }
