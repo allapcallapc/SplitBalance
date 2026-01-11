@@ -1283,7 +1283,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  'Folder selection required',
+                                  AppLocalizations.of(context)!.folderSelectionRequired,
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
