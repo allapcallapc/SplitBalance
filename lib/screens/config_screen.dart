@@ -37,6 +37,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
   // Navigation stack for folder browsing (breadcrumb)
   List<drive.File> _folderPath = <drive.File>[]; // Stack of folders we've navigated into
   String _appVersion = ''; // App version string
+  bool _hasAttemptedLoadFolders = false; // Flag to prevent infinite retry loop when folder loading fails
 
   // Helper methods to safely check if lists are empty (for web compilation)
   // Use length instead of isEmpty/isNotEmpty to avoid undefined errors
@@ -155,7 +156,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
       }
       
       // Load folders if signed in and prompt for folder selection if needed
-      if (configProvider.isSignedIn && !_hasFolders) {
+      // Only attempt once to prevent infinite retry loop on errors
+      if (configProvider.isSignedIn && !_hasFolders && !_hasAttemptedLoadFolders) {
+        _hasAttemptedLoadFolders = true; // Set flag immediately to prevent repeated attempts
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             _loadFolders(configProvider, null).then((_) {
@@ -214,9 +217,10 @@ class _ConfigScreenState extends State<ConfigScreen> {
       needsUpdate = true;
     }
     
-    // Check if user signed out - reset flag
-    if (!provider.isSignedIn && _hasShownFolderPrompt) {
+    // Check if user signed out - reset flags
+    if (!provider.isSignedIn && (_hasShownFolderPrompt || _hasAttemptedLoadFolders)) {
       _hasShownFolderPrompt = false;
+      _hasAttemptedLoadFolders = false; // Reset flag on sign out
       _folders.clear();
       _selectedFolderId = null;
       _selectedFolderName = null;
@@ -261,7 +265,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
         _selectedFolderPath = <drive.File>[];
       }
       
-      if (provider.isSignedIn && !_hasFolders) {
+      // Only attempt to load folders once to prevent infinite retry loop
+      if (provider.isSignedIn && !_hasFolders && !_hasAttemptedLoadFolders) {
+        _hasAttemptedLoadFolders = true; // Set flag immediately to prevent repeated attempts
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             _loadFolders(provider, null).then((_) {
@@ -452,6 +458,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
           ElevatedButton.icon(
             onPressed: () async {
               Navigator.pop(context, 'refresh'); // Refresh - return 'refresh' to indicate refresh was clicked
+              _hasAttemptedLoadFolders = false; // Reset flag to allow manual refresh
               await _loadFolders(configProvider, null);
               if (mounted && _hasFolders && !_hasShownFolderPrompt) {
                 // Only re-prompt if not already shown (avoid infinite loop)
@@ -1257,20 +1264,23 @@ class _ConfigScreenState extends State<ConfigScreen> {
           
           // Check if user just signed in and needs to select a folder
           // Use length check instead of isEmpty to avoid undefined errors in web compilation
+          // IMPORTANT: Only attempt to load folders once to prevent infinite retry loop on errors
           if (configProvider.isSignedIn && 
               configProvider.driveService.folderId == null && 
               !_hasFolders && 
               !configProvider.isLoading &&
               !_loadingFolders &&
-              !_hasShownFolderPrompt) {
-            // Automatically load folders when signed in and no folder selected
+              !_hasShownFolderPrompt &&
+              !_hasAttemptedLoadFolders) {
+            // Automatically load folders when signed in and no folder selected (only once)
+            _hasAttemptedLoadFolders = true; // Set flag immediately to prevent repeated attempts
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
                 _loadFolders(configProvider, null).then((_) {
                   if (mounted && 
-                      configProvider.isSignedIn && 
-                      configProvider.driveService.folderId == null && 
-                      _hasFolders && 
+                      configProvider.isSignedIn &&
+                      configProvider.driveService.folderId == null &&
+                      _hasFolders &&
                       !_hasShownFolderPrompt) {
                     _promptFolderSelection(configProvider);
                   }
@@ -1429,6 +1439,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                 : () async {
                                     final success = await configProvider.signIn();
                                     if (success && context.mounted) {
+                                      _hasAttemptedLoadFolders = false; // Reset flag after successful sign-in
                                       await _loadFolders(configProvider);
                                     } else if (context.mounted && configProvider.error != null) {
                                       ScaffoldMessenger.of(context).showSnackBar(
