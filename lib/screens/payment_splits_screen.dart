@@ -20,6 +20,8 @@ class _PaymentSplitsScreenState extends State<PaymentSplitsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isLoadingData = false;
+  ConfigProvider? _configProvider;
+  String? _lastLoadedFolderId; // Track which folder we loaded data for
 
   @override
   void initState() {
@@ -33,8 +35,41 @@ class _PaymentSplitsScreenState extends State<PaymentSplitsScreen>
 
   @override
   void dispose() {
+    _configProvider?.removeListener(_onConfigChanged);
     _tabController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final configProvider = context.read<ConfigProvider>();
+    
+    // Set up listener only once
+    if (_configProvider != configProvider) {
+      _configProvider?.removeListener(_onConfigChanged);
+      _configProvider = configProvider;
+      _configProvider?.addListener(_onConfigChanged);
+    }
+  }
+
+  void _onConfigChanged() {
+    if (!mounted || _configProvider == null) return;
+    
+    final currentFolderId = _configProvider!.driveService.folderId;
+    
+    // Reload data if folder changes
+    if (_configProvider!.isSignedIn && 
+        currentFolderId != null && 
+        currentFolderId != _lastLoadedFolderId) {
+      // Folder changed or just selected - reload data
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _loadData();
+          _checkNavigateToCategoriesTab();
+        }
+      });
+    }
   }
   
   void _checkNavigateToCategoriesTab() {
@@ -53,7 +88,7 @@ class _PaymentSplitsScreenState extends State<PaymentSplitsScreen>
     // Prevent multiple simultaneous calls
     if (_isLoadingData) return;
     
-    final configProvider = context.read<ConfigProvider>();
+    final configProvider = _configProvider ?? context.read<ConfigProvider>();
     final splitsProvider = context.read<PaymentSplitsProvider>();
     final categoriesProvider = context.read<CategoriesProvider>();
     
@@ -61,6 +96,7 @@ class _PaymentSplitsScreenState extends State<PaymentSplitsScreen>
       return;
     }
 
+    _lastLoadedFolderId = configProvider.driveService.folderId;
     _isLoadingData = true;
     try {
       // Load categories first, then splits
@@ -462,7 +498,7 @@ class _PaymentSplitsTabHelper {
     }
 
     final TextEditingController percentageController = TextEditingController(
-      text: person1Percentage.toStringAsFixed(1),
+      text: person1Percentage.toStringAsFixed(2),
     );
 
     await showDialog(
@@ -570,17 +606,17 @@ class _PaymentSplitsTabHelper {
                     value: person1Percentage.clamp(0.0, 100.0),
                     min: 0,
                     max: 100,
-                    divisions: 100,
-                    label: '${person1Percentage.toStringAsFixed(1)}%',
+                    divisions: 1000,
+                    label: '${person1Percentage.toStringAsFixed(2)}%',
                     onChanged: (value) {
                       setState(() {
                         person1Percentage = value;
                         person2Percentage = 100 - value;
-                        percentageController.text = value.toStringAsFixed(1);
+                        percentageController.text = value.toStringAsFixed(2);
                       });
                     },
                   ),
-                  Text(l10n.personPercentageDisplay(configProvider.config.person2Name, person2Percentage.toStringAsFixed(1))),
+                  Text(l10n.personPercentageDisplay(configProvider.config.person2Name, person2Percentage.toStringAsFixed(2))),
                 ],
               ),
             ),
@@ -1429,7 +1465,7 @@ class _SplitCell extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              '${split!.person1Percentage.toStringAsFixed(1)}%',
+                              '${split!.person1Percentage.toStringAsFixed(2)}%',
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: colorScheme.primary,
@@ -1472,7 +1508,7 @@ class _SplitCell extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '${split!.person2Percentage.toStringAsFixed(1)}%',
+                        '${split!.person2Percentage.toStringAsFixed(2)}%',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: colorScheme.secondary,

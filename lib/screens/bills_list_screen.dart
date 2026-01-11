@@ -15,6 +15,9 @@ class BillsListScreen extends StatefulWidget {
 }
 
 class _BillsListScreenState extends State<BillsListScreen> {
+  ConfigProvider? _configProvider;
+  String? _lastLoadedFolderId; // Track which folder we loaded data for
+  
   @override
   void initState() {
     super.initState();
@@ -23,11 +26,49 @@ class _BillsListScreenState extends State<BillsListScreen> {
     });
   }
 
-  Future<void> _loadData() async {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     final configProvider = context.read<ConfigProvider>();
+    
+    // Set up listener only once
+    if (_configProvider != configProvider) {
+      _configProvider?.removeListener(_onConfigChanged);
+      _configProvider = configProvider;
+      _configProvider?.addListener(_onConfigChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    _configProvider?.removeListener(_onConfigChanged);
+    super.dispose();
+  }
+
+  void _onConfigChanged() {
+    if (!mounted || _configProvider == null) return;
+    
+    final currentFolderId = _configProvider!.driveService.folderId;
+    
+    // Reload data if folder changes
+    if (_configProvider!.isSignedIn && 
+        currentFolderId != null && 
+        currentFolderId != _lastLoadedFolderId) {
+      // Folder changed or just selected - reload data
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _loadData();
+        }
+      });
+    }
+  }
+
+  Future<void> _loadData() async {
+    final configProvider = _configProvider ?? context.read<ConfigProvider>();
     final billsProvider = context.read<BillsProvider>();
     
     if (configProvider.isSignedIn && configProvider.driveService.folderId != null) {
+      _lastLoadedFolderId = configProvider.driveService.folderId;
       await billsProvider.loadBills(configProvider);
     }
   }
