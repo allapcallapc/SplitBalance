@@ -320,19 +320,67 @@ class GoogleDriveService {
       // Get authentication headers (this requests the access token)
       // This MUST succeed for the interactive sign-in method
       print('Requesting authentication headers...');
-      final authHeaders = await _currentUser!.authHeaders;
-      if (authHeaders.isEmpty) {
-        print('ERROR: Failed to get auth headers after sign-in - authentication failed');
+      Map<String, String> authHeaders = await _currentUser!.authHeaders;
+      
+      // Check if we got valid tokens - with FedCM, tokens might be "Bearer null" initially
+      // Try multiple times with a small delay if tokens are invalid
+      int retryCount = 0;
+      const maxRetries = 3;
+      bool tokensValid = false;
+      
+      while (retryCount < maxRetries && !tokensValid) {
+        if (authHeaders.isEmpty) {
+          print('WARNING: authHeaders is empty, retry ${retryCount + 1}/$maxRetries');
+          if (retryCount < maxRetries - 1) {
+            await Future.delayed(const Duration(milliseconds: 500));
+            authHeaders = await _currentUser!.authHeaders;
+          }
+          retryCount++;
+          continue;
+        }
+
+        if (!authHeaders.containsKey('Authorization')) {
+          print('WARNING: Authorization header is missing, retry ${retryCount + 1}/$maxRetries');
+          if (retryCount < maxRetries - 1) {
+            await Future.delayed(const Duration(milliseconds: 500));
+            authHeaders = await _currentUser!.authHeaders;
+          }
+          retryCount++;
+          continue;
+        }
+        
+        final authValue = authHeaders['Authorization'] ?? '';
+        
+        // Check if token is valid (not null, not empty, not "Bearer null")
+        if (authValue.isEmpty || 
+            authValue == 'Bearer null' || 
+            authValue == 'Bearer' ||
+            !authValue.startsWith('Bearer ') ||
+            authValue.substring(7).trim().isEmpty) {
+          print('WARNING: Invalid token "$authValue", retry ${retryCount + 1}/$maxRetries');
+          if (retryCount < maxRetries - 1) {
+            // Try waiting a bit longer and retry
+            await Future.delayed(const Duration(milliseconds: 500));
+            authHeaders = await _currentUser!.authHeaders;
+          }
+          retryCount++;
+          continue;
+        }
+        
+        tokensValid = true;
+      }
+      
+      if (!tokensValid) {
+        print('ERROR: Failed to get valid auth headers after $maxRetries attempts');
+        print('  Final authHeaders: $authHeaders');
         _currentUser = null;
         return false;
       }
-
+      
+      final authValue = authHeaders['Authorization'] ?? '';
       print('Authentication headers obtained successfully');
       print('  Headers keys: ${authHeaders.keys.join(', ')}');
-      if (authHeaders.containsKey('Authorization')) {
-        final authValue = authHeaders['Authorization'] ?? '';
-        print('  Authorization token length: ${authValue.length} characters');
-      }
+      print('  Authorization token length: ${authValue.length} characters');
 
       // Create authenticated client for Google Drive API with token refresh support
       final authenticatedClient = GoogleAuthClient._create(_currentUser!, authHeaders);
@@ -407,6 +455,11 @@ class GoogleDriveService {
     }
 
     try {
+      print('listFolders: Starting folder list request');
+      print('  parentFolderId: $parentFolderId');
+      print('  _currentUser: ${_currentUser?.email ?? "null"}');
+      print('  _driveApi: ${_driveApi != null ? "initialized" : "null"}');
+      
       String query = "mimeType='application/vnd.google-apps.folder' and trashed=false";
       if (parentFolderId != null) {
         query += " and '$parentFolderId' in parents";
@@ -415,14 +468,18 @@ class GoogleDriveService {
         query += " and 'root' in parents";
       }
       
+      print('listFolders: Executing Drive API query: $query');
       final response = await _driveApi!.files.list(
         q: query,
         $fields: 'files(id, name)',
       );
 
+      print('listFolders: Received response from Drive API');
+      
       // Ensure we always return a non-null list
       // response.files can be null, so we need to handle that case
       if (response.files == null) {
+        print('listFolders: Response files is null, returning empty list');
         return <drive.File>[];
       }
       
@@ -430,12 +487,19 @@ class GoogleDriveService {
       // response.files is List<drive.File>?, so we need to handle null
       final filesList = response.files!;
       if (filesList.isEmpty) {
+        print('listFolders: Response files list is empty');
         return <drive.File>[];
       }
       
+      print('listFolders: Successfully retrieved ${filesList.length} folders');
       return List<drive.File>.from(filesList);
-    } catch (e) {
-      print('Error listing folders: $e');
+    } catch (e, stackTrace) {
+      print('ERROR: listFolders: Exception occurred');
+      print('  Error type: ${e.runtimeType}');
+      print('  Error message: $e');
+      print('  Stack trace: $stackTrace');
+      print('  _currentUser: ${_currentUser?.email ?? "null"}');
+      print('  _driveApi: ${_driveApi != null ? "initialized" : "null"}');
       rethrow;
     }
   }
@@ -647,22 +711,63 @@ class GoogleAuthClient extends http.BaseClient {
     // The authHeaders getter automatically handles token refresh if needed
     // This ensures we always have a valid token and prevents 401 errors
     try {
+      print('GoogleAuthClient: Getting auth headers for ${request.method} ${request.url}');
       final authHeaders = await _user.authHeaders;
+      
       if (authHeaders.isEmpty) {
+        print('ERROR: GoogleAuthClient: authHeaders is empty');
         throw Exception('Failed to get auth headers - user may need to sign in again');
       }
       
+      // Check if Authorization header exists and has a valid token
+      // IMPORTANT: With FedCM/"Continue as" popup, authHeaders might contain
+      // Authorization: Bearer null if tokens aren't properly initialized
+      if (!authHeaders.containsKey('Authorization')) {
+        print('ERROR: GoogleAuthClient: Authorization header is missing');
+        throw Exception('Authorization header is missing - user may need to sign in again');
+      }
+      
+      final authValue = authHeaders['Authorization'] ?? '';
+      print('GoogleAuthClient: Authorization header value: ${authValue.isNotEmpty ? "${authValue.substring(0, authValue.length > 50 ? 50 : authValue.length)}..." : "empty"}');
+      
+      // Check if token is valid (not null, not empty, not "Bearer null")
+      if (authValue.isEmpty || 
+          authValue == 'Bearer null' || 
+          authValue == 'Bearer' ||
+          !authValue.startsWith('Bearer ') ||
+          authValue.substring(7).trim().isEmpty) {
+        print('ERROR: GoogleAuthClient: Authorization token is invalid');
+        print('  Token value: "$authValue"');
+        print('  This often happens with FedCM/"Continue as" popup when tokens are not properly initialized');
+        throw Exception('Invalid authentication token - user may need to sign in again. Token value: "${authValue.length > 50 ? "${authValue.substring(0, 50)}..." : authValue}"');
+      }
+      
+      print('GoogleAuthClient: Valid authorization token found (length: ${authValue.length} characters)');
+      
       // Add fresh headers to the request
       request.headers.addAll(authHeaders);
-    } catch (e) {
-      print('Error getting auth headers: $e');
-      // If we can't get headers, the request will likely fail, but let it proceed
-      // so the caller gets a proper error response
-      throw Exception('Authentication failed: $e');
+      
+      // Send the request with fresh headers
+      final response = await _client.send(request);
+      
+      // Log response status for debugging
+      print('GoogleAuthClient: Request completed with status ${response.statusCode}');
+      if (response.statusCode == 401) {
+        print('ERROR: GoogleAuthClient: Received 401 Unauthorized - authentication may have failed');
+        print('  This might indicate that tokens are invalid or expired');
+      }
+      
+      return response;
+    } catch (e, stackTrace) {
+      print('ERROR: GoogleAuthClient: Exception getting auth headers or sending request');
+      print('  Error: $e');
+      print('  Stack trace: $stackTrace');
+      print('  Request URL: ${request.url}');
+      print('  Request method: ${request.method}');
+      
+      // Re-throw with more context
+      throw Exception('Authentication failed when making ${request.method} request to ${request.url}: $e');
     }
-    
-    // Send the request with fresh headers
-    return await _client.send(request);
   }
 
   @override

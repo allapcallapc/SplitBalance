@@ -2191,7 +2191,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'Please select a folder first to enter person names',
+                                      AppLocalizations.of(context)!.selectFolderFirstToEnterPersonNames,
                                       style: TextStyle(
                                         fontSize: 13,
                                         color: Colors.orange[900],
@@ -2207,13 +2207,13 @@ class _ConfigScreenState extends State<ConfigScreen> {
                             controller: _person1Controller,
                             enabled: configProvider.driveService.folderId != null,
                             decoration: InputDecoration(
-                              labelText: 'Person 1 Name',
+                              labelText: AppLocalizations.of(context)!.person1Name,
                               border: const OutlineInputBorder(),
                               hintText: configProvider.driveService.folderId == null
-                                  ? 'Select a folder first'
-                                  : 'Enter first person\'s name',
+                                  ? AppLocalizations.of(context)!.selectFolderFirst
+                                  : AppLocalizations.of(context)!.enterFirstName,
                               helperText: configProvider.driveService.folderId == null
-                                  ? 'Folder must be selected'
+                                  ? AppLocalizations.of(context)!.folderMustBeSelected
                                   : null,
                             ),
                           ),
@@ -2222,13 +2222,13 @@ class _ConfigScreenState extends State<ConfigScreen> {
                             controller: _person2Controller,
                             enabled: configProvider.driveService.folderId != null,
                             decoration: InputDecoration(
-                              labelText: 'Person 2 Name',
+                              labelText: AppLocalizations.of(context)!.person2Name,
                               border: const OutlineInputBorder(),
                               hintText: configProvider.driveService.folderId == null
-                                  ? 'Select a folder first'
-                                  : 'Enter second person\'s name',
+                                  ? AppLocalizations.of(context)!.selectFolderFirst
+                                  : AppLocalizations.of(context)!.enterSecondName,
                               helperText: configProvider.driveService.folderId == null
-                                  ? 'Folder must be selected'
+                                  ? AppLocalizations.of(context)!.folderMustBeSelected
                                   : null,
                             ),
                           ),
