@@ -299,36 +299,53 @@ class GoogleDriveService {
   }
 
   // Sign in - opens a popup for user authorization
+  // NOTE: This method is called when the user explicitly clicks "Sign In"
+  // It should NOT use signInSilently() because that's for automatic restoration only
   Future<bool> signIn() async {
     try {
-      // First try silent sign-in to restore existing session
-      final silentSuccess = await signInSilently();
-      if (silentSuccess) {
-        return true; // Already signed in, no popup needed
-      }
-
-      // No existing session, open popup for user authorization
+      // When user explicitly clicks "Sign In", always use the interactive sign-in flow
+      // This ensures proper token initialization regardless of which popup method is used
+      // (full OAuth popup or "Sign In as" FedCM popup)
+      print('User-initiated sign-in - opening interactive sign-in flow');
       _currentUser = await _googleSignIn.signIn();
       
       if (_currentUser == null) {
         // User closed the popup without signing in
+        print('User cancelled sign-in');
         return false;
       }
 
+      print('Sign-in popup completed - user: ${_currentUser!.email}');
+      
       // Get authentication headers (this requests the access token)
+      // This MUST succeed for the interactive sign-in method
+      print('Requesting authentication headers...');
       final authHeaders = await _currentUser!.authHeaders;
       if (authHeaders.isEmpty) {
-        print('Failed to get auth headers - authentication may have failed');
+        print('ERROR: Failed to get auth headers after sign-in - authentication failed');
+        _currentUser = null;
         return false;
+      }
+
+      print('Authentication headers obtained successfully');
+      print('  Headers keys: ${authHeaders.keys.join(', ')}');
+      if (authHeaders.containsKey('Authorization')) {
+        final authValue = authHeaders['Authorization'] ?? '';
+        print('  Authorization token length: ${authValue.length} characters');
       }
 
       // Create authenticated client for Google Drive API with token refresh support
       final authenticatedClient = GoogleAuthClient._create(_currentUser!, authHeaders);
       _driveApi = drive.DriveApi(authenticatedClient);
+      print('Drive API client created successfully');
 
       return true;
-    } catch (e) {
-      print('Error signing in: $e');
+    } catch (e, stackTrace) {
+      print('Error during sign-in: $e');
+      print('Stack trace: $stackTrace');
+      // Clear state on error
+      _currentUser = null;
+      _driveApi = null;
       rethrow; // Re-throw to get actual error message for better debugging
     }
   }
