@@ -68,45 +68,6 @@ class GoogleDriveService {
     }
   }
 
-  /// Attempt to sign in silently (restore existing session)
-  Future<bool> signInSilently() async {
-    try {
-      print('Attempting silent sign-in...');
-      
-      _currentUser = await _googleSignIn.signInSilently();
-      
-      if (_currentUser == null) {
-        print('No existing session found');
-        return false;
-      }
-
-      print('Silent sign-in successful: ${_currentUser!.email}');
-
-      // Get authentication - this ensures tokens are properly refreshed
-      final auth = await _currentUser!.authentication;
-      
-      if (auth.accessToken == null || auth.accessToken!.isEmpty) {
-        print('Failed to get access token');
-        _currentUser = null;
-        return false;
-      }
-
-      print('Access token obtained successfully');
-
-      // Create authenticated client for Google Drive API
-      final authenticatedClient = GoogleAuthClient(_currentUser!);
-      _driveApi = drive.DriveApi(authenticatedClient);
-      
-      print('Drive API client initialized successfully');
-      return true;
-    } catch (e) {
-      print('Silent sign-in failed: $e');
-      _currentUser = null;
-      _driveApi = null;
-      return false;
-    }
-  }
-
   /// Sign out
   Future<void> signOut() async {
     await _googleSignIn.signOut();
