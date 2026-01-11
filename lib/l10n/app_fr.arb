@@ -239,5 +239,9 @@
   },
   "currentlyUsedFolder": "Dossier actuellement utilisé :",
   "folderName": "Nom du dossier",
-  "enterFolderName": "Entrez le nom du dossier"
+  "enterFolderName": "Entrez le nom du dossier",
+  "noFoldersAvailable": "Aucun dossier disponible",
+  "@noFoldersAvailable": {
+    "description": "Message lorsqu'aucun dossier n'est disponible depuis Google Drive"
+  }
 }

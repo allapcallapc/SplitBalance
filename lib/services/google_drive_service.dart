@@ -97,23 +97,59 @@ class GoogleDriveService {
     }
 
     try {
-      String query = "mimeType='application/vnd.google-apps.folder' and trashed=false";
       if (parentFolderId != null) {
-        query += " and '$parentFolderId' in parents";
-      } else {
-        query += " and 'root' in parents";
-      }
-      
-      final response = await _driveApi!.files.list(
-        q: query,
-        $fields: 'files(id, name)',
-      );
+        // Listing folders in a specific parent folder
+        String query = "mimeType='application/vnd.google-apps.folder' and trashed=false and '$parentFolderId' in parents";
+        
+        final response = await _driveApi!.files.list(
+          q: query,
+          $fields: 'files(id, name)',
+        );
 
-      if (response.files == null || response.files!.isEmpty) {
-        return <drive.File>[];
+        if (response.files == null || response.files!.isEmpty) {
+          return <drive.File>[];
+        }
+        
+        return List<drive.File>.from(response.files!);
+      } else {
+        // Listing at root level - include both owned and shared folders
+        final List<drive.File> allFolders = [];
+        final Set<String> seenFolderIds = <String>{};
+
+        // First, get folders owned by the user (in root)
+        String ownedQuery = "mimeType='application/vnd.google-apps.folder' and trashed=false and 'root' in parents";
+        final ownedResponse = await _driveApi!.files.list(
+          q: ownedQuery,
+          $fields: 'files(id, name)',
+        );
+
+        if (ownedResponse.files != null) {
+          for (final folder in ownedResponse.files!) {
+            if (folder.id != null && !seenFolderIds.contains(folder.id)) {
+              allFolders.add(folder);
+              seenFolderIds.add(folder.id!);
+            }
+          }
+        }
+
+        // Then, get folders shared with the user
+        String sharedQuery = "mimeType='application/vnd.google-apps.folder' and trashed=false and sharedWithMe=true";
+        final sharedResponse = await _driveApi!.files.list(
+          q: sharedQuery,
+          $fields: 'files(id, name)',
+        );
+
+        if (sharedResponse.files != null) {
+          for (final folder in sharedResponse.files!) {
+            if (folder.id != null && !seenFolderIds.contains(folder.id)) {
+              allFolders.add(folder);
+              seenFolderIds.add(folder.id!);
+            }
+          }
+        }
+
+        return allFolders;
       }
-      
-      return List<drive.File>.from(response.files!);
     } catch (e, stackTrace) {
       print('Error listing folders: $e');
       print('Stack trace: $stackTrace');

@@ -339,63 +339,70 @@ class _ConfigScreenState extends State<ConfigScreen> {
               const SizedBox(height: 16),
               SizedBox(
                 height: 300,
-                child: !_hasFolders
+                child: _loadingFolders
                     ? const Center(child: CircularProgressIndicator())
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: _folders.length,
-                        itemBuilder: (context, index) {
-                          final folder = _folders[index];
-                          final isSelected = folder.id == _selectedFolderId;
-                          return ListTile(
-                            title: Text(folder.name ?? 'Unnamed'),
-                            selected: isSelected,
-                            leading: const Icon(Icons.folder),
-                            trailing: isSelected
-                                ? const Icon(Icons.check, color: Colors.green)
-                                : null,
-                            onTap: () async {
-                              final previousFolderId = _selectedFolderId;
-                              setState(() {
-                                _selectedFolderId = folder.id;
-                                _selectedFolderName = folder.name;
-                              });
-                              // Auto-save folder selection
-                              if (folder.id != null) {
-                                await configProvider.setFolderId(folder.id!);
-                                _hasShownFolderPrompt = false; // Reset flag after selection
-                                
-                                // If folder changed (not just selected for first time), restore state
-                                if (previousFolderId != null && previousFolderId != folder.id) {
-                                  // Reset prompts to allow checking if person names are still valid
-                                  // Don't clear person names yet - let _checkFolderDataAndRestoreState decide
-                                  _hasShownPersonNamePrompt = false;
-                                  _hasShownCategoryPrompt = false;
-                                }
-                                
-                                // Load the full path of the selected folder
-                                _loadSelectedFolderPath(configProvider);
-                                
-                                // Check folder data and restore state
-                                // This will check if current person names match the new folder and only prompt if needed
-                                if (mounted) {
-                                  _checkFolderDataAndRestoreState(configProvider);
-                                }
-                              }
-                              if (context.mounted) {
-                                Navigator.pop(context, 'selected'); // Return 'selected' to indicate folder was chosen
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Folder selected! Checking folder data...'),
-                                    backgroundColor: Colors.green,
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                              }
+                    : !_hasFolders
+                        ? Center(
+                            child: Text(
+                              AppLocalizations.of(context)!.noFoldersAvailable,
+                              style: const TextStyle(fontSize: 16, color: Colors.grey),
+                            ),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: _folders.length,
+                            itemBuilder: (context, index) {
+                              final folder = _folders[index];
+                              final isSelected = folder.id == _selectedFolderId;
+                              return ListTile(
+                                title: Text(folder.name ?? 'Unnamed'),
+                                selected: isSelected,
+                                leading: const Icon(Icons.folder),
+                                trailing: isSelected
+                                    ? const Icon(Icons.check, color: Colors.green)
+                                    : null,
+                                onTap: () async {
+                                  final previousFolderId = _selectedFolderId;
+                                  setState(() {
+                                    _selectedFolderId = folder.id;
+                                    _selectedFolderName = folder.name;
+                                  });
+                                  // Auto-save folder selection
+                                  if (folder.id != null) {
+                                    await configProvider.setFolderId(folder.id!);
+                                    _hasShownFolderPrompt = false; // Reset flag after selection
+                                    
+                                    // If folder changed (not just selected for first time), restore state
+                                    if (previousFolderId != null && previousFolderId != folder.id) {
+                                      // Reset prompts to allow checking if person names are still valid
+                                      // Don't clear person names yet - let _checkFolderDataAndRestoreState decide
+                                      _hasShownPersonNamePrompt = false;
+                                      _hasShownCategoryPrompt = false;
+                                    }
+                                    
+                                    // Load the full path of the selected folder
+                                    _loadSelectedFolderPath(configProvider);
+                                    
+                                    // Check folder data and restore state
+                                    // This will check if current person names match the new folder and only prompt if needed
+                                    if (mounted) {
+                                      _checkFolderDataAndRestoreState(configProvider);
+                                    }
+                                  }
+                                  if (context.mounted) {
+                                    Navigator.pop(context, 'selected'); // Return 'selected' to indicate folder was chosen
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Folder selected! Checking folder data...'),
+                                        backgroundColor: Colors.green,
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                },
+                              );
                             },
-                          );
-                        },
-                      ),
+                          ),
               ),
             ],
           ),
@@ -2145,6 +2152,18 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                     ),
                                   );
                                 },
+                              ),
+                            ),
+                          ],
+                          if (!_loadingFolders && !_hasFolders) ...[
+                            const SizedBox(height: 16),
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Text(
+                                  AppLocalizations.of(context)!.noFoldersAvailable,
+                                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                                ),
                               ),
                             ),
                           ],

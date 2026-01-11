@@ -475,4 +475,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get enterFolderName => 'Enter folder name';
+
+  @override
+  String get noFoldersAvailable => 'No folders are available';
 }

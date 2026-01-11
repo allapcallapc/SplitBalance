@@ -955,6 +955,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter folder name'**
   String get enterFolderName;
+
+  /// Message when no folders are available from Google Drive
+  ///
+  /// In en, this message translates to:
+  /// **'No folders are available'**
+  String get noFoldersAvailable;
 }
 
 class _AppLocalizationsDelegate

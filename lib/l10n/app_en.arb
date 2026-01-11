@@ -647,5 +647,9 @@
   "enterFolderName": "Enter folder name",
   "@enterFolderName": {
     "description": "Hint text for folder name input field"
+  },
+  "noFoldersAvailable": "No folders are available",
+  "@noFoldersAvailable": {
+    "description": "Message when no folders are available from Google Drive"
   }
 }

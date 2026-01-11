@@ -482,4 +482,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get enterFolderName => 'Entrez le nom du dossier';
+
+  @override
+  String get noFoldersAvailable => 'Aucun dossier disponible';
 }
