@@ -514,7 +514,7 @@ class _PaymentSplitsTabHelper {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color: Theme.of(context).colorScheme.surfaceVariant,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(
@@ -1124,7 +1124,7 @@ class _SplitConfigTable extends StatelessWidget {
               // Header row with theme colors
               Container(
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest,
+                  color: colorScheme.surfaceVariant,
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(12),
                     topRight: Radius.circular(12),
@@ -1218,7 +1218,7 @@ class _SplitConfigTable extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: index % 2 == 0 
                               ? colorScheme.surface 
-                              : colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                              : colorScheme.surfaceVariant.withOpacity(0.3),
                           ),
                           child: Row(
                             children: [
@@ -1412,7 +1412,7 @@ class _SplitCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final cellColor = index % 2 == 0 
       ? colorScheme.surface 
-      : colorScheme.surfaceContainerHighest.withOpacity(0.3);
+      : colorScheme.surfaceVariant.withOpacity(0.3);
 
     return Material(
       color: Colors.transparent,

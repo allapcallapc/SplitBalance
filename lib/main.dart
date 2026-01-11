@@ -47,11 +47,10 @@ class SplitBalanceApp extends StatelessWidget {
       colorScheme: baseScheme.copyWith(
         // Use a lighter surface color for better contrast
         surface: const Color(0xFF1E1E1E), // Lighter than pure black
-        surfaceContainerHighest: const Color(0xFF3A3A3A), // Even lighter for cards
         surfaceContainer: const Color(0xFF2D2D2D), // Medium surface
         onSurface: Colors.white,
         // Ensure cards stand out more
-        surfaceVariant: const Color(0xFF2D2D2D),
+        surfaceVariant: const Color(0xFF3A3A3A), // Even lighter for cards
         onSurfaceVariant: Colors.white70,
       ),
       useMaterial3: true,
