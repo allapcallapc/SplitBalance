@@ -8,7 +8,7 @@
   "@bills": {
     "description": "Label for Bills navigation and screen"
   },
-  "splitsAndCategories": "Splits & Categories",
+  "splitsAndCategories": "Categories",
   "@splitsAndCategories": {
     "description": "Label for Payment Splits & Categories navigation"
   },
@@ -189,7 +189,7 @@
   "@createCategories": {
     "description": "Title for create categories dialog"
   },
-  "createCategoriesPrompt": "You need to create at least one category before you can add bills.\n\nPlease go to the \"Splits & Categories\" tab in the bottom navigation to create categories.",
+  "createCategoriesPrompt": "You need to create at least one category before you can add bills.\n\nPlease go to the \"Categories\" tab in the bottom navigation to create categories.",
   "@createCategoriesPrompt": {
     "description": "Prompt message for creating categories"
   },
@@ -548,7 +548,7 @@
   "@detailsOptional": {
     "description": "Label for optional details field"
   },
-  "noCategoriesAvailable": "No categories available. Please add categories in the Payment Splits & Categories screen.",
+  "noCategoriesAvailable": "No categories available. Please add categories in the Categories screen.",
   "@noCategoriesAvailable": {
     "description": "Message when no categories are available"
   },

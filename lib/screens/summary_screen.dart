@@ -236,107 +236,110 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 ),
                 const SizedBox(height: 16),
                 Card(
-                  child: Table(
-                    columnWidths: const {
-                      0: FlexColumnWidth(1),
-                      1: FlexColumnWidth(1),
-                      2: FlexColumnWidth(1),
-                      3: FlexColumnWidth(1),
-                      4: FlexColumnWidth(1),
-                      5: FlexColumnWidth(1),
-                    },
-                    children: [
-                      // Header row
-                      TableRow(
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(
-                              color: Theme.of(context).dividerColor,
-                              width: 1,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Table(
+                      columnWidths: const {
+                        0: IntrinsicColumnWidth(),
+                        1: IntrinsicColumnWidth(),
+                        2: IntrinsicColumnWidth(),
+                        3: IntrinsicColumnWidth(),
+                        4: IntrinsicColumnWidth(),
+                        5: IntrinsicColumnWidth(),
+                      },
+                      children: [
+                        // Header row
+                        TableRow(
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Theme.of(context).dividerColor,
+                                width: 1,
+                              ),
                             ),
                           ),
-                        ),
-                        children: [
-                          _buildTableHeaderCell(l10n.category),
-                          _buildTableHeaderCell('Total', isRightAligned: true),
-                          _buildTableHeaderCell('${result.person1Name} ${l10n.paid}', isRightAligned: true),
-                          _buildTableHeaderCell('${result.person1Name} ${l10n.expected}', isRightAligned: true),
-                          _buildTableHeaderCell('${result.person2Name} ${l10n.paid}', isRightAligned: true),
-                          _buildTableHeaderCell('${result.person2Name} ${l10n.expected}', isRightAligned: true),
-                        ],
-                      ),
-                      // Category rows
-                      ...(result.categoryBalances.values.toList()
-                        ..sort((a, b) => a.category.compareTo(b.category))).map((catBalance) {
-                        final total = catBalance.person1Paid + catBalance.person2Paid;
-                        return TableRow(
                           children: [
-                            _buildTableCell(catBalance.category),
-                            _buildTableCell(currencyFormat.format(total), isRightAligned: true),
+                            _buildTableHeaderCell(l10n.category),
+                            _buildTableHeaderCell('Total', isRightAligned: true),
+                            _buildTableHeaderCell('${result.person1Name} ${l10n.paid}', isRightAligned: true),
+                            _buildTableHeaderCell('${result.person1Name} ${l10n.expected}', isRightAligned: true),
+                            _buildTableHeaderCell('${result.person2Name} ${l10n.paid}', isRightAligned: true),
+                            _buildTableHeaderCell('${result.person2Name} ${l10n.expected}', isRightAligned: true),
+                          ],
+                        ),
+                        // Category rows
+                        ...(result.categoryBalances.values.toList()
+                          ..sort((a, b) => a.category.compareTo(b.category))).map((catBalance) {
+                          final total = catBalance.person1Paid + catBalance.person2Paid;
+                          return TableRow(
+                            children: [
+                              _buildTableCell(catBalance.category),
+                              _buildTableCell(currencyFormat.format(total), isRightAligned: true),
+                              _buildTableCell(
+                                currencyFormat.format(catBalance.person1Paid),
+                                isRightAligned: true,
+                                color: Colors.blue[700],
+                              ),
+                              _buildTableExpectedCell(
+                                catBalance.person1Paid,
+                                catBalance.person1Expected,
+                                currencyFormat,
+                              ),
+                              _buildTableCell(
+                                currencyFormat.format(catBalance.person2Paid),
+                                isRightAligned: true,
+                                color: Colors.blue[700],
+                              ),
+                              _buildTableExpectedCell(
+                                catBalance.person2Paid,
+                                catBalance.person2Expected,
+                                currencyFormat,
+                              ),
+                            ],
+                          );
+                        }),
+                        // Total row
+                        TableRow(
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey[800]
+                                : Colors.grey[100],
+                          ),
+                          children: [
+                            _buildTableCell('Total', isBold: true),
                             _buildTableCell(
-                              currencyFormat.format(catBalance.person1Paid),
+                              currencyFormat.format(result.person1Paid + result.person2Paid),
+                              isRightAligned: true,
+                              isBold: true,
+                            ),
+                            _buildTableCell(
+                              currencyFormat.format(result.person1Paid),
                               isRightAligned: true,
                               color: Colors.blue[700],
+                              isBold: true,
                             ),
                             _buildTableExpectedCell(
-                              catBalance.person1Paid,
-                              catBalance.person1Expected,
+                              result.person1Paid,
+                              result.person1Expected,
                               currencyFormat,
+                              isTotalRow: true,
                             ),
                             _buildTableCell(
-                              currencyFormat.format(catBalance.person2Paid),
+                              currencyFormat.format(result.person2Paid),
                               isRightAligned: true,
                               color: Colors.blue[700],
+                              isBold: true,
                             ),
                             _buildTableExpectedCell(
-                              catBalance.person2Paid,
-                              catBalance.person2Expected,
+                              result.person2Paid,
+                              result.person2Expected,
                               currencyFormat,
+                              isTotalRow: true,
                             ),
                           ],
-                        );
-                      }),
-                      // Total row
-                      TableRow(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.grey[800]
-                              : Colors.grey[100],
                         ),
-                        children: [
-                          _buildTableCell('Total', isBold: true),
-                          _buildTableCell(
-                            currencyFormat.format(result.person1Paid + result.person2Paid),
-                            isRightAligned: true,
-                            isBold: true,
-                          ),
-                          _buildTableCell(
-                            currencyFormat.format(result.person1Paid),
-                            isRightAligned: true,
-                            color: Colors.blue[700],
-                            isBold: true,
-                          ),
-                          _buildTableExpectedCell(
-                            result.person1Paid,
-                            result.person1Expected,
-                            currencyFormat,
-                            isTotalRow: true,
-                          ),
-                          _buildTableCell(
-                            currencyFormat.format(result.person2Paid),
-                            isRightAligned: true,
-                            color: Colors.blue[700],
-                            isBold: true,
-                          ),
-                          _buildTableExpectedCell(
-                            result.person2Paid,
-                            result.person2Expected,
-                            currencyFormat,
-                            isTotalRow: true,
-                          ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
 

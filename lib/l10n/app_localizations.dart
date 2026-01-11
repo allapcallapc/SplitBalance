@@ -113,7 +113,7 @@ abstract class AppLocalizations {
   /// Label for Payment Splits & Categories navigation
   ///
   /// In en, this message translates to:
-  /// **'Splits & Categories'**
+  /// **'Categories'**
   String get splitsAndCategories;
 
   /// Label for Summary navigation and screen
@@ -377,7 +377,7 @@ abstract class AppLocalizations {
   /// Prompt message for creating categories
   ///
   /// In en, this message translates to:
-  /// **'You need to create at least one category before you can add bills.\n\nPlease go to the \"Splits & Categories\" tab in the bottom navigation to create categories.'**
+  /// **'You need to create at least one category before you can add bills.\n\nPlease go to the \"Categories\" tab in the bottom navigation to create categories.'**
   String get createCategoriesPrompt;
 
   /// Button to change person names
@@ -839,7 +839,7 @@ abstract class AppLocalizations {
   /// Message when no categories are available
   ///
   /// In en, this message translates to:
-  /// **'No categories available. Please add categories in the Payment Splits & Categories screen.'**
+  /// **'No categories available. Please add categories in the Categories screen.'**
   String get noCategoriesAvailable;
 
   /// Error message when saving bill fails

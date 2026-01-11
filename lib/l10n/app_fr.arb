@@ -2,7 +2,7 @@
   "@@locale": "fr",
   "appTitle": "SplitBalance",
   "bills": "Factures",
-  "splitsAndCategories": "Répartitions et Catégories",
+  "splitsAndCategories": "Catégories",
   "summary": "Résumé",
   "settings": "Paramètres",
   "addBill": "Ajouter une facture",
@@ -53,7 +53,7 @@
   "enterBothPersonNames": "Veuillez entrer les deux noms de personnes",
   "changeFolder": "Changer de dossier",
   "createCategories": "Créer des catégories",
-  "createCategoriesPrompt": "Vous devez créer au moins une catégorie avant de pouvoir ajouter des factures.\n\nVeuillez aller à l'onglet \"Répartitions et Catégories\" dans la navigation en bas pour créer des catégories.",
+  "createCategoriesPrompt": "Vous devez créer au moins une catégorie avant de pouvoir ajouter des factures.\n\nVeuillez aller à l'onglet \"Catégories\" dans la navigation en bas pour créer des catégories.",
   "changePersonNames": "Changer les noms des personnes",
   "goToCategories": "Aller aux catégories",
   "pleaseSignInFirst": "Veuillez d'abord vous connecter",
@@ -199,7 +199,7 @@
   "saveBill": "Enregistrer la facture",
   "enterAmount": "Veuillez entrer un montant",
   "detailsOptional": "Détails (optionnel)",
-  "noCategoriesAvailable": "Aucune catégorie disponible. Veuillez ajouter des catégories dans l'écran Répartitions et Catégories.",
+  "noCategoriesAvailable": "Aucune catégorie disponible. Veuillez ajouter des catégories dans l'écran Catégories.",
   "errorSavingBill": "Erreur lors de l'enregistrement de la facture : {error}",
   "@errorSavingBill": {
     "placeholders": {

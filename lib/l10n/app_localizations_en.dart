@@ -15,7 +15,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bills => 'Bills';
 
   @override
-  String get splitsAndCategories => 'Splits & Categories';
+  String get splitsAndCategories => 'Categories';
 
   @override
   String get summary => 'Summary';
@@ -154,7 +154,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get createCategoriesPrompt =>
-      'You need to create at least one category before you can add bills.\n\nPlease go to the \"Splits & Categories\" tab in the bottom navigation to create categories.';
+      'You need to create at least one category before you can add bills.\n\nPlease go to the \"Categories\" tab in the bottom navigation to create categories.';
 
   @override
   String get changePersonNames => 'Change Person Names';
@@ -411,7 +411,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noCategoriesAvailable =>
-      'No categories available. Please add categories in the Payment Splits & Categories screen.';
+      'No categories available. Please add categories in the Categories screen.';
 
   @override
   String errorSavingBill(String error) {
