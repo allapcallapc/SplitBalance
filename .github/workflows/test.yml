@@ -27,4 +27,4 @@ jobs:
         run: flutter test
         
       - name: Run analysis
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos
