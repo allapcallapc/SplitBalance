@@ -4,8 +4,10 @@ import 'package:intl/intl.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/bills_provider.dart';
 import '../providers/config_provider.dart';
+import '../providers/pending_payments_provider.dart';
 import '../models/bill.dart';
 import 'add_edit_bill_screen.dart';
+import 'pending_payments_screen.dart';
 
 class BillsListScreen extends StatefulWidget {
   const BillsListScreen({super.key});
@@ -14,15 +16,18 @@ class BillsListScreen extends StatefulWidget {
   State<BillsListScreen> createState() => _BillsListScreenState();
 }
 
-class _BillsListScreenState extends State<BillsListScreen> {
+class _BillsListScreenState extends State<BillsListScreen>
+    with WidgetsBindingObserver {
   ConfigProvider? _configProvider;
   String? _lastLoadedFolderId; // Track which folder we loaded data for
-  
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
+      _loadPendingPayments();
     });
   }
 
@@ -30,7 +35,7 @@ class _BillsListScreenState extends State<BillsListScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final configProvider = context.read<ConfigProvider>();
-    
+
     // Set up listener only once
     if (_configProvider != configProvider) {
       _configProvider?.removeListener(_onConfigChanged);
@@ -42,17 +47,32 @@ class _BillsListScreenState extends State<BillsListScreen> {
   @override
   void dispose() {
     _configProvider?.removeListener(_onConfigChanged);
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadPendingPayments();
+    }
+  }
+
+  Future<void> _loadPendingPayments() async {
+    final pendingPaymentsProvider = context.read<PendingPaymentsProvider>();
+    if (pendingPaymentsProvider.isSupported) {
+      await pendingPaymentsProvider.loadPending();
+    }
   }
 
   void _onConfigChanged() {
     if (!mounted || _configProvider == null) return;
-    
+
     final currentFolderId = _configProvider!.driveService.folderId;
-    
+
     // Reload data if folder changes
-    if (_configProvider!.isSignedIn && 
-        currentFolderId != null && 
+    if (_configProvider!.isSignedIn &&
+        currentFolderId != null &&
         currentFolderId != _lastLoadedFolderId) {
       // Folder changed or just selected - reload data
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -66,8 +86,9 @@ class _BillsListScreenState extends State<BillsListScreen> {
   Future<void> _loadData() async {
     final configProvider = _configProvider ?? context.read<ConfigProvider>();
     final billsProvider = context.read<BillsProvider>();
-    
-    if (configProvider.isSignedIn && configProvider.driveService.folderId != null) {
+
+    if (configProvider.isSignedIn &&
+        configProvider.driveService.folderId != null) {
       _lastLoadedFolderId = configProvider.driveService.folderId;
       await billsProvider.loadBills(configProvider);
     }
@@ -97,7 +118,8 @@ class _BillsListScreenState extends State<BillsListScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(l10n.deleteBill),
-        content: Text('${l10n.areYouSureDeleteBill}\n\n${bill.details.isNotEmpty ? bill.details : "${DateFormat('yyyy-MM-dd').format(bill.date)} - \$${bill.amount.toStringAsFixed(2)}"}'),
+        content: Text(
+            '${l10n.areYouSureDeleteBill}\n\n${bill.details.isNotEmpty ? bill.details : "${DateFormat('yyyy-MM-dd').format(bill.date)} - \$${bill.amount.toStringAsFixed(2)}"}'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -163,163 +185,205 @@ class _BillsListScreenState extends State<BillsListScreen> {
           ),
         ],
       ),
-      body: Consumer<BillsProvider>(
-        builder: (context, billsProvider, child) {
-          if (billsProvider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: Column(
+        children: [
+          Consumer<PendingPaymentsProvider>(
+            builder: (context, pendingPaymentsProvider, child) {
+              final pendingCount =
+                  pendingPaymentsProvider.pendingPayments.length;
+              if (!pendingPaymentsProvider.isSupported || pendingCount == 0) {
+                return const SizedBox.shrink();
+              }
 
-          if (billsProvider.error != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    l10n.error(billsProvider.error!),
-                    style: const TextStyle(color: Colors.red),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      billsProvider.clearError();
-                      _loadData();
-                    },
-                    child: Text(l10n.retry),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          if (billsProvider.bills.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.receipt_long,
-                    size: 64,
-                    color: Colors.grey,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    l10n.noBillsYet,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton.icon(
+              return MaterialBanner(
+                content: Text(l10n.pendingPaymentsBannerMessage(pendingCount)),
+                leading: const Icon(Icons.payments_outlined),
+                actions: [
+                  TextButton(
                     onPressed: () async {
-                      final result = await Navigator.push(
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const AddEditBillScreen(),
+                          builder: (context) => const PendingPaymentsScreen(),
                         ),
                       );
-                      if (result == true && mounted) {
+                      if (mounted) {
                         await _loadData();
                       }
                     },
-                    icon: const Icon(Icons.add),
-                    label: Text(l10n.addYourFirstBill),
+                    child: Text(l10n.review),
                   ),
                 ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            itemCount: billsProvider.bills.length,
-            padding: const EdgeInsets.all(8),
-            itemBuilder: (context, index) {
-              final bill = billsProvider.bills[index];
-              final dateFormat = DateFormat('yyyy-MM-dd');
-              final currencyFormat = NumberFormat.currency(symbol: '\$');
-
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    child: Text(
-                      _getCategoryInitials(bill.category),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      Text('${l10n.date}: ${dateFormat.format(bill.date)}'),
-                      Text('${l10n.amount}: ${currencyFormat.format(bill.amount)}'),
-                      Text('${l10n.paidBy}: ${bill.paidBy}'),
-                      Text('${l10n.category}: ${bill.category}'),
-                    ],
-                  ),
-                  trailing: PopupMenuButton(
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        child: Row(
-                          children: [
-                            const Icon(Icons.edit, size: 20),
-                            const SizedBox(width: 8),
-                            Text(l10n.edit),
-                          ],
-                        ),
-                        onTap: () {
-                          Future.delayed(
-                            const Duration(milliseconds: 100),
-                            () async {
-                              if (!context.mounted) return;
-                              final result = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => AddEditBillScreen(
-                                    bill: bill,
-                                    index: index,
-                                  ),
-                                ),
-                              );
-                              if (result == true && context.mounted) {
-                                await _loadData();
-                              }
-                            },
-                          );
-                        },
-                      ),
-                      PopupMenuItem(
-                        child: Row(
-                          children: [
-                            const Icon(Icons.delete, size: 20, color: Colors.red),
-                            const SizedBox(width: 8),
-                            Text(l10n.delete, style: const TextStyle(color: Colors.red)),
-                          ],
-                        ),
-                        onTap: () {
-                          Future.delayed(
-                            const Duration(milliseconds: 100),
-                            () {
-                              if (context.mounted) {
-                                _deleteBill(context, index, bill);
-                              }
-                            },
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  isThreeLine: true,
-                ),
               );
             },
-          );
-        },
+          ),
+          Expanded(
+            child: Consumer<BillsProvider>(
+              builder: (context, billsProvider, child) {
+                if (billsProvider.isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (billsProvider.error != null) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          l10n.error(billsProvider.error!),
+                          style: const TextStyle(color: Colors.red),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () {
+                            billsProvider.clearError();
+                            _loadData();
+                          },
+                          child: Text(l10n.retry),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (billsProvider.bills.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.receipt_long,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          l10n.noBillsYet,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AddEditBillScreen(),
+                              ),
+                            );
+                            if (result == true && mounted) {
+                              await _loadData();
+                            }
+                          },
+                          icon: const Icon(Icons.add),
+                          label: Text(l10n.addYourFirstBill),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: billsProvider.bills.length,
+                  padding: const EdgeInsets.all(8),
+                  itemBuilder: (context, index) {
+                    final bill = billsProvider.bills[index];
+                    final dateFormat = DateFormat('yyyy-MM-dd');
+                    final currencyFormat = NumberFormat.currency(symbol: '\$');
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Theme.of(context).primaryColor,
+                          child: Text(
+                            _getCategoryInitials(bill.category),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text(
+                                '${l10n.date}: ${dateFormat.format(bill.date)}'),
+                            Text(
+                                '${l10n.amount}: ${currencyFormat.format(bill.amount)}'),
+                            Text('${l10n.paidBy}: ${bill.paidBy}'),
+                            Text('${l10n.category}: ${bill.category}'),
+                          ],
+                        ),
+                        trailing: PopupMenuButton(
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.edit, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(l10n.edit),
+                                ],
+                              ),
+                              onTap: () {
+                                Future.delayed(
+                                  const Duration(milliseconds: 100),
+                                  () async {
+                                    if (!context.mounted) return;
+                                    final result = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => AddEditBillScreen(
+                                          bill: bill,
+                                          index: index,
+                                        ),
+                                      ),
+                                    );
+                                    if (result == true && context.mounted) {
+                                      await _loadData();
+                                    }
+                                  },
+                                );
+                              },
+                            ),
+                            PopupMenuItem(
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.delete,
+                                      size: 20, color: Colors.red),
+                                  const SizedBox(width: 8),
+                                  Text(l10n.delete,
+                                      style:
+                                          const TextStyle(color: Colors.red)),
+                                ],
+                              ),
+                              onTap: () {
+                                Future.delayed(
+                                  const Duration(milliseconds: 100),
+                                  () {
+                                    if (context.mounted) {
+                                      _deleteBill(context, index, bill);
+                                    }
+                                  },
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                        isThreeLine: true,
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -9,7 +9,8 @@ class CategoriesProvider with ChangeNotifier {
   final List<models.Category> _categories = [];
   bool _isLoading = false;
   String? _error;
-  String? _lastLoadedFolderId; // Track which folder we loaded categories for to prevent reload loops
+  String?
+      _lastLoadedFolderId; // Track which folder we loaded categories for to prevent reload loops
 
   List<models.Category> get categories => List.unmodifiable(_categories);
   bool get isLoading => _isLoading;
@@ -17,23 +18,27 @@ class CategoriesProvider with ChangeNotifier {
 
   // Load categories from Google Drive
   Future<void> loadCategories(ConfigProvider configProvider) async {
-    if (!configProvider.isSignedIn || configProvider.driveService.folderId == null) {
+    if (!configProvider.isSignedIn ||
+        configProvider.driveService.folderId == null) {
       return;
     }
 
     final currentFolderId = configProvider.driveService.folderId;
-    
+
     // Prevent multiple simultaneous calls
     if (_isLoading) {
       return;
     }
-    
+
     // If we've already loaded for this folder and we have no error, don't reload
     // This prevents infinite reload loops when the file doesn't exist or is empty
-    if (_lastLoadedFolderId != null && currentFolderId == _lastLoadedFolderId && _error == null) {
+    if (_lastLoadedFolderId != null &&
+        currentFolderId == _lastLoadedFolderId &&
+        _error == null) {
       // Already loaded for this folder (even if empty) - don't reload unless there's an error
       // This prevents infinite retries when the file doesn't exist
-      print('Categories already loaded for folder $currentFolderId - skipping reload');
+      print(
+          'Categories already loaded for folder $currentFolderId - skipping reload');
       return;
     }
 
@@ -46,14 +51,16 @@ class CategoriesProvider with ChangeNotifier {
       if (csvContent.isEmpty || csvContent.trim().isEmpty) {
         // File doesn't exist - create an empty categories.csv file with just the header
         // This prevents infinite reload attempts and establishes the file in Drive
-        print('categories.csv file not found - creating empty file with header');
+        print(
+            'categories.csv file not found - creating empty file with header');
         try {
           // Create empty CSV with just header row (e.g., "name\n")
           // This creates a file with just the header: "name\n"
           final emptyCsv = CsvService.categoriesToCsv([]);
           await configProvider.driveService.uploadCategories(emptyCsv);
-          print('Successfully created empty categories.csv file in Drive folder');
-          
+          print(
+              'Successfully created empty categories.csv file in Drive folder');
+
           // Mark this folder as loaded IMMEDIATELY after successful creation
           // This must happen before notifyListeners() to prevent reload loops
           _lastLoadedFolderId = currentFolderId;
@@ -63,39 +70,41 @@ class CategoriesProvider with ChangeNotifier {
           // The file might exist but be empty, or there might be a permissions issue
           _lastLoadedFolderId = currentFolderId;
         }
-        
+
         // Ensure categories are empty (in case of folder change)
         final hadCategories = _categories.isNotEmpty;
         if (hadCategories) {
           _categories.clear();
         }
-        
+
         _isLoading = false;
-        _error = null; // Clear any previous errors since we successfully initialized
+        _error =
+            null; // Clear any previous errors since we successfully initialized
         // Notify listeners that we've initialized for this folder (file now exists, even if empty)
         // This is needed so main.dart knows categories have been loaded (even if empty)
         // The _lastLoadedFolderId is already set, so subsequent calls will return early
         notifyListeners();
         return;
       }
-      
+
       // File exists - parse and load categories
       final loadedCategories = CsvService.categoriesFromCsv(csvContent);
       final categoriesChanged = _categories.length != loadedCategories.length ||
-          !_categories.every((c) => loadedCategories.any((lc) => lc.name == c.name));
-      
+          !_categories
+              .every((c) => loadedCategories.any((lc) => lc.name == c.name));
+
       // Mark as loaded for this folder BEFORE processing changes
       // This prevents reload loops if notifyListeners() triggers a rebuild
       _lastLoadedFolderId = currentFolderId;
-      
+
       if (categoriesChanged) {
         _categories.clear();
         _categories.addAll(loadedCategories);
         _error = null;
       }
-      
+
       _isLoading = false;
-      
+
       // Only notify if something changed
       if (categoriesChanged || _error != null) {
         notifyListeners();
@@ -103,7 +112,7 @@ class CategoriesProvider with ChangeNotifier {
     } catch (e) {
       // Mark as loaded for this folder even on error to prevent infinite retries
       _lastLoadedFolderId = currentFolderId;
-      
+
       // Only set error if we don't already have the same error to prevent unnecessary notifications
       final newError = 'Failed to load categories: $e';
       if (_error != newError) {
@@ -119,14 +128,15 @@ class CategoriesProvider with ChangeNotifier {
 
   // Save categories to Google Drive
   Future<void> saveCategories(ConfigProvider configProvider) async {
-    if (!configProvider.isSignedIn || configProvider.driveService.folderId == null) {
+    if (!configProvider.isSignedIn ||
+        configProvider.driveService.folderId == null) {
       _error = 'Not signed in or folder not set';
       notifyListeners();
       return;
     }
 
     final currentFolderId = configProvider.driveService.folderId;
-    
+
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -146,9 +156,11 @@ class CategoriesProvider with ChangeNotifier {
   }
 
   // Add a category
-  Future<void> addCategory(models.Category category, ConfigProvider configProvider) async {
+  Future<void> addCategory(
+      models.Category category, ConfigProvider configProvider) async {
     // Check if category already exists
-    if (_categories.any((c) => c.name.toLowerCase() == category.name.toLowerCase())) {
+    if (_categories
+        .any((c) => c.name.toLowerCase() == category.name.toLowerCase())) {
       _error = 'Category "${category.name}" already exists';
       notifyListeners();
       return;
@@ -159,7 +171,8 @@ class CategoriesProvider with ChangeNotifier {
   }
 
   // Update a category
-  Future<void> updateCategory(int index, models.Category newCategory, ConfigProvider configProvider) async {
+  Future<void> updateCategory(int index, models.Category newCategory,
+      ConfigProvider configProvider) async {
     if (index < 0 || index >= _categories.length) {
       _error = 'Invalid category index';
       notifyListeners();
@@ -167,10 +180,11 @@ class CategoriesProvider with ChangeNotifier {
     }
 
     final oldCategory = _categories[index];
-    
+
     // Check if new name conflicts with another category
     if (oldCategory.name.toLowerCase() != newCategory.name.toLowerCase() &&
-        _categories.any((c) => c.name.toLowerCase() == newCategory.name.toLowerCase())) {
+        _categories.any(
+            (c) => c.name.toLowerCase() == newCategory.name.toLowerCase())) {
       _error = 'Category "${newCategory.name}" already exists';
       notifyListeners();
       return;
@@ -182,7 +196,8 @@ class CategoriesProvider with ChangeNotifier {
 
   // Delete a category
   // Payment splits referencing this category should be removed separately (see PaymentSplitsProvider.removeSplitsByCategory)
-  Future<void> deleteCategory(int index, ConfigProvider configProvider, {required bool isCategoryUsed}) async {
+  Future<void> deleteCategory(int index, ConfigProvider configProvider,
+      {required bool isCategoryUsed}) async {
     if (index < 0 || index >= _categories.length) {
       _error = 'Invalid category index';
       notifyListeners();
@@ -201,9 +216,10 @@ class CategoriesProvider with ChangeNotifier {
 
   // Check if a category is in use (used by bills)
   // Note: Payment splits don't prevent category deletion - they will be removed automatically
-  bool isCategoryInUse(String categoryName, List<Bill> bills, List<PaymentSplit> splits) {
+  bool isCategoryInUse(
+      String categoryName, List<Bill> bills, List<PaymentSplit> splits) {
     final categoryLower = categoryName.toLowerCase().trim();
-    
+
     // Only check bills - splits don't prevent deletion (they'll be removed automatically)
     for (final bill in bills) {
       final billCategory = bill.category.toLowerCase().trim();

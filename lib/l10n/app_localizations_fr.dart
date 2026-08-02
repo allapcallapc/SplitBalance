@@ -485,4 +485,79 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get noFoldersAvailable => 'Aucun dossier disponible';
+
+  @override
+  String get pendingPayments => 'Paiements en attente';
+
+  @override
+  String pendingPaymentsBannerMessage(int count) {
+    return '$count paiement(s) Google Pay en attente de confirmation';
+  }
+
+  @override
+  String get review => 'Examiner';
+
+  @override
+  String get noPendingPayments => 'Aucun paiement en attente';
+
+  @override
+  String get noPendingPaymentsMessage =>
+      'Les paiements Google Pay détectés apparaîtront ici pour que vous les confirmiez comme facture.';
+
+  @override
+  String get addAsBill => 'Ajouter comme facture';
+
+  @override
+  String get dismissPendingPaymentTitle => 'Ignorer ce paiement ?';
+
+  @override
+  String get dismissPendingPaymentMessage =>
+      'Cela supprimera le paiement détecté sans créer de facture.';
+
+  @override
+  String get detectedAt => 'Détecté';
+
+  @override
+  String get rawNotificationText => 'Depuis la notification';
+
+  @override
+  String get googlePayDetection => 'Détection Google Pay';
+
+  @override
+  String get googlePayDetectionExplanation =>
+      'SplitBalance peut surveiller les notifications de paiement Google Pay sur cet appareil et vous permettre de les confirmer comme factures partagées. Cela nécessite l\'accès aux notifications, accordé une fois dans les paramètres système. Tout reste sur cet appareil jusqu\'à ce que vous confirmiez un élément.';
+
+  @override
+  String get notificationAccessGranted => 'Accès aux notifications accordé';
+
+  @override
+  String get notificationAccessNotGranted =>
+      'Accès aux notifications non accordé';
+
+  @override
+  String get grantNotificationAccess => 'Accorder l\'accès aux notifications';
+
+  @override
+  String get watchedApps => 'Applications surveillées';
+
+  @override
+  String get watchedAppsHint =>
+      'Noms de packages à surveiller pour les notifications de paiement';
+
+  @override
+  String get addPackageName => 'Ajouter un nom de package';
+
+  @override
+  String get androidOnlyFeature =>
+      'Cette fonctionnalité est disponible uniquement sur Android';
+
+  @override
+  String get pendingPaymentsTooltip => 'Paiements en attente';
+
+  @override
+  String get whoAreYou => 'Quelle personne êtes-vous ?';
+
+  @override
+  String get whoAreYouHint =>
+      'Utilisé pour pré-remplir « Payé par » lors de la confirmation d\'un paiement Google Pay détecté.';
 }

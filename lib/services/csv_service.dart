@@ -9,7 +9,7 @@ class CsvService {
     final rows = <List<String>>[];
     rows.add(Bill.csvHeader());
     rows.addAll(bills.map((bill) => bill.toCsvRow()));
-    
+
     return const ListToCsvConverter().convert(rows);
   }
 
@@ -18,21 +18,22 @@ class CsvService {
     if (csvContent.trim().isEmpty) {
       return [];
     }
-    
+
     // Auto-detect delimiter: check if first line contains semicolons
     final firstLine = csvContent.split('\n').first.trim();
     final fieldDelimiter = firstLine.contains(';') ? ';' : ',';
-    
+
     final converter = CsvToListConverter(fieldDelimiter: fieldDelimiter);
     final rows = converter.convert(csvContent);
-    
+
     if (rows.isEmpty) {
       return [];
     }
-    
+
     // Skip header row if present
-    final startIndex = _isHeader(rows[0].cast<String>(), Bill.csvHeader()) ? 1 : 0;
-    
+    final startIndex =
+        _isHeader(rows[0].cast<String>(), Bill.csvHeader()) ? 1 : 0;
+
     final bills = <Bill>[];
     for (var i = startIndex; i < rows.length; i++) {
       try {
@@ -43,7 +44,7 @@ class CsvService {
         continue;
       }
     }
-    
+
     return bills;
   }
 
@@ -53,9 +54,10 @@ class CsvService {
     final rows = <List<String>>[];
     rows.add(PaymentSplit.csvHeader());
     // Filter out "all" category splits - they're not persisted
-    final splitsToSave = splits.where((split) => split.category != 'all').toList();
+    final splitsToSave =
+        splits.where((split) => split.category != 'all').toList();
     rows.addAll(splitsToSave.map((split) => split.toCsvRow()));
-    
+
     return const ListToCsvConverter().convert(rows);
   }
 
@@ -64,32 +66,34 @@ class CsvService {
     if (csvContent.trim().isEmpty) {
       return [];
     }
-    
+
     // Auto-detect delimiter: check if first line contains semicolons
     final firstLine = csvContent.split('\n').first.trim();
     final fieldDelimiter = firstLine.contains(';') ? ';' : ',';
-    
+
     final converter = CsvToListConverter(fieldDelimiter: fieldDelimiter);
     final rows = converter.convert(csvContent);
-    
+
     if (rows.isEmpty) {
       return [];
     }
-    
+
     // Skip header row if present
-    final startIndex = _isHeader(rows[0].cast<String>(), PaymentSplit.csvHeader()) ? 1 : 0;
-    
+    final startIndex =
+        _isHeader(rows[0].cast<String>(), PaymentSplit.csvHeader()) ? 1 : 0;
+
     final splits = <PaymentSplit>[];
     for (var i = startIndex; i < rows.length; i++) {
       try {
-        final split = PaymentSplit.fromCsvRow(rows[i].map((e) => e.toString()).toList());
+        final split =
+            PaymentSplit.fromCsvRow(rows[i].map((e) => e.toString()).toList());
         splits.add(split);
       } catch (e) {
         // Skip invalid rows, could log error in production
         continue;
       }
     }
-    
+
     return splits;
   }
 
@@ -98,7 +102,7 @@ class CsvService {
     final rows = <List<String>>[];
     rows.add(Category.csvHeader());
     rows.addAll(categories.map((category) => category.toCsvRow()));
-    
+
     return const ListToCsvConverter().convert(rows);
   }
 
@@ -107,32 +111,34 @@ class CsvService {
     if (csvContent.trim().isEmpty) {
       return [];
     }
-    
+
     // Auto-detect delimiter: check if first line contains semicolons
     final firstLine = csvContent.split('\n').first.trim();
     final fieldDelimiter = firstLine.contains(';') ? ';' : ',';
-    
+
     final converter = CsvToListConverter(fieldDelimiter: fieldDelimiter);
     final rows = converter.convert(csvContent);
-    
+
     if (rows.isEmpty) {
       return [];
     }
-    
+
     // Skip header row if present
-    final startIndex = _isHeader(rows[0].cast<String>(), Category.csvHeader()) ? 1 : 0;
-    
+    final startIndex =
+        _isHeader(rows[0].cast<String>(), Category.csvHeader()) ? 1 : 0;
+
     final categories = <Category>[];
     for (var i = startIndex; i < rows.length; i++) {
       try {
-        final category = Category.fromCsvRow(rows[i].map((e) => e.toString()).toList());
+        final category =
+            Category.fromCsvRow(rows[i].map((e) => e.toString()).toList());
         categories.add(category);
       } catch (e) {
         // Skip invalid rows, could log error in production
         continue;
       }
     }
-    
+
     return categories;
   }
 
@@ -141,7 +147,7 @@ class CsvService {
     final rows = <List<String>>[];
     rows.add(['person1Name', 'person2Name']); // Header
     rows.add([person1Name, person2Name]); // Data row
-    
+
     return const ListToCsvConverter().convert(rows);
   }
 
@@ -150,32 +156,34 @@ class CsvService {
     if (csvContent.trim().isEmpty) {
       return {'person1Name': '', 'person2Name': ''};
     }
-    
+
     // Auto-detect delimiter: check if first line contains semicolons
     final firstLine = csvContent.split('\n').first.trim();
     final fieldDelimiter = firstLine.contains(';') ? ';' : ',';
-    
+
     final converter = CsvToListConverter(fieldDelimiter: fieldDelimiter);
     final rows = converter.convert(csvContent);
-    
+
     if (rows.isEmpty) {
       return {'person1Name': '', 'person2Name': ''};
     }
-    
+
     // Skip header row if present
-    final startIndex = rows.isNotEmpty && 
-                       rows[0].length >= 2 && 
-                       rows[0][0].toString().toLowerCase() == 'person1name' ? 1 : 0;
-    
+    final startIndex = rows.isNotEmpty &&
+            rows[0].length >= 2 &&
+            rows[0][0].toString().toLowerCase() == 'person1name'
+        ? 1
+        : 0;
+
     if (rows.length <= startIndex) {
       return {'person1Name': '', 'person2Name': ''};
     }
-    
+
     try {
       final row = rows[startIndex];
       final person1Name = row.isNotEmpty ? row[0].toString().trim() : '';
       final person2Name = row.length > 1 ? row[1].toString().trim() : '';
-      
+
       return {
         'person1Name': person1Name,
         'person2Name': person2Name,

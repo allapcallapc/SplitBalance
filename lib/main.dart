@@ -7,10 +7,13 @@ import 'providers/bills_provider.dart';
 import 'providers/payment_splits_provider.dart';
 import 'providers/categories_provider.dart';
 import 'providers/calculation_provider.dart';
+import 'providers/pending_payments_provider.dart';
 import 'screens/config_screen.dart';
 import 'screens/bills_list_screen.dart';
 import 'screens/payment_splits_screen.dart';
 import 'screens/summary_screen.dart';
+import 'screens/pending_payments_screen.dart';
+import 'screens/add_edit_bill_screen.dart';
 import 'models/app_config.dart';
 
 void main() {
@@ -42,7 +45,7 @@ class SplitBalanceApp extends StatelessWidget {
       seedColor: Colors.blue,
       brightness: Brightness.dark,
     );
-    
+
     return ThemeData(
       colorScheme: baseScheme.copyWith(
         // Use a lighter surface color for better contrast
@@ -50,11 +53,13 @@ class SplitBalanceApp extends StatelessWidget {
         surfaceContainer: const Color(0xFF2D2D2D), // Medium surface
         onSurface: Colors.white,
         // Ensure cards stand out more
-        surfaceContainerHighest: const Color(0xFF3A3A3A), // Even lighter for cards
+        surfaceContainerHighest:
+            const Color(0xFF3A3A3A), // Even lighter for cards
         onSurfaceVariant: Colors.white70,
       ),
       useMaterial3: true,
-      scaffoldBackgroundColor: const Color(0xFF121212), // Very dark but not pure black
+      scaffoldBackgroundColor:
+          const Color(0xFF121212), // Very dark but not pure black
       cardTheme: CardThemeData(
         color: const Color(0xFF2D2D2D), // Lighter than scaffold for contrast
         elevation: 6, // Higher elevation for better separation
@@ -127,6 +132,7 @@ class SplitBalanceApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PaymentSplitsProvider()),
         ChangeNotifierProvider(create: (_) => CategoriesProvider()),
         ChangeNotifierProvider(create: (_) => CalculationProvider()),
+        ChangeNotifierProvider(create: (_) => PendingPaymentsProvider()),
       ],
       child: Consumer<ConfigProvider>(
         builder: (context, configProvider, child) {
@@ -160,7 +166,8 @@ class MainNavigationScreen extends StatefulWidget {
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
-class _MainNavigationScreenState extends State<MainNavigationScreen> {
+class _MainNavigationScreenState extends State<MainNavigationScreen>
+    with WidgetsBindingObserver {
   int _selectedIndex = 0;
   bool? _wasSignedIn;
   int? _previousBodyIndex;
@@ -176,12 +183,73 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       SummaryScreen(navigationNotifier: _navigationNotifier),
       const ConfigScreen(),
     ];
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _checkPendingDeepLink());
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _navigationNotifier.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkPendingDeepLink();
+    }
+  }
+
+  // Handles the "Yes"/"See more" actions on a pending-bill system
+  // notification: navigates straight to the relevant screen once the app is
+  // fully configured (a stale notification tapped before sign-in/setup is
+  // otherwise silently ignored rather than navigating into a broken state).
+  Future<void> _checkPendingDeepLink() async {
+    if (!mounted) return;
+    final pendingPaymentsProvider = context.read<PendingPaymentsProvider>();
+    if (!pendingPaymentsProvider.isSupported) return;
+
+    final deepLink = await pendingPaymentsProvider.getPendingDeepLink();
+    if (deepLink == null || !mounted) return;
+
+    final configProvider = context.read<ConfigProvider>();
+    final categoriesProvider = context.read<CategoriesProvider>();
+    final isConfigComplete = configProvider.isSignedIn &&
+        configProvider.driveService.folderId != null &&
+        configProvider.config.person1Name.trim().isNotEmpty &&
+        configProvider.config.person2Name.trim().isNotEmpty &&
+        categoriesProvider.categories.isNotEmpty;
+    if (!isConfigComplete) return;
+
+    await pendingPaymentsProvider.clearPendingDeepLink();
+    if (!mounted) return;
+
+    final action = deepLink['action'] as String?;
+    final id = deepLink['id'] as String?;
+
+    if (action == 'OPEN_PENDING_PAYMENTS') {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => PendingPaymentsScreen(focusedId: id),
+        ),
+      );
+    } else if (action == 'ADD_BILL') {
+      final amount = deepLink['amount'] as double?;
+      final details = deepLink['details'] as String?;
+      final result = await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => AddEditBillScreen(
+            prefillAmount: amount,
+            prefillDetails: details,
+          ),
+        ),
+      );
+      if (result == true && id != null && mounted) {
+        await context.read<PendingPaymentsProvider>().dismiss(id);
+      }
+    }
   }
 
   @override
@@ -189,23 +257,26 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     return Consumer2<ConfigProvider, CategoriesProvider>(
       builder: (context, configProvider, categoriesProvider, child) {
         final isSignedIn = configProvider.isSignedIn;
-        
+
         // Check if configuration flow is complete
         // Required steps: Login -> Folder -> Person Names -> Categories
         final hasFolder = configProvider.driveService.folderId != null;
-        final hasPersonNames = configProvider.config.person1Name.trim().isNotEmpty &&
-                               configProvider.config.person2Name.trim().isNotEmpty;
+        final hasPersonNames =
+            configProvider.config.person1Name.trim().isNotEmpty &&
+                configProvider.config.person2Name.trim().isNotEmpty;
         final hasCategories = categoriesProvider.categories.isNotEmpty;
-        
+
         // Config is complete when all steps are done
-        final isConfigComplete = isSignedIn && hasFolder && hasPersonNames && hasCategories;
-        
+        final isConfigComplete =
+            isSignedIn && hasFolder && hasPersonNames && hasCategories;
+
         // Allow partial navigation when person names are set (to create categories)
-        final canNavigateToCreateCategories = isSignedIn && hasFolder && hasPersonNames && !hasCategories;
-        
+        final canNavigateToCreateCategories =
+            isSignedIn && hasFolder && hasPersonNames && !hasCategories;
+
         // Determine if nav bar should be shown
         final shouldShowNavBar = isSignedIn && hasFolder && hasPersonNames;
-        
+
         // ABSOLUTE MINIMAL: Only initialize on first build, NO auto-navigation at all
         if (_wasSignedIn == null) {
           _wasSignedIn = isSignedIn;
@@ -226,26 +297,30 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         // This prevents navigation bar flickering when providers notify
         final l10n = AppLocalizations.of(context)!;
         final isLimitedNav = canNavigateToCreateCategories;
-        final safeIndex = isLimitedNav 
-            ? ((_selectedIndex == 1 || _selectedIndex == 3) ? _selectedIndex : 1)
+        final safeIndex = isLimitedNav
+            ? ((_selectedIndex == 1 || _selectedIndex == 3)
+                ? _selectedIndex
+                : 1)
             : _selectedIndex;
-        
+
         // Always show ConfigScreen in body when nav bar should be hidden
         // but still use Scaffold structure to prevent widget tree changes
-        final bodyIndex = shouldShowNavBar ? safeIndex : 3; // Force ConfigScreen (index 3) when no nav bar
-        
+        final bodyIndex = shouldShowNavBar
+            ? safeIndex
+            : 3; // Force ConfigScreen (index 3) when no nav bar
+
         // Notify when navigation changes (for SummaryScreen to refresh)
         if (bodyIndex != _previousBodyIndex) {
           _navigationNotifier.value = bodyIndex;
           _previousBodyIndex = bodyIndex;
         }
-        
+
         return Scaffold(
           body: IndexedStack(
             index: bodyIndex,
             children: _screens,
           ),
-          bottomNavigationBar: shouldShowNavBar 
+          bottomNavigationBar: shouldShowNavBar
               ? NavigationBar(
                   selectedIndex: safeIndex,
                   onDestinationSelected: (index) {

@@ -66,15 +66,17 @@ class CalculationProvider with ChangeNotifier {
 
     final result = _balanceResult!;
     final currencyFormat = '\$${result.netBalance.abs().toStringAsFixed(2)}';
-    
+
     if (result.netBalance.abs() < 0.01) {
       return l10n.allBalancedNoOneOwes;
     }
 
     if (result.netBalance > 0) {
-      return l10n.personOwesPerson(result.person1Name, result.person2Name, currencyFormat);
+      return l10n.personOwesPerson(
+          result.person1Name, result.person2Name, currencyFormat);
     } else {
-      return l10n.personOwesPerson(result.person2Name, result.person1Name, currencyFormat);
+      return l10n.personOwesPerson(
+          result.person2Name, result.person1Name, currencyFormat);
     }
   }
 

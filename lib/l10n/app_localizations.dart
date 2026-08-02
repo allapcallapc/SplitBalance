@@ -961,6 +961,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No folders are available'**
   String get noFoldersAvailable;
+
+  /// Title for the pending Google Pay payments screen
+  ///
+  /// In en, this message translates to:
+  /// **'Pending Payments'**
+  String get pendingPayments;
+
+  /// Banner message showing count of pending Google Pay payments
+  ///
+  /// In en, this message translates to:
+  /// **'{count} Google Pay payment(s) awaiting confirmation'**
+  String pendingPaymentsBannerMessage(int count);
+
+  /// Button label to review pending payments
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get review;
+
+  /// Message when there are no pending Google Pay payments
+  ///
+  /// In en, this message translates to:
+  /// **'No pending payments'**
+  String get noPendingPayments;
+
+  /// Explanation shown when the pending payments queue is empty
+  ///
+  /// In en, this message translates to:
+  /// **'Google Pay detections will show up here for you to confirm as a bill.'**
+  String get noPendingPaymentsMessage;
+
+  /// Button label to turn a pending payment into a bill
+  ///
+  /// In en, this message translates to:
+  /// **'Add as Bill'**
+  String get addAsBill;
+
+  /// Title for confirming dismissal of a pending payment
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss Payment?'**
+  String get dismissPendingPaymentTitle;
+
+  /// Confirmation message for dismissing a pending payment
+  ///
+  /// In en, this message translates to:
+  /// **'This will remove the detected payment without creating a bill.'**
+  String get dismissPendingPaymentMessage;
+
+  /// Label for when a payment notification was detected
+  ///
+  /// In en, this message translates to:
+  /// **'Detected'**
+  String get detectedAt;
+
+  /// Label for the raw text captured from the payment notification
+  ///
+  /// In en, this message translates to:
+  /// **'From notification'**
+  String get rawNotificationText;
+
+  /// Section header for Google Pay detection settings
+  ///
+  /// In en, this message translates to:
+  /// **'Google Pay Detection'**
+  String get googlePayDetection;
+
+  /// Explanation of the Google Pay detection feature and its permission requirement
+  ///
+  /// In en, this message translates to:
+  /// **'SplitBalance can watch for Google Pay payment notifications on this device and let you confirm them as household bills. This requires notification access, granted once in system settings. Everything stays on this device until you confirm an item.'**
+  String get googlePayDetectionExplanation;
+
+  /// Status message when notification access is granted
+  ///
+  /// In en, this message translates to:
+  /// **'Notification access granted'**
+  String get notificationAccessGranted;
+
+  /// Status message when notification access is not granted
+  ///
+  /// In en, this message translates to:
+  /// **'Notification access not granted'**
+  String get notificationAccessNotGranted;
+
+  /// Button label to open system notification access settings
+  ///
+  /// In en, this message translates to:
+  /// **'Grant Notification Access'**
+  String get grantNotificationAccess;
+
+  /// Label for the list of watched app package names
+  ///
+  /// In en, this message translates to:
+  /// **'Watched Apps'**
+  String get watchedApps;
+
+  /// Hint text explaining the watched apps list
+  ///
+  /// In en, this message translates to:
+  /// **'Package names to watch for payment notifications'**
+  String get watchedAppsHint;
+
+  /// Hint for adding a new watched package name
+  ///
+  /// In en, this message translates to:
+  /// **'Add package name'**
+  String get addPackageName;
+
+  /// Message shown when a feature requires Android and the app is running elsewhere
+  ///
+  /// In en, this message translates to:
+  /// **'This feature is only available on Android'**
+  String get androidOnlyFeature;
+
+  /// Tooltip for the pending payments button
+  ///
+  /// In en, this message translates to:
+  /// **'Pending Payments'**
+  String get pendingPaymentsTooltip;
+
+  /// Label for selecting which household member this device belongs to
+  ///
+  /// In en, this message translates to:
+  /// **'Which person are you?'**
+  String get whoAreYou;
+
+  /// Explanation for the who-are-you selector
+  ///
+  /// In en, this message translates to:
+  /// **'Used to pre-fill \"Paid by\" when confirming a detected Google Pay payment.'**
+  String get whoAreYouHint;
 }
 
 class _AppLocalizationsDelegate

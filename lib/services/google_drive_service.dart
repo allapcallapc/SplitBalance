@@ -30,11 +30,11 @@ class GoogleDriveService {
   Future<bool> signIn() async {
     try {
       print('Starting Google Sign-In...');
-      
+
       // Sign in - this opens the full OAuth popup
       // The package will show the full OAuth consent screen
       _currentUser = await _googleSignIn.signIn();
-      
+
       if (_currentUser == null) {
         print('Sign-in cancelled by user');
         return false;
@@ -44,7 +44,7 @@ class GoogleDriveService {
 
       // Get authentication - this ensures tokens are properly obtained
       final auth = await _currentUser!.authentication;
-      
+
       if (auth.accessToken == null || auth.accessToken!.isEmpty) {
         print('Failed to get access token');
         _currentUser = null;
@@ -56,7 +56,7 @@ class GoogleDriveService {
       // Create authenticated client for Google Drive API
       final authenticatedClient = GoogleAuthClient(_currentUser!);
       _driveApi = drive.DriveApi(authenticatedClient);
-      
+
       print('Drive API client initialized successfully');
       return true;
     } catch (e, stackTrace) {
@@ -99,8 +99,9 @@ class GoogleDriveService {
     try {
       if (parentFolderId != null) {
         // Listing folders in a specific parent folder
-        String query = "mimeType='application/vnd.google-apps.folder' and trashed=false and '$parentFolderId' in parents";
-        
+        String query =
+            "mimeType='application/vnd.google-apps.folder' and trashed=false and '$parentFolderId' in parents";
+
         final response = await _driveApi!.files.list(
           q: query,
           $fields: 'files(id, name)',
@@ -109,7 +110,7 @@ class GoogleDriveService {
         if (response.files == null || response.files!.isEmpty) {
           return <drive.File>[];
         }
-        
+
         return List<drive.File>.from(response.files!);
       } else {
         // Listing at root level - include both owned and shared folders
@@ -117,7 +118,8 @@ class GoogleDriveService {
         final Set<String> seenFolderIds = <String>{};
 
         // First, get folders owned by the user (in root)
-        String ownedQuery = "mimeType='application/vnd.google-apps.folder' and trashed=false and 'root' in parents";
+        String ownedQuery =
+            "mimeType='application/vnd.google-apps.folder' and trashed=false and 'root' in parents";
         final ownedResponse = await _driveApi!.files.list(
           q: ownedQuery,
           $fields: 'files(id, name)',
@@ -133,7 +135,8 @@ class GoogleDriveService {
         }
 
         // Then, get folders shared with the user
-        String sharedQuery = "mimeType='application/vnd.google-apps.folder' and trashed=false and sharedWithMe=true";
+        String sharedQuery =
+            "mimeType='application/vnd.google-apps.folder' and trashed=false and sharedWithMe=true";
         final sharedResponse = await _driveApi!.files.list(
           q: sharedQuery,
           $fields: 'files(id, name)',
@@ -158,7 +161,8 @@ class GoogleDriveService {
   }
 
   /// Create a new folder in a parent folder (or root if parentId is null)
-  Future<drive.File> createFolder(String folderName, [String? parentFolderId]) async {
+  Future<drive.File> createFolder(String folderName,
+      [String? parentFolderId]) async {
     if (_driveApi == null) {
       throw StateError('Not signed in');
     }
@@ -167,14 +171,15 @@ class GoogleDriveService {
       final folder = drive.File();
       folder.name = folderName;
       folder.mimeType = 'application/vnd.google-apps.folder';
-      
+
       if (parentFolderId != null) {
         folder.parents = [parentFolderId];
       } else {
         folder.parents = ['root'];
       }
 
-      final createdFolder = await _driveApi!.files.create(folder, $fields: 'id, name');
+      final createdFolder =
+          await _driveApi!.files.create(folder, $fields: 'id, name');
       return createdFolder;
     } catch (e) {
       print('Error creating folder: $e');
@@ -275,12 +280,14 @@ class GoogleDriveService {
       }
 
       final fileId = response.files!.first.id!;
-      
+
       // Use the authenticated client to download the file
       final authenticatedClient = GoogleAuthClient(_currentUser!);
-      final downloadUrl = 'https://www.googleapis.com/drive/v3/files/$fileId?alt=media';
-      final downloadResponse = await authenticatedClient.get(Uri.parse(downloadUrl));
-      
+      final downloadUrl =
+          'https://www.googleapis.com/drive/v3/files/$fileId?alt=media';
+      final downloadResponse =
+          await authenticatedClient.get(Uri.parse(downloadUrl));
+
       if (downloadResponse.statusCode == 200) {
         // Try UTF-8 first, fall back to Latin1 if UTF-8 decoding fails
         try {
@@ -289,7 +296,8 @@ class GoogleDriveService {
           return latin1.decode(downloadResponse.bodyBytes);
         }
       } else {
-        throw Exception('Failed to download file: ${downloadResponse.statusCode}');
+        throw Exception(
+            'Failed to download file: ${downloadResponse.statusCode}');
       }
     } catch (e) {
       print('Error downloading CSV: $e');
@@ -354,14 +362,15 @@ class GoogleAuthClient extends http.BaseClient {
     // Get fresh authentication token before each request
     // Use authentication property which works better for token refresh
     final auth = await _user.authentication;
-    
+
     if (auth.accessToken == null || auth.accessToken!.isEmpty) {
-      throw Exception('Failed to get access token - user may need to sign in again');
+      throw Exception(
+          'Failed to get access token - user may need to sign in again');
     }
-    
+
     // Add Authorization header with the access token
     request.headers['Authorization'] = 'Bearer ${auth.accessToken}';
-    
+
     // Send the request
     return await _client.send(request);
   }

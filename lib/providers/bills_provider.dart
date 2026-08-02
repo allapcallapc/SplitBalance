@@ -14,7 +14,8 @@ class BillsProvider with ChangeNotifier {
 
   // Load bills from Google Drive
   Future<void> loadBills(ConfigProvider configProvider) async {
-    if (!configProvider.isSignedIn || configProvider.driveService.folderId == null) {
+    if (!configProvider.isSignedIn ||
+        configProvider.driveService.folderId == null) {
       return;
     }
 
@@ -46,7 +47,8 @@ class BillsProvider with ChangeNotifier {
 
   // Save bills to Google Drive
   Future<void> saveBills(ConfigProvider configProvider) async {
-    if (!configProvider.isSignedIn || configProvider.driveService.folderId == null) {
+    if (!configProvider.isSignedIn ||
+        configProvider.driveService.folderId == null) {
       _error = 'Not signed in or folder not set';
       notifyListeners();
       return;
@@ -77,7 +79,8 @@ class BillsProvider with ChangeNotifier {
   }
 
   // Update a bill
-  Future<void> updateBill(int index, Bill updatedBill, ConfigProvider configProvider) async {
+  Future<void> updateBill(
+      int index, Bill updatedBill, ConfigProvider configProvider) async {
     if (index < 0 || index >= _bills.length) {
       _error = 'Invalid bill index';
       notifyListeners();
@@ -124,7 +127,9 @@ class BillsProvider with ChangeNotifier {
       if (endDate != null && bill.date.isAfter(endDate)) {
         return false;
       }
-      if (category != null && category.isNotEmpty && bill.category != category) {
+      if (category != null &&
+          category.isNotEmpty &&
+          bill.category != category) {
         return false;
       }
       if (paidBy != null && paidBy.isNotEmpty && bill.paidBy != paidBy) {

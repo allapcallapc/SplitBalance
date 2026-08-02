@@ -19,7 +19,7 @@ class SummaryScreen extends StatefulWidget {
 
 class _SummaryScreenState extends State<SummaryScreen> {
   int? _lastNavigationIndex;
-  
+
   @override
   void initState() {
     super.initState();
@@ -57,7 +57,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
     calculationProvider.setCalculating(true);
 
     // Ensure data is loaded
-    if (configProvider.isSignedIn && configProvider.driveService.folderId != null) {
+    if (configProvider.isSignedIn &&
+        configProvider.driveService.folderId != null) {
       await categoriesProvider.loadCategories(configProvider);
       await billsProvider.loadBills(configProvider);
       await splitsProvider.loadPaymentSplits(configProvider);
@@ -80,7 +81,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
+    final currencyFormat =
+        NumberFormat.currency(symbol: '\$', decimalDigits: 2);
 
     return Scaffold(
       appBar: AppBar(
@@ -103,8 +105,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
           ),
         ],
       ),
-      body: Consumer4<CalculationProvider, BillsProvider, PaymentSplitsProvider, CategoriesProvider>(
-        builder: (context, calculationProvider, billsProvider, splitsProvider, categoriesProvider, child) {
+      body: Consumer4<CalculationProvider, BillsProvider, PaymentSplitsProvider,
+          CategoriesProvider>(
+        builder: (context, calculationProvider, billsProvider, splitsProvider,
+            categoriesProvider, child) {
           if (calculationProvider.isCalculating) {
             return const Center(
               child: CircularProgressIndicator(),
@@ -169,7 +173,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
             );
           }
 
-
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -200,7 +203,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                             color: result.netBalance.abs() < 0.01
-                                ? (Theme.of(context).brightness == Brightness.dark
+                                ? (Theme.of(context).brightness ==
+                                        Brightness.dark
                                     ? Colors.green[300]
                                     : Colors.green[900])
                                 : Theme.of(context).colorScheme.onSurface,
@@ -213,7 +217,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: result.netBalance.abs() < 0.01
-                                ? (Theme.of(context).brightness == Brightness.dark
+                                ? (Theme.of(context).brightness ==
+                                        Brightness.dark
                                     ? Colors.green[300]
                                     : Colors.green[900])
                                 : Theme.of(context).colorScheme.onSurface,
@@ -260,21 +265,34 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           ),
                           children: [
                             _buildTableHeaderCell(l10n.category),
-                            _buildTableHeaderCell('Total', isRightAligned: true),
-                            _buildTableHeaderCell('${result.person1Name} ${l10n.paid}', isRightAligned: true),
-                            _buildTableHeaderCell('${result.person1Name} ${l10n.expected}', isRightAligned: true),
-                            _buildTableHeaderCell('${result.person2Name} ${l10n.paid}', isRightAligned: true),
-                            _buildTableHeaderCell('${result.person2Name} ${l10n.expected}', isRightAligned: true),
+                            _buildTableHeaderCell('Total',
+                                isRightAligned: true),
+                            _buildTableHeaderCell(
+                                '${result.person1Name} ${l10n.paid}',
+                                isRightAligned: true),
+                            _buildTableHeaderCell(
+                                '${result.person1Name} ${l10n.expected}',
+                                isRightAligned: true),
+                            _buildTableHeaderCell(
+                                '${result.person2Name} ${l10n.paid}',
+                                isRightAligned: true),
+                            _buildTableHeaderCell(
+                                '${result.person2Name} ${l10n.expected}',
+                                isRightAligned: true),
                           ],
                         ),
                         // Category rows
                         ...(result.categoryBalances.values.toList()
-                          ..sort((a, b) => a.category.compareTo(b.category))).map((catBalance) {
-                          final total = catBalance.person1Paid + catBalance.person2Paid;
+                              ..sort(
+                                  (a, b) => a.category.compareTo(b.category)))
+                            .map((catBalance) {
+                          final total =
+                              catBalance.person1Paid + catBalance.person2Paid;
                           return TableRow(
                             children: [
                               _buildTableCell(catBalance.category),
-                              _buildTableCell(currencyFormat.format(total), isRightAligned: true),
+                              _buildTableCell(currencyFormat.format(total),
+                                  isRightAligned: true),
                               _buildTableCell(
                                 currencyFormat.format(catBalance.person1Paid),
                                 isRightAligned: true,
@@ -301,14 +319,16 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         // Total row
                         TableRow(
                           decoration: BoxDecoration(
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[800]
-                                : Colors.grey[100],
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.grey[800]
+                                    : Colors.grey[100],
                           ),
                           children: [
                             _buildTableCell('Total', isBold: true),
                             _buildTableCell(
-                              currencyFormat.format(result.person1Paid + result.person2Paid),
+                              currencyFormat.format(
+                                  result.person1Paid + result.person2Paid),
                               isRightAligned: true,
                               isBold: true,
                             ),
@@ -512,5 +532,4 @@ class _SummaryScreenState extends State<SummaryScreen> {
       ),
     );
   }
-
 }
