@@ -1081,6 +1081,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pending Payments'**
   String get pendingPaymentsTooltip;
+
+  /// Label for selecting which household member this device belongs to
+  ///
+  /// In en, this message translates to:
+  /// **'Which person are you?'**
+  String get whoAreYou;
+
+  /// Explanation for the who-are-you selector
+  ///
+  /// In en, this message translates to:
+  /// **'Used to pre-fill \"Paid by\" when confirming a detected Google Pay payment.'**
+  String get whoAreYouHint;
 }
 
 class _AppLocalizationsDelegate

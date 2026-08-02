@@ -45,6 +45,9 @@ class AppConfig {
   final String person2Name;
   final AppThemeMode themeMode;
   final AppLanguage language;
+  // Which of person1Name/person2Name is the person using this device. Used
+  // to default `paidBy` for bills created from Google Pay detections.
+  final String mePersonName;
 
   AppConfig({
     this.googleDriveFolderId,
@@ -52,6 +55,7 @@ class AppConfig {
     required this.person2Name,
     this.themeMode = AppThemeMode.light,
     this.language = AppLanguage.english,
+    this.mePersonName = '',
   });
 
   Map<String, dynamic> toJson() {
@@ -61,6 +65,7 @@ class AppConfig {
       'person2Name': person2Name,
       'themeMode': themeMode.name,
       'language': language.name,
+      'mePersonName': mePersonName,
     };
   }
 
@@ -95,6 +100,7 @@ class AppConfig {
       person2Name: json['person2Name'] as String? ?? '',
       themeMode: themeMode,
       language: language,
+      mePersonName: json['mePersonName'] as String? ?? '',
     );
   }
 
@@ -104,6 +110,7 @@ class AppConfig {
     String? person2Name,
     AppThemeMode? themeMode,
     AppLanguage? language,
+    String? mePersonName,
   }) {
     return AppConfig(
       googleDriveFolderId: googleDriveFolderId ?? this.googleDriveFolderId,
@@ -111,6 +118,7 @@ class AppConfig {
       person2Name: person2Name ?? this.person2Name,
       themeMode: themeMode ?? this.themeMode,
       language: language ?? this.language,
+      mePersonName: mePersonName ?? this.mePersonName,
     );
   }
 }

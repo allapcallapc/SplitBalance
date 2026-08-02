@@ -544,4 +544,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pendingPaymentsTooltip => 'Pending Payments';
+
+  @override
+  String get whoAreYou => 'Which person are you?';
+
+  @override
+  String get whoAreYouHint =>
+      'Used to pre-fill \"Paid by\" when confirming a detected Google Pay payment.';
 }

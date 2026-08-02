@@ -7,7 +7,12 @@ import '../providers/pending_payments_provider.dart';
 import 'add_edit_bill_screen.dart';
 
 class PendingPaymentsScreen extends StatefulWidget {
-  const PendingPaymentsScreen({super.key});
+  // When set, shows only this single pending payment instead of the full
+  // list — used by the "See more" action on a pending-bill notification so
+  // it opens straight to that detection's detail rather than the whole list.
+  final String? focusedId;
+
+  const PendingPaymentsScreen({super.key, this.focusedId});
 
   @override
   State<PendingPaymentsScreen> createState() => _PendingPaymentsScreenState();
@@ -35,6 +40,9 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
 
     if (result == true && mounted) {
       await context.read<PendingPaymentsProvider>().dismiss(payment.id);
+      if (widget.focusedId != null && mounted) {
+        Navigator.pop(context);
+      }
     }
   }
 
@@ -61,6 +69,9 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
 
     if (confirmed == true && mounted) {
       await context.read<PendingPaymentsProvider>().dismiss(payment.id);
+      if (widget.focusedId != null && mounted) {
+        Navigator.pop(context);
+      }
     }
   }
 
@@ -86,7 +97,11 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final pending = pendingPaymentsProvider.pendingPayments;
+          final pending = widget.focusedId != null
+              ? pendingPaymentsProvider.pendingPayments
+                  .where((p) => p.id == widget.focusedId)
+                  .toList()
+              : pendingPaymentsProvider.pendingPayments;
 
           if (pending.isEmpty) {
             return Center(

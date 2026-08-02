@@ -553,4 +553,11 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get pendingPaymentsTooltip => 'Paiements en attente';
+
+  @override
+  String get whoAreYou => 'Quelle personne êtes-vous ?';
+
+  @override
+  String get whoAreYouHint =>
+      'Utilisé pour pré-remplir « Payé par » lors de la confirmation d\'un paiement Google Pay détecté.';
 }

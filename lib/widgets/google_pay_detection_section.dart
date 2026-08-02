@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
+import '../providers/config_provider.dart';
 import '../providers/pending_payments_provider.dart';
 
 /// Settings-screen section for the Android Google Pay notification listener:
@@ -50,6 +53,10 @@ class _GooglePayDetectionSectionState extends State<GooglePayDetectionSection>
 
     final granted = await provider.isNotificationAccessGranted();
     final packages = await provider.getWatchedPackages();
+    if (granted) {
+      // Fire-and-forget: only relevant on Android 13+, no-op otherwise.
+      unawaited(provider.requestNotificationPermissionIfNeeded());
+    }
     if (mounted) {
       setState(() {
         _notificationAccessGranted = granted;
@@ -90,6 +97,10 @@ class _GooglePayDetectionSectionState extends State<GooglePayDetectionSection>
 
     final l10n = AppLocalizations.of(context)!;
     final granted = _notificationAccessGranted ?? false;
+    final configProvider = context.watch<ConfigProvider>();
+    final person1 = configProvider.config.person1Name;
+    final person2 = configProvider.config.person2Name;
+    final mePersonName = configProvider.config.mePersonName;
 
     return Card(
       child: Padding(
@@ -160,6 +171,30 @@ class _GooglePayDetectionSectionState extends State<GooglePayDetectionSection>
                   },
                   icon: const Icon(Icons.settings),
                   label: Text(l10n.grantNotificationAccess),
+                ),
+              ],
+              if (person1.isNotEmpty && person2.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  l10n.whoAreYou,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  l10n.whoAreYouHint,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [person1, person2].map((name) {
+                    final selected = name == mePersonName;
+                    return ChoiceChip(
+                      label: Text(name),
+                      selected: selected,
+                      onSelected: (_) => configProvider.setMePersonName(name),
+                    );
+                  }).toList(),
                 ),
               ],
               const SizedBox(height: 16),

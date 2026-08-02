@@ -270,5 +270,7 @@
   "watchedAppsHint": "Noms de packages à surveiller pour les notifications de paiement",
   "addPackageName": "Ajouter un nom de package",
   "androidOnlyFeature": "Cette fonctionnalité est disponible uniquement sur Android",
-  "pendingPaymentsTooltip": "Paiements en attente"
+  "pendingPaymentsTooltip": "Paiements en attente",
+  "whoAreYou": "Quelle personne êtes-vous ?",
+  "whoAreYouHint": "Utilisé pour pré-remplir « Payé par » lors de la confirmation d'un paiement Google Pay détecté."
 }

@@ -59,4 +59,16 @@ class PendingPaymentsProvider with ChangeNotifier {
   Future<void> setWatchedPackages(List<String> packages) {
     return _notificationAccessService.setWatchedPackages(packages);
   }
+
+  Future<void> requestNotificationPermissionIfNeeded() {
+    return _notificationAccessService.requestNotificationPermissionIfNeeded();
+  }
+
+  Future<Map<String, dynamic>?> getPendingDeepLink() {
+    return _notificationAccessService.getPendingDeepLink();
+  }
+
+  Future<void> clearPendingDeepLink() {
+    return _notificationAccessService.clearPendingDeepLink();
+  }
 }

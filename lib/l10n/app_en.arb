@@ -736,5 +736,13 @@
   "pendingPaymentsTooltip": "Pending Payments",
   "@pendingPaymentsTooltip": {
     "description": "Tooltip for the pending payments button"
+  },
+  "whoAreYou": "Which person are you?",
+  "@whoAreYou": {
+    "description": "Label for selecting which household member this device belongs to"
+  },
+  "whoAreYouHint": "Used to pre-fill \"Paid by\" when confirming a detected Google Pay payment.",
+  "@whoAreYouHint": {
+    "description": "Explanation for the who-are-you selector"
   }
 }

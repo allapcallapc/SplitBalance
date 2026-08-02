@@ -1,9 +1,19 @@
 package com.example.splitbalance
 
+import android.Manifest
 import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -24,6 +34,14 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
         const val PREFS_NAME = "google_pay_listener_prefs"
         const val WATCHED_PACKAGES_KEY = "watched_packages"
         const val QUEUE_FILE_NAME = "pending_google_pay_payments.json"
+
+        const val ALERT_CHANNEL_ID = "pending_bills"
+        const val EXTRA_DEEP_LINK_ACTION = "deep_link_action"
+        const val EXTRA_DEEP_LINK_ID = "deep_link_id"
+        const val EXTRA_DEEP_LINK_AMOUNT = "deep_link_amount"
+        const val EXTRA_DEEP_LINK_DETAILS = "deep_link_details"
+        const val ACTION_ADD_BILL = "ADD_BILL"
+        const val ACTION_OPEN_PENDING_PAYMENTS = "OPEN_PENDING_PAYMENTS"
 
         // Google Pay's Android package name varies by market: Google Wallet (most
         // markets, post-2022 rebrand) vs. the standalone Google Pay app (e.g. India).
@@ -55,6 +73,26 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
         fun queueFile(context: Context): File {
             return File(context.filesDir, QUEUE_FILE_NAME)
         }
+
+        /** Removes the entry with the given [id] from the queue file, if present. */
+        @Synchronized
+        fun removeFromQueue(context: Context, id: String) {
+            val file = queueFile(context)
+            if (!file.exists()) return
+            try {
+                val array = JSONArray(file.readText())
+                val remaining = JSONArray()
+                for (i in 0 until array.length()) {
+                    val entry = array.optJSONObject(i) ?: continue
+                    if (entry.optString("id") != id) {
+                        remaining.put(entry)
+                    }
+                }
+                file.writeText(remaining.toString())
+            } catch (e: Exception) {
+                // Leave the queue as-is; the item will just reappear next load.
+            }
+        }
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -82,15 +120,20 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
         val looksLikePayment = PAYMENT_KEYWORDS.any { lower.contains(it) }
         if (!looksLikePayment) return
 
+        val id = "${sbn.key}_${sbn.postTime}"
+        val rawText = if (bigText.isNotBlank()) bigText else text
+        val amount = extractAmount(combined)
+
         val entry = JSONObject().apply {
-            put("id", "${sbn.key}_${sbn.postTime}")
+            put("id", id)
             put("detectedAt", isoNow())
             put("rawTitle", title)
-            put("rawText", if (bigText.isNotBlank()) bigText else text)
-            put("parsedAmount", extractAmount(combined))
+            put("rawText", rawText)
+            put("parsedAmount", amount)
         }
 
         appendToQueue(entry)
+        showAlertNotification(id, amount, rawText)
     }
 
     private fun extractAmount(text: String): Double? {
@@ -139,5 +182,64 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
         }
         array.put(entry)
         file.writeText(array.toString())
+    }
+
+    private fun showAlertNotification(id: String, amount: Double?, rawText: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            // Not granted; the in-app pending-payments banner is still the fallback.
+            return
+        }
+
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    ALERT_CHANNEL_ID,
+                    "Pending bills",
+                    NotificationManager.IMPORTANCE_HIGH
+                )
+            )
+        }
+
+        val notificationId = id.hashCode()
+        val preview = if (amount != null) "Amount: ${"%.2f".format(Locale.US, amount)}" else rawText
+
+        val yesIntent = deepLinkActivityIntent(ACTION_ADD_BILL, id, amount, rawText)
+        val seeMoreIntent = deepLinkActivityIntent(ACTION_OPEN_PENDING_PAYMENTS, id, amount, rawText)
+        val noIntent = Intent(this, PendingPaymentActionReceiver::class.java).apply {
+            putExtra(EXTRA_DEEP_LINK_ID, id)
+        }
+
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        val yesPendingIntent = PendingIntent.getActivity(this, notificationId, yesIntent, flags)
+        val seeMorePendingIntent = PendingIntent.getActivity(this, notificationId + 1, seeMoreIntent, flags)
+        val noPendingIntent = PendingIntent.getBroadcast(this, notificationId + 2, noIntent, flags)
+
+        val notification = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("New payment detected")
+            .setContentText(preview)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(preview))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(seeMorePendingIntent)
+            .addAction(0, "Yes", yesPendingIntent)
+            .addAction(0, "No", noPendingIntent)
+            .addAction(0, "See more", seeMorePendingIntent)
+            .build()
+
+        NotificationManagerCompat.from(this).notify(notificationId, notification)
+    }
+
+    private fun deepLinkActivityIntent(action: String, id: String, amount: Double?, rawText: String): Intent {
+        return Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(EXTRA_DEEP_LINK_ACTION, action)
+            putExtra(EXTRA_DEEP_LINK_ID, id)
+            if (amount != null) putExtra(EXTRA_DEEP_LINK_AMOUNT, amount)
+            putExtra(EXTRA_DEEP_LINK_DETAILS, rawText)
+        }
     }
 }

@@ -60,4 +60,37 @@ class NotificationAccessService {
       return null;
     }
   }
+
+  Future<void> requestNotificationPermissionIfNeeded() async {
+    if (!isSupported) return;
+    try {
+      await _channel.invokeMethod('requestNotificationPermissionIfNeeded');
+    } catch (e) {
+      // Ignore - worst case the alert notification just won't show; the
+      // in-app pending-payments banner is still the fallback.
+    }
+  }
+
+  /// Returns the deep-link extras from a "pending bill" notification action
+  /// (`action`, `id`, `amount`, `details`), or null if none is pending.
+  Future<Map<String, dynamic>?> getPendingDeepLink() async {
+    if (!isSupported) return null;
+    try {
+      final result =
+          await _channel.invokeMapMethod<String, dynamic>('getPendingDeepLink');
+      if (result == null || result['action'] == null) return null;
+      return result;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<void> clearPendingDeepLink() async {
+    if (!isSupported) return;
+    try {
+      await _channel.invokeMethod('clearPendingDeepLink');
+    } catch (e) {
+      // Ignore - worst case the same deep link is handled twice.
+    }
+  }
 }

@@ -12,6 +12,8 @@ import 'screens/config_screen.dart';
 import 'screens/bills_list_screen.dart';
 import 'screens/payment_splits_screen.dart';
 import 'screens/summary_screen.dart';
+import 'screens/pending_payments_screen.dart';
+import 'screens/add_edit_bill_screen.dart';
 import 'models/app_config.dart';
 
 void main() {
@@ -164,7 +166,8 @@ class MainNavigationScreen extends StatefulWidget {
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
-class _MainNavigationScreenState extends State<MainNavigationScreen> {
+class _MainNavigationScreenState extends State<MainNavigationScreen>
+    with WidgetsBindingObserver {
   int _selectedIndex = 0;
   bool? _wasSignedIn;
   int? _previousBodyIndex;
@@ -180,12 +183,73 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       SummaryScreen(navigationNotifier: _navigationNotifier),
       const ConfigScreen(),
     ];
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _checkPendingDeepLink());
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _navigationNotifier.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkPendingDeepLink();
+    }
+  }
+
+  // Handles the "Yes"/"See more" actions on a pending-bill system
+  // notification: navigates straight to the relevant screen once the app is
+  // fully configured (a stale notification tapped before sign-in/setup is
+  // otherwise silently ignored rather than navigating into a broken state).
+  Future<void> _checkPendingDeepLink() async {
+    if (!mounted) return;
+    final pendingPaymentsProvider = context.read<PendingPaymentsProvider>();
+    if (!pendingPaymentsProvider.isSupported) return;
+
+    final deepLink = await pendingPaymentsProvider.getPendingDeepLink();
+    if (deepLink == null || !mounted) return;
+
+    final configProvider = context.read<ConfigProvider>();
+    final categoriesProvider = context.read<CategoriesProvider>();
+    final isConfigComplete = configProvider.isSignedIn &&
+        configProvider.driveService.folderId != null &&
+        configProvider.config.person1Name.trim().isNotEmpty &&
+        configProvider.config.person2Name.trim().isNotEmpty &&
+        categoriesProvider.categories.isNotEmpty;
+    if (!isConfigComplete) return;
+
+    await pendingPaymentsProvider.clearPendingDeepLink();
+    if (!mounted) return;
+
+    final action = deepLink['action'] as String?;
+    final id = deepLink['id'] as String?;
+
+    if (action == 'OPEN_PENDING_PAYMENTS') {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => PendingPaymentsScreen(focusedId: id),
+        ),
+      );
+    } else if (action == 'ADD_BILL') {
+      final amount = deepLink['amount'] as double?;
+      final details = deepLink['details'] as String?;
+      final result = await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => AddEditBillScreen(
+            prefillAmount: amount,
+            prefillDetails: details,
+          ),
+        ),
+      );
+      if (result == true && id != null && mounted) {
+        await context.read<PendingPaymentsProvider>().dismiss(id);
+      }
+    }
   }
 
   @override
