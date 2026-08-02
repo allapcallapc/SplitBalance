@@ -88,7 +88,7 @@ class AppConfig {
         language = AppLanguage.english;
       }
     }
-    
+
     return AppConfig(
       googleDriveFolderId: json['googleDriveFolderId'] as String?,
       person1Name: json['person1Name'] as String? ?? '',

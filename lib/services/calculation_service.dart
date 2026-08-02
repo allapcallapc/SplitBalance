@@ -9,7 +9,8 @@ class BalanceResult {
   final double person2Paid;
   final double person1Expected;
   final double person2Expected;
-  final double netBalance; // positive = person1 owes person2, negative = person2 owes person1
+  final double
+      netBalance; // positive = person1 owes person2, negative = person2 owes person1
   final Map<String, CategoryBalance> categoryBalances;
 
   BalanceResult({
@@ -54,8 +55,7 @@ class CalculationService {
     for (final bill in bills) {
       if (!categoryNames.contains(bill.category)) {
         throw ArgumentError(
-          'Bill category "${bill.category}" does not exist in categories list'
-        );
+            'Bill category "${bill.category}" does not exist in categories list');
       }
     }
 
@@ -63,8 +63,7 @@ class CalculationService {
     for (final split in splits) {
       if (split.category != 'all' && !categoryNames.contains(split.category)) {
         throw ArgumentError(
-          'Payment split category "${split.category}" does not exist in categories list'
-        );
+            'Payment split category "${split.category}" does not exist in categories list');
       }
     }
 
@@ -81,7 +80,7 @@ class CalculationService {
       // Bills paid by others are ignored (don't count in paid or expected amounts)
       final isPaidByPerson1 = bill.paidBy == person1Name;
       final isPaidByPerson2 = bill.paidBy == person2Name;
-      
+
       if (!isPaidByPerson1 && !isPaidByPerson2) {
         // Bill paid by someone else - skip it entirely
         continue;
@@ -103,7 +102,8 @@ class CalculationService {
       // Find matching payment split
       PaymentSplit? matchingSplit;
       for (final split in splits) {
-        if (split.containsDate(bill.date, allEndDates) && split.appliesToCategory(bill.category)) {
+        if (split.containsDate(bill.date, allEndDates) &&
+            split.appliesToCategory(bill.category)) {
           // Use the most specific split (non-"all" category takes precedence)
           if (matchingSplit == null ||
               (split.category != 'all' && matchingSplit.category == 'all')) {
@@ -118,8 +118,10 @@ class CalculationService {
 
       if (matchingSplit != null) {
         // Calculate expected amounts
-        final person1Share = bill.amount * matchingSplit.person1Percentage / 100;
-        final person2Share = bill.amount * matchingSplit.person2Percentage / 100;
+        final person1Share =
+            bill.amount * matchingSplit.person1Percentage / 100;
+        final person2Share =
+            bill.amount * matchingSplit.person2Percentage / 100;
 
         person1Expected += person1Share;
         person2Expected += person2Share;
@@ -139,10 +141,10 @@ class CalculationService {
         final catBalance = categoryBalancesMap[categoryKey]!;
         categoryBalancesMap[categoryKey] = CategoryBalance(
           category: categoryKey,
-          person1Paid: catBalance.person1Paid +
-              (isPaidByPerson1 ? bill.amount : 0),
-          person2Paid: catBalance.person2Paid +
-              (isPaidByPerson2 ? bill.amount : 0),
+          person1Paid:
+              catBalance.person1Paid + (isPaidByPerson1 ? bill.amount : 0),
+          person2Paid:
+              catBalance.person2Paid + (isPaidByPerson2 ? bill.amount : 0),
           person1Expected: catBalance.person1Expected + person1Share,
           person2Expected: catBalance.person2Expected + person2Share,
         );

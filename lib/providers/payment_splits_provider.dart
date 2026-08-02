@@ -15,7 +15,8 @@ class PaymentSplitsProvider with ChangeNotifier {
 
   // Load payment splits from Google Drive
   Future<void> loadPaymentSplits(ConfigProvider configProvider) async {
-    if (!configProvider.isSignedIn || configProvider.driveService.folderId == null) {
+    if (!configProvider.isSignedIn ||
+        configProvider.driveService.folderId == null) {
       return;
     }
 
@@ -24,7 +25,8 @@ class PaymentSplitsProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final csvContent = await configProvider.driveService.downloadPaymentSplits();
+      final csvContent =
+          await configProvider.driveService.downloadPaymentSplits();
       if (csvContent.isEmpty) {
         _splits.clear();
         _isLoading = false;
@@ -52,7 +54,8 @@ class PaymentSplitsProvider with ChangeNotifier {
 
   // Save payment splits to Google Drive
   Future<void> savePaymentSplits(ConfigProvider configProvider) async {
-    if (!configProvider.isSignedIn || configProvider.driveService.folderId == null) {
+    if (!configProvider.isSignedIn ||
+        configProvider.driveService.folderId == null) {
       _error = 'Not signed in or folder not set';
       notifyListeners();
       return;
@@ -75,7 +78,8 @@ class PaymentSplitsProvider with ChangeNotifier {
   }
 
   // Add a payment split
-  Future<void> addPaymentSplit(PaymentSplit split, ConfigProvider configProvider, List<models.Category> categories) async {
+  Future<void> addPaymentSplit(PaymentSplit split,
+      ConfigProvider configProvider, List<models.Category> categories) async {
     // Validate category exists (unless "all")
     if (split.category != 'all') {
       final categoryExists = categories.any((c) => c.name == split.category);
@@ -107,7 +111,8 @@ class PaymentSplitsProvider with ChangeNotifier {
   }
 
   // Update a payment split
-  Future<void> updatePaymentSplit(int index, PaymentSplit updatedSplit, ConfigProvider configProvider, List<models.Category> categories) async {
+  Future<void> updatePaymentSplit(int index, PaymentSplit updatedSplit,
+      ConfigProvider configProvider, List<models.Category> categories) async {
     if (index < 0 || index >= _splits.length) {
       _error = 'Invalid payment split index';
       notifyListeners();
@@ -116,7 +121,8 @@ class PaymentSplitsProvider with ChangeNotifier {
 
     // Validate category exists (unless "all")
     if (updatedSplit.category != 'all') {
-      final categoryExists = categories.any((c) => c.name == updatedSplit.category);
+      final categoryExists =
+          categories.any((c) => c.name == updatedSplit.category);
       if (!categoryExists) {
         _error = 'Category "${updatedSplit.category}" does not exist';
         notifyListeners();
@@ -142,7 +148,8 @@ class PaymentSplitsProvider with ChangeNotifier {
   }
 
   // Delete a payment split
-  Future<void> deletePaymentSplit(int index, ConfigProvider configProvider) async {
+  Future<void> deletePaymentSplit(
+      int index, ConfigProvider configProvider) async {
     if (index < 0 || index >= _splits.length) {
       _error = 'Invalid payment split index';
       notifyListeners();
@@ -163,10 +170,11 @@ class PaymentSplitsProvider with ChangeNotifier {
 
   // Remove all payment splits that reference a specific category
   // This is called when a category is deleted
-  Future<void> removeSplitsByCategory(String categoryName, ConfigProvider configProvider) async {
+  Future<void> removeSplitsByCategory(
+      String categoryName, ConfigProvider configProvider) async {
     final categoryLower = categoryName.toLowerCase().trim();
     bool removedAny = false;
-    
+
     // Remove splits in reverse order to maintain correct indices
     for (int i = _splits.length - 1; i >= 0; i--) {
       final splitCategory = _splits[i].category.toLowerCase().trim();
@@ -175,7 +183,7 @@ class PaymentSplitsProvider with ChangeNotifier {
         removedAny = true;
       }
     }
-    
+
     // Save if any splits were removed
     if (removedAny) {
       await savePaymentSplits(configProvider);

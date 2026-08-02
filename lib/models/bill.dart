@@ -32,7 +32,7 @@ class Bill {
     if (row.length < 4) {
       throw const FormatException('Bill CSV row must have at least 4 columns');
     }
-    
+
     final dateFormatter = DateFormat('yyyy-MM-dd');
     DateTime date;
     try {

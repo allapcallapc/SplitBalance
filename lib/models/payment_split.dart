@@ -46,12 +46,13 @@ class PaymentSplit {
   factory PaymentSplit.fromCsvRow(List<String> row) {
     // Support both old format (7 columns with startDate) and new format (6 columns without startDate)
     if (row.length < 6) {
-      throw const FormatException('PaymentSplit CSV row must have at least 6 columns');
+      throw const FormatException(
+          'PaymentSplit CSV row must have at least 6 columns');
     }
 
     final dateFormatter = DateFormat('yyyy-MM-dd');
     DateTime? endDate;
-    
+
     // Try to parse end date - if empty/null, endDate remains null
     final endDateStr = row[0].trim();
     if (endDateStr.isNotEmpty) {
@@ -63,7 +64,11 @@ class PaymentSplit {
     }
 
     // Determine column indices based on row length (old format has 7 columns, new has 6)
-    int categoryIndex, person1Index, person1PercentIndex, person2Index, person2PercentIndex;
+    int categoryIndex,
+        person1Index,
+        person1PercentIndex,
+        person2Index,
+        person2PercentIndex;
     if (row.length >= 7) {
       // Old format: startDate, endDate, category, person1, person1Percentage, person2, person2Percentage
       categoryIndex = 2;
@@ -90,17 +95,19 @@ class PaymentSplit {
 
     double person1Percentage;
     double person2Percentage;
-    
+
     try {
       person1Percentage = double.parse(row[person1PercentIndex].trim());
     } catch (e) {
-      throw FormatException('Invalid person1Percentage format: ${row[person1PercentIndex]}');
+      throw FormatException(
+          'Invalid person1Percentage format: ${row[person1PercentIndex]}');
     }
 
     try {
       person2Percentage = double.parse(row[person2PercentIndex].trim());
     } catch (e) {
-      throw FormatException('Invalid person2Percentage format: ${row[person2PercentIndex]}');
+      throw FormatException(
+          'Invalid person2Percentage format: ${row[person2PercentIndex]}');
     }
 
     return PaymentSplit(
@@ -144,7 +151,7 @@ class PaymentSplit {
         // This end date not in list, shouldn't happen
         return false;
       }
-      
+
       DateTime? startOfRange;
       if (thisEndDateIndex > 0) {
         // Range starts after the previous end date
@@ -153,17 +160,19 @@ class PaymentSplit {
         // This is the earliest end date, starts from beginning
         startOfRange = null;
       }
-      
+
       final isAfterStart = startOfRange == null || date.isAfter(startOfRange);
-      final isOnOrBeforeEnd = date.isBefore(endDate!.add(const Duration(days: 1))) ||
-                              date.isAtSameMomentAs(endDate!.add(const Duration(days: 1)));
-      
+      final isOnOrBeforeEnd =
+          date.isBefore(endDate!.add(const Duration(days: 1))) ||
+              date.isAtSameMomentAs(endDate!.add(const Duration(days: 1)));
+
       return isAfterStart && isOnOrBeforeEnd;
     }
   }
-  
+
   // Legacy method for backward compatibility - use containsDate(date, allEndDates) instead
-  @Deprecated('Use containsDate(DateTime date, List<DateTime> allEndDates) instead')
+  @Deprecated(
+      'Use containsDate(DateTime date, List<DateTime> allEndDates) instead')
   bool containsDateLegacy(DateTime date) {
     if (endDate == null) {
       return false;

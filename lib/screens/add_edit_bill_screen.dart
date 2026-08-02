@@ -10,8 +10,16 @@ import '../providers/categories_provider.dart';
 class AddEditBillScreen extends StatefulWidget {
   final Bill? bill;
   final int? index;
+  final double? prefillAmount;
+  final String? prefillDetails;
 
-  const AddEditBillScreen({super.key, this.bill, this.index});
+  const AddEditBillScreen({
+    super.key,
+    this.bill,
+    this.index,
+    this.prefillAmount,
+    this.prefillDetails,
+  });
 
   @override
   State<AddEditBillScreen> createState() => _AddEditBillScreenState();
@@ -29,7 +37,7 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
   void initState() {
     super.initState();
     final configProvider = context.read<ConfigProvider>();
-    
+
     if (widget.bill != null) {
       _selectedDate = widget.bill!.date;
       _amountController.text = widget.bill!.amount.toStringAsFixed(2);
@@ -38,12 +46,14 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
       _detailsController.text = widget.bill!.details;
     } else {
       _selectedDate = DateTime.now();
-      _amountController.text = '';
+      _amountController.text = widget.prefillAmount != null
+          ? widget.prefillAmount!.toStringAsFixed(2)
+          : '';
       _selectedPaidBy = configProvider.config.person1Name.isNotEmpty
           ? configProvider.config.person1Name
           : null;
       _selectedCategory = null;
-      _detailsController.text = '';
+      _detailsController.text = widget.prefillDetails ?? '';
     }
   }
 
@@ -167,7 +177,8 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
                   prefixText: '\$ ',
                   border: const OutlineInputBorder(),
                 ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return l10n.enterAmount;

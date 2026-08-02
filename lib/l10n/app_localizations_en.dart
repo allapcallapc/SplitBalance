@@ -478,4 +478,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noFoldersAvailable => 'No folders are available';
+
+  @override
+  String get pendingPayments => 'Pending Payments';
+
+  @override
+  String pendingPaymentsBannerMessage(int count) {
+    return '$count Google Pay payment(s) awaiting confirmation';
+  }
+
+  @override
+  String get review => 'Review';
+
+  @override
+  String get noPendingPayments => 'No pending payments';
+
+  @override
+  String get noPendingPaymentsMessage =>
+      'Google Pay detections will show up here for you to confirm as a bill.';
+
+  @override
+  String get addAsBill => 'Add as Bill';
+
+  @override
+  String get dismissPendingPaymentTitle => 'Dismiss Payment?';
+
+  @override
+  String get dismissPendingPaymentMessage =>
+      'This will remove the detected payment without creating a bill.';
+
+  @override
+  String get detectedAt => 'Detected';
+
+  @override
+  String get rawNotificationText => 'From notification';
+
+  @override
+  String get googlePayDetection => 'Google Pay Detection';
+
+  @override
+  String get googlePayDetectionExplanation =>
+      'SplitBalance can watch for Google Pay payment notifications on this device and let you confirm them as household bills. This requires notification access, granted once in system settings. Everything stays on this device until you confirm an item.';
+
+  @override
+  String get notificationAccessGranted => 'Notification access granted';
+
+  @override
+  String get notificationAccessNotGranted => 'Notification access not granted';
+
+  @override
+  String get grantNotificationAccess => 'Grant Notification Access';
+
+  @override
+  String get watchedApps => 'Watched Apps';
+
+  @override
+  String get watchedAppsHint =>
+      'Package names to watch for payment notifications';
+
+  @override
+  String get addPackageName => 'Add package name';
+
+  @override
+  String get androidOnlyFeature => 'This feature is only available on Android';
+
+  @override
+  String get pendingPaymentsTooltip => 'Pending Payments';
 }

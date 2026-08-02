@@ -243,5 +243,32 @@
   "noFoldersAvailable": "Aucun dossier disponible",
   "@noFoldersAvailable": {
     "description": "Message lorsqu'aucun dossier n'est disponible depuis Google Drive"
-  }
+  },
+  "pendingPayments": "Paiements en attente",
+  "pendingPaymentsBannerMessage": "{count} paiement(s) Google Pay en attente de confirmation",
+  "@pendingPaymentsBannerMessage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "review": "Examiner",
+  "noPendingPayments": "Aucun paiement en attente",
+  "noPendingPaymentsMessage": "Les paiements Google Pay détectés apparaîtront ici pour que vous les confirmiez comme facture.",
+  "addAsBill": "Ajouter comme facture",
+  "dismissPendingPaymentTitle": "Ignorer ce paiement ?",
+  "dismissPendingPaymentMessage": "Cela supprimera le paiement détecté sans créer de facture.",
+  "detectedAt": "Détecté",
+  "rawNotificationText": "Depuis la notification",
+  "googlePayDetection": "Détection Google Pay",
+  "googlePayDetectionExplanation": "SplitBalance peut surveiller les notifications de paiement Google Pay sur cet appareil et vous permettre de les confirmer comme factures partagées. Cela nécessite l'accès aux notifications, accordé une fois dans les paramètres système. Tout reste sur cet appareil jusqu'à ce que vous confirmiez un élément.",
+  "notificationAccessGranted": "Accès aux notifications accordé",
+  "notificationAccessNotGranted": "Accès aux notifications non accordé",
+  "grantNotificationAccess": "Accorder l'accès aux notifications",
+  "watchedApps": "Applications surveillées",
+  "watchedAppsHint": "Noms de packages à surveiller pour les notifications de paiement",
+  "addPackageName": "Ajouter un nom de package",
+  "androidOnlyFeature": "Cette fonctionnalité est disponible uniquement sur Android",
+  "pendingPaymentsTooltip": "Paiements en attente"
 }

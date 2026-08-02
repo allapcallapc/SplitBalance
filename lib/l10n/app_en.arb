@@ -651,5 +651,90 @@
   "noFoldersAvailable": "No folders are available",
   "@noFoldersAvailable": {
     "description": "Message when no folders are available from Google Drive"
+  },
+  "pendingPayments": "Pending Payments",
+  "@pendingPayments": {
+    "description": "Title for the pending Google Pay payments screen"
+  },
+  "pendingPaymentsBannerMessage": "{count} Google Pay payment(s) awaiting confirmation",
+  "@pendingPaymentsBannerMessage": {
+    "description": "Banner message showing count of pending Google Pay payments",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "review": "Review",
+  "@review": {
+    "description": "Button label to review pending payments"
+  },
+  "noPendingPayments": "No pending payments",
+  "@noPendingPayments": {
+    "description": "Message when there are no pending Google Pay payments"
+  },
+  "noPendingPaymentsMessage": "Google Pay detections will show up here for you to confirm as a bill.",
+  "@noPendingPaymentsMessage": {
+    "description": "Explanation shown when the pending payments queue is empty"
+  },
+  "addAsBill": "Add as Bill",
+  "@addAsBill": {
+    "description": "Button label to turn a pending payment into a bill"
+  },
+  "dismissPendingPaymentTitle": "Dismiss Payment?",
+  "@dismissPendingPaymentTitle": {
+    "description": "Title for confirming dismissal of a pending payment"
+  },
+  "dismissPendingPaymentMessage": "This will remove the detected payment without creating a bill.",
+  "@dismissPendingPaymentMessage": {
+    "description": "Confirmation message for dismissing a pending payment"
+  },
+  "detectedAt": "Detected",
+  "@detectedAt": {
+    "description": "Label for when a payment notification was detected"
+  },
+  "rawNotificationText": "From notification",
+  "@rawNotificationText": {
+    "description": "Label for the raw text captured from the payment notification"
+  },
+  "googlePayDetection": "Google Pay Detection",
+  "@googlePayDetection": {
+    "description": "Section header for Google Pay detection settings"
+  },
+  "googlePayDetectionExplanation": "SplitBalance can watch for Google Pay payment notifications on this device and let you confirm them as household bills. This requires notification access, granted once in system settings. Everything stays on this device until you confirm an item.",
+  "@googlePayDetectionExplanation": {
+    "description": "Explanation of the Google Pay detection feature and its permission requirement"
+  },
+  "notificationAccessGranted": "Notification access granted",
+  "@notificationAccessGranted": {
+    "description": "Status message when notification access is granted"
+  },
+  "notificationAccessNotGranted": "Notification access not granted",
+  "@notificationAccessNotGranted": {
+    "description": "Status message when notification access is not granted"
+  },
+  "grantNotificationAccess": "Grant Notification Access",
+  "@grantNotificationAccess": {
+    "description": "Button label to open system notification access settings"
+  },
+  "watchedApps": "Watched Apps",
+  "@watchedApps": {
+    "description": "Label for the list of watched app package names"
+  },
+  "watchedAppsHint": "Package names to watch for payment notifications",
+  "@watchedAppsHint": {
+    "description": "Hint text explaining the watched apps list"
+  },
+  "addPackageName": "Add package name",
+  "@addPackageName": {
+    "description": "Hint for adding a new watched package name"
+  },
+  "androidOnlyFeature": "This feature is only available on Android",
+  "@androidOnlyFeature": {
+    "description": "Message shown when a feature requires Android and the app is running elsewhere"
+  },
+  "pendingPaymentsTooltip": "Pending Payments",
+  "@pendingPaymentsTooltip": {
+    "description": "Tooltip for the pending payments button"
   }
 }
