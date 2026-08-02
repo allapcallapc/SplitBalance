@@ -68,6 +68,41 @@ class GoogleDriveService {
     }
   }
 
+  /// Attempt to restore a previous sign-in session without showing any UI.
+  /// Returns true if a cached session was found and restored.
+  Future<bool> signInSilently() async {
+    try {
+      print('Attempting silent sign-in...');
+      _currentUser = await _googleSignIn.signInSilently();
+
+      if (_currentUser == null) {
+        print('No cached session available for silent sign-in');
+        return false;
+      }
+
+      print('Silent sign-in successful: ${_currentUser!.email}');
+
+      final auth = await _currentUser!.authentication;
+      if (auth.accessToken == null || auth.accessToken!.isEmpty) {
+        print('Failed to get access token during silent sign-in');
+        _currentUser = null;
+        return false;
+      }
+
+      final authenticatedClient = GoogleAuthClient(_currentUser!);
+      _driveApi = drive.DriveApi(authenticatedClient);
+
+      print('Drive API client initialized successfully via silent sign-in');
+      return true;
+    } catch (e, stackTrace) {
+      print('Error during silent sign-in: $e');
+      print('Stack trace: $stackTrace');
+      _currentUser = null;
+      _driveApi = null;
+      return false;
+    }
+  }
+
   /// Sign out
   Future<void> signOut() async {
     await _googleSignIn.signOut();

@@ -60,18 +60,6 @@ class ConfigProvider with ChangeNotifier {
           final decoded = jsonDecode(configJson);
           _config = AppConfig.fromJson(decoded);
 
-          // Restore folder ID if available
-          if (_config.googleDriveFolderId != null &&
-              _config.googleDriveFolderId!.isNotEmpty) {
-            _driveService.setFolderId(_config.googleDriveFolderId!);
-
-            // Try to load person names from Drive folder if signed in
-            // Note: If not signed in yet, we'll load person names after sign-in is restored
-            if (isSignedIn) {
-              await _loadPersonNamesFromDrive();
-            }
-          }
-
           print(
               'Config loaded: Person1=${_config.person1Name}, Person2=${_config.person2Name}, Folder=${_config.googleDriveFolderId}');
         } catch (e) {
@@ -85,10 +73,44 @@ class ConfigProvider with ChangeNotifier {
         print('No saved config found, using defaults');
       }
 
-      // Silent sign-in removed - users must sign in explicitly
-      // Clear any restore errors since we're not attempting restoration
       _restoreError = null;
       _restoreErrorDetails = null;
+
+      // Attempt to silently restore a previous Google sign-in session so the
+      // user isn't forced to log in again every time the app is reopened.
+      // Restricted to native platforms: the popup-based web flow doesn't have
+      // a reliable silent-restore path and previously caused FedCM errors.
+      if (!kIsWeb) {
+        final wasSignedIn = prefs.getBool('was_signed_in') ?? false;
+        if (wasSignedIn) {
+          try {
+            final restored = await _driveService.signInSilently();
+            if (restored) {
+              print('Session restored via silent sign-in: ${currentUser?.email}');
+            } else {
+              print('Silent sign-in did not restore a previous session');
+              await prefs.setBool('was_signed_in', false);
+            }
+          } catch (e) {
+            print('Silent sign-in failed: $e');
+            _restoreError =
+                'Could not restore your previous session automatically. Please sign in again.';
+            _restoreErrorDetails = e.toString();
+          }
+        }
+      }
+
+      // Restore folder ID if available, and reload person names now that the
+      // sign-in session (if any) has been restored above.
+      if (_config.googleDriveFolderId != null &&
+          _config.googleDriveFolderId!.isNotEmpty) {
+        _driveService.setFolderId(_config.googleDriveFolderId!);
+
+        if (isSignedIn) {
+          await _loadPersonNamesFromDrive();
+        }
+      }
+
       _error = null;
     } catch (e) {
       _error = 'Failed to load config: $e';
