@@ -171,6 +171,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   int _selectedIndex = 0;
   bool? _wasSignedIn;
   int? _previousBodyIndex;
+  bool _hasAutoNavigatedToBills = false;
   late final ValueNotifier<int> _navigationNotifier = ValueNotifier<int>(0);
   late final List<Widget> _screens;
 
@@ -282,6 +283,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
           _wasSignedIn = isSignedIn;
           if (isSignedIn && isConfigComplete) {
             _selectedIndex = 0; // Bills screen
+            _hasAutoNavigatedToBills = true;
           } else {
             _selectedIndex = 3; // Config screen
           }
@@ -289,8 +291,21 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
           _wasSignedIn = isSignedIn;
           if (!isSignedIn) {
             _selectedIndex = 3; // Config screen only on sign-out
+            _hasAutoNavigatedToBills = false;
           }
           // NO auto-navigation on sign-in
+        }
+
+        // A session restored on app launch (silent sign-in) resolves
+        // asynchronously, often after the first build and sometimes after
+        // categories finish loading from Drive. Once everything settles into
+        // a fully-configured state for the first time this launch, land on
+        // Bills instead of leaving the user stuck on whichever screen was
+        // shown while things were still loading. Only happens once per
+        // sign-in session so it never overrides manual navigation afterwards.
+        if (!_hasAutoNavigatedToBills && isSignedIn && isConfigComplete) {
+          _selectedIndex = 0; // Bills screen
+          _hasAutoNavigatedToBills = true;
         }
 
         // Always use the same Scaffold structure to prevent widget tree changes
