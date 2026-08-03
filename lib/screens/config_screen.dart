@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show AutofillHints, TextInput;
+import 'package:flutter/services.dart' show TextInput;
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/config_provider.dart';
@@ -7,6 +7,7 @@ import '../providers/categories_provider.dart';
 import '../models/app_config.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../widgets/google_pay_detection_section.dart';
+import '../widgets/native_credential_fields.dart';
 
 class ConfigScreen extends StatefulWidget {
   const ConfigScreen({super.key});
@@ -121,6 +122,31 @@ class _ConfigScreenState extends State<ConfigScreen> {
     // always add categories from the Payment Splits tab.
   }
 
+  Future<void> _handleAuthSubmit(ConfigProvider configProvider) async {
+    if (configProvider.isLoading) return;
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter an email and password')),
+      );
+      return;
+    }
+    final success = _isSignUpMode
+        ? await configProvider.signUp(email, password)
+        : await configProvider.signIn(email, password);
+    // Prompts the password manager (e.g. Bitwarden) to offer saving these
+    // credentials on success, or just ends the autofill session without
+    // saving on failure. No-op on web, where NativeCredentialFields bypasses
+    // Flutter's own autofill machinery in favor of real DOM inputs.
+    TextInput.finishAutofillContext(shouldSave: success);
+    if (!success && mounted && configProvider.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(configProvider.error!)),
+      );
+    }
+  }
+
   Widget _buildAuthCard(ConfigProvider configProvider) {
     return Card(
       child: Padding(
@@ -141,63 +167,17 @@ class _ConfigScreenState extends State<ConfigScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            AutofillGroup(
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    autocorrect: false,
-                    autofillHints: const [
-                      AutofillHints.email,
-                      AutofillHints.username,
-                    ],
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    autofillHints: const [AutofillHints.password],
-                    decoration: const InputDecoration(
-                      labelText: 'Password',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ],
-              ),
+            NativeCredentialFields(
+              emailController: _emailController,
+              passwordController: _passwordController,
+              isSignUp: _isSignUpMode,
+              onSubmit: () => _handleAuthSubmit(configProvider),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: configProvider.isLoading
                   ? null
-                  : () async {
-                      final email = _emailController.text.trim();
-                      final password = _passwordController.text;
-                      if (email.isEmpty || password.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Enter an email and password')),
-                        );
-                        return;
-                      }
-                      final success = _isSignUpMode
-                          ? await configProvider.signUp(email, password)
-                          : await configProvider.signIn(email, password);
-                      // Prompts the password manager (e.g. Bitwarden) to
-                      // offer saving these credentials on success, or just
-                      // ends the autofill session without saving on failure.
-                      TextInput.finishAutofillContext(shouldSave: success);
-                      if (!success && context.mounted &&
-                          configProvider.error != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(configProvider.error!)),
-                        );
-                      }
-                    },
+                  : () => _handleAuthSubmit(configProvider),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
