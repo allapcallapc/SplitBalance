@@ -49,11 +49,14 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
       _amountController.text = widget.prefillAmount != null
           ? widget.prefillAmount!.toStringAsFixed(2)
           : '';
-      _selectedPaidBy = configProvider.config.mePersonName.isNotEmpty
-          ? configProvider.config.mePersonName
-          : (configProvider.config.person1Name.isNotEmpty
-              ? configProvider.config.person1Name
-              : null);
+      final myName = configProvider.myPersonName;
+      _selectedPaidBy = (myName != null && myName.isNotEmpty)
+          ? myName
+          : (configProvider.config.mePersonName.isNotEmpty
+              ? configProvider.config.mePersonName
+              : (configProvider.config.person1Name.isNotEmpty
+                  ? configProvider.config.person1Name
+                  : null));
       _selectedCategory = null;
       _detailsController.text = widget.prefillDetails ?? '';
     }
