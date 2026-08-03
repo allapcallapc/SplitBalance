@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 class NativeCredentialFields extends StatelessWidget {
   final TextEditingController emailController;
   final TextEditingController passwordController;
+  final TextEditingController confirmPasswordController;
   final bool isSignUp;
   final VoidCallback? onSubmit;
 
@@ -17,6 +18,7 @@ class NativeCredentialFields extends StatelessWidget {
     super.key,
     required this.emailController,
     required this.passwordController,
+    required this.confirmPasswordController,
     required this.isSignUp,
     this.onSubmit,
   });
@@ -44,16 +46,33 @@ class NativeCredentialFields extends StatelessWidget {
           TextField(
             controller: passwordController,
             obscureText: true,
-            textInputAction: TextInputAction.done,
+            textInputAction:
+                isSignUp ? TextInputAction.next : TextInputAction.done,
             autofillHints: [
               isSignUp ? AutofillHints.newPassword : AutofillHints.password,
             ],
-            onSubmitted: onSubmit == null ? null : (_) => onSubmit!(),
+            onSubmitted: !isSignUp && onSubmit != null
+                ? (_) => onSubmit!()
+                : null,
             decoration: const InputDecoration(
               labelText: 'Password',
               border: OutlineInputBorder(),
             ),
           ),
+          if (isSignUp) ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirmPasswordController,
+              obscureText: true,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.newPassword],
+              onSubmitted: onSubmit == null ? null : (_) => onSubmit!(),
+              decoration: const InputDecoration(
+                labelText: 'Confirm password',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
         ],
       ),
     );

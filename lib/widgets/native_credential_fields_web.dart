@@ -81,6 +81,7 @@ String _cssColor(Color c) {
 class NativeCredentialFields extends StatefulWidget {
   final TextEditingController emailController;
   final TextEditingController passwordController;
+  final TextEditingController confirmPasswordController;
   final bool isSignUp;
   final VoidCallback? onSubmit;
 
@@ -88,6 +89,7 @@ class NativeCredentialFields extends StatefulWidget {
     super.key,
     required this.emailController,
     required this.passwordController,
+    required this.confirmPasswordController,
     required this.isSignUp,
     this.onSubmit,
   });
@@ -100,8 +102,10 @@ class NativeCredentialFields extends StatefulWidget {
 class _NativeCredentialFieldsState extends State<NativeCredentialFields> {
   late final String _viewType = 'native-credential-fields-${_viewCounter++}';
   html.InputElement? _passwordInput;
+  html.InputElement? _confirmPasswordInput;
   html.DivElement? _emailField;
   html.DivElement? _passwordField;
+  html.DivElement? _confirmPasswordField;
 
   @override
   void initState() {
@@ -140,19 +144,47 @@ class _NativeCredentialFieldsState extends State<NativeCredentialFields> {
       final passwordInput =
           passwordField.querySelector('input') as html.InputElement;
       passwordInput.onKeyDown.listen((e) {
-        if (e.key == 'Enter') {
-          e.preventDefault();
+        if (e.key != 'Enter') return;
+        e.preventDefault();
+        if (widget.isSignUp) {
+          _confirmPasswordInput?.focus();
+        } else {
           widget.onSubmit?.call();
         }
       });
       _passwordInput = passwordInput;
       _passwordField = passwordField;
 
+      final confirmPasswordField = _buildField(
+        type: 'password',
+        name: 'confirm-password',
+        autocomplete: 'new-password',
+        label: 'Confirm password',
+        initialValue: widget.confirmPasswordController.text,
+        onInput: (value) => widget.confirmPasswordController.text = value,
+      );
+      final confirmPasswordInput =
+          confirmPasswordField.querySelector('input') as html.InputElement;
+      confirmPasswordInput.onKeyDown.listen((e) {
+        if (e.key == 'Enter') {
+          e.preventDefault();
+          widget.onSubmit?.call();
+        }
+      });
+      _confirmPasswordInput = confirmPasswordInput;
+      _confirmPasswordField = confirmPasswordField;
+
       form.append(emailField);
       form.append(passwordField);
+      form.append(confirmPasswordField);
+      _applyConfirmFieldVisibility();
       _applyTheme();
       return form;
     });
+  }
+
+  void _applyConfirmFieldVisibility() {
+    _confirmPasswordField?.style.display = widget.isSignUp ? '' : 'none';
   }
 
   html.DivElement _buildField({
@@ -200,7 +232,7 @@ class _NativeCredentialFieldsState extends State<NativeCredentialFields> {
         ? enabledBorder.borderRadius.resolve(TextDirection.ltr).topLeft.x
         : 4.0;
 
-    for (final field in [_emailField, _passwordField]) {
+    for (final field in [_emailField, _passwordField, _confirmPasswordField]) {
       if (field == null) continue;
       field.style
         ..setProperty('--ncf-border', _cssColor(borderColor))
@@ -226,13 +258,14 @@ class _NativeCredentialFieldsState extends State<NativeCredentialFields> {
         'autocomplete',
         widget.isSignUp ? 'new-password' : 'current-password',
       );
+      _applyConfirmFieldVisibility();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 124,
+      height: widget.isSignUp ? 192 : 124,
       child: HtmlElementView(viewType: _viewType),
     );
   }
