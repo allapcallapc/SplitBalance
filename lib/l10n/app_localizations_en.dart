@@ -264,6 +264,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pink => 'Pink';
 
   @override
+  String get teal => 'Teal';
+
+  @override
   String get language => 'Language';
 
   @override

@@ -636,6 +636,11 @@ class _ConfigScreenState extends State<ConfigScreen> {
                               label: Text(AppLocalizations.of(context)!.pink),
                               icon: const Icon(Icons.favorite),
                             ),
+                            ButtonSegment<AppThemeMode>(
+                              value: AppThemeMode.teal,
+                              label: Text(AppLocalizations.of(context)!.teal),
+                              icon: const Icon(Icons.water_drop),
+                            ),
                           ],
                           selected: {configProvider.themeMode},
                           onSelectionChanged: (Set<AppThemeMode> selected) {

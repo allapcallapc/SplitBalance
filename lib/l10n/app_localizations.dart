@@ -566,6 +566,12 @@ abstract class AppLocalizations {
   /// **'Pink'**
   String get pink;
 
+  /// Teal theme name
+  ///
+  /// In en, this message translates to:
+  /// **'Teal'**
+  String get teal;
+
   /// Language label
   ///
   /// In en, this message translates to:

@@ -342,6 +342,10 @@
   "@pink": {
     "description": "Pink theme name"
   },
+  "teal": "Teal",
+  "@teal": {
+    "description": "Teal theme name"
+  },
   "language": "Language",
   "@language": {
     "description": "Language label"

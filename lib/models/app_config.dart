@@ -1,7 +1,8 @@
 enum AppThemeMode {
   light,
   dark,
-  pink;
+  pink,
+  teal;
 
   String get displayName {
     switch (this) {
@@ -11,6 +12,8 @@ enum AppThemeMode {
         return 'Dark';
       case AppThemeMode.pink:
         return 'Pink';
+      case AppThemeMode.teal:
+        return 'Teal';
     }
   }
 }

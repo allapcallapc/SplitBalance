@@ -121,6 +121,23 @@ class SplitBalanceApp extends StatelessWidget {
     );
   }
 
+  static ThemeData _getTealTheme() {
+    return ThemeData(
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: Colors.teal,
+        brightness: Brightness.light,
+      ),
+      useMaterial3: true,
+      cardTheme: CardThemeData(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      scaffoldBackgroundColor: Colors.teal[50],
+    );
+  }
+
   static ThemeData _getThemeForMode(AppThemeMode mode) {
     switch (mode) {
       case AppThemeMode.light:
@@ -129,6 +146,8 @@ class SplitBalanceApp extends StatelessWidget {
         return _getDarkTheme();
       case AppThemeMode.pink:
         return _getPinkTheme();
+      case AppThemeMode.teal:
+        return _getTealTheme();
     }
   }
 
