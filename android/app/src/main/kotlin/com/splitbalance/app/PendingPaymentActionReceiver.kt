@@ -1,10 +1,10 @@
-package com.example.splitbalance
+package com.splitbalance.app
 
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationManagerCompat
-import com.example.splitbalance.GooglePayNotificationListenerService.Companion.EXTRA_DEEP_LINK_ID
+import com.splitbalance.app.GooglePayNotificationListenerService.Companion.EXTRA_DEEP_LINK_ID
 
 /**
  * Handles the "No" action on a pending-bill notification: removes the entry
