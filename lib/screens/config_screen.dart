@@ -6,8 +6,10 @@ import '../providers/config_provider.dart';
 import '../providers/categories_provider.dart';
 import '../models/app_config.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../services/update_service.dart';
 import '../widgets/google_pay_detection_section.dart';
 import '../widgets/native_credential_fields.dart';
+import '../widgets/update_dialog.dart';
 
 class ConfigScreen extends StatefulWidget {
   const ConfigScreen({super.key});
@@ -35,6 +37,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
   String? _inviteCode;
   bool _loadingInviteCode = false;
   String? _lastMyNameSyncedFrom;
+  final _updateService = UpdateService();
+  bool _checkingForUpdate = false;
+  String? _updateStatusMessage;
 
   @override
   void initState() {
@@ -53,6 +58,26 @@ class _ConfigScreenState extends State<ConfigScreen> {
     } catch (e) {
       // If version loading fails, just leave it empty
       print('Error loading app version: $e');
+    }
+  }
+
+  Future<void> _checkForUpdates() async {
+    final l10n = AppLocalizations.of(context)!;
+    setState(() {
+      _checkingForUpdate = true;
+      _updateStatusMessage = l10n.checkingForUpdates;
+    });
+
+    final update = await _updateService.checkForUpdate();
+
+    if (!mounted) return;
+    setState(() {
+      _checkingForUpdate = false;
+      _updateStatusMessage = update == null ? l10n.upToDate : null;
+    });
+
+    if (update != null) {
+      await showUpdateAvailableDialog(context, _updateService, update);
     }
   }
 
@@ -746,6 +771,37 @@ class _ConfigScreenState extends State<ConfigScreen> {
                       ),
                     ),
                   ),
+                ],
+                if (UpdateService.isSupported) ...[
+                  const SizedBox(height: 8),
+                  Center(
+                    child: _checkingForUpdate
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : TextButton(
+                            onPressed: _checkForUpdates,
+                            child: Text(
+                              AppLocalizations.of(context)!.checkForUpdates,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                  ),
+                  if (_updateStatusMessage != null)
+                    Center(
+                      child: Text(
+                        _updateStatusMessage!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ),
                 ],
               ],
             ),

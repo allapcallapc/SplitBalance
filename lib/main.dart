@@ -17,6 +17,8 @@ import 'screens/summary_screen.dart';
 import 'screens/pending_payments_screen.dart';
 import 'screens/add_edit_bill_screen.dart';
 import 'models/app_config.dart';
+import 'services/update_service.dart';
+import 'widgets/update_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -194,6 +196,18 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance
         .addPostFrameCallback((_) => _checkPendingDeepLink());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkForAppUpdate());
+  }
+
+  // Runs once per app launch (unlike the deep-link check, this doesn't need
+  // to re-run on resume) so a sideloaded install still gets notified of new
+  // releases without going through the Play Store.
+  Future<void> _checkForAppUpdate() async {
+    if (!UpdateService.isSupported) return;
+    final updateService = UpdateService();
+    final update = await updateService.checkForUpdate();
+    if (update == null || !mounted) return;
+    await showUpdateAvailableDialog(context, updateService, update);
   }
 
   @override

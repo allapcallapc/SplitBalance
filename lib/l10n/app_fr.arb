@@ -272,5 +272,16 @@
   "androidOnlyFeature": "Cette fonctionnalité est disponible uniquement sur Android",
   "pendingPaymentsTooltip": "Paiements en attente",
   "whoAreYou": "Quelle personne êtes-vous ?",
-  "whoAreYouHint": "Utilisé pour pré-remplir « Payé par » lors de la confirmation d'un paiement Google Pay détecté."
+  "whoAreYouHint": "Utilisé pour pré-remplir « Payé par » lors de la confirmation d'un paiement Google Pay détecté.",
+  "checkForUpdates": "Vérifier les mises à jour",
+  "checkingForUpdates": "Vérification des mises à jour...",
+  "upToDate": "Vous êtes à jour",
+  "updateAvailableTitle": "Mise à jour disponible",
+  "updateAvailableMessage": "La version {version} est disponible.",
+  "updateNow": "Mettre à jour",
+  "updateLater": "Plus tard",
+  "downloadingUpdate": "Téléchargement de la mise à jour...",
+  "updateDownloadFailed": "Impossible de télécharger la mise à jour. Réessayez plus tard.",
+  "installPermissionRequired": "SplitBalance a besoin de la permission d'installer des mises à jour.",
+  "grantInstallPermission": "Autoriser l'installation"
 }

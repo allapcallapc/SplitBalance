@@ -560,4 +560,41 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get whoAreYouHint =>
       'Utilisé pour pré-remplir « Payé par » lors de la confirmation d\'un paiement Google Pay détecté.';
+
+  @override
+  String get checkForUpdates => 'Vérifier les mises à jour';
+
+  @override
+  String get checkingForUpdates => 'Vérification des mises à jour...';
+
+  @override
+  String get upToDate => 'Vous êtes à jour';
+
+  @override
+  String get updateAvailableTitle => 'Mise à jour disponible';
+
+  @override
+  String updateAvailableMessage(String version) {
+    return 'La version $version est disponible.';
+  }
+
+  @override
+  String get updateNow => 'Mettre à jour';
+
+  @override
+  String get updateLater => 'Plus tard';
+
+  @override
+  String get downloadingUpdate => 'Téléchargement de la mise à jour...';
+
+  @override
+  String get updateDownloadFailed =>
+      'Impossible de télécharger la mise à jour. Réessayez plus tard.';
+
+  @override
+  String get installPermissionRequired =>
+      'SplitBalance a besoin de la permission d\'installer des mises à jour.';
+
+  @override
+  String get grantInstallPermission => 'Autoriser l\'installation';
 }
