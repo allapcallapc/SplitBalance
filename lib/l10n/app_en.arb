@@ -744,5 +744,54 @@
   "whoAreYouHint": "Used to pre-fill \"Paid by\" when confirming a detected Google Pay payment.",
   "@whoAreYouHint": {
     "description": "Explanation for the who-are-you selector"
+  },
+  "checkForUpdates": "Check for Updates",
+  "@checkForUpdates": {
+    "description": "Button label to manually check for a new app version"
+  },
+  "checkingForUpdates": "Checking for updates...",
+  "@checkingForUpdates": {
+    "description": "Status message while checking for a new app version"
+  },
+  "upToDate": "You're up to date",
+  "@upToDate": {
+    "description": "Status message when no update is available"
+  },
+  "updateAvailableTitle": "Update available",
+  "@updateAvailableTitle": {
+    "description": "Dialog title when a new app version is available"
+  },
+  "updateAvailableMessage": "Version {version} is available.",
+  "@updateAvailableMessage": {
+    "description": "Dialog message when a new app version is available",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateNow": "Update Now",
+  "@updateNow": {
+    "description": "Button label to download and install the available update"
+  },
+  "updateLater": "Later",
+  "@updateLater": {
+    "description": "Button label to dismiss the update dialog without updating"
+  },
+  "downloadingUpdate": "Downloading update...",
+  "@downloadingUpdate": {
+    "description": "Status message while the update APK is downloading"
+  },
+  "updateDownloadFailed": "Couldn't download the update. Try again later.",
+  "@updateDownloadFailed": {
+    "description": "Status message when downloading the update fails"
+  },
+  "installPermissionRequired": "SplitBalance needs permission to install app updates.",
+  "@installPermissionRequired": {
+    "description": "Explanation shown when the install-unknown-apps permission is missing"
+  },
+  "grantInstallPermission": "Grant Install Permission",
+  "@grantInstallPermission": {
+    "description": "Button label to open system settings for the install-unknown-apps permission"
   }
 }

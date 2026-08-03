@@ -551,4 +551,41 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get whoAreYouHint =>
       'Used to pre-fill \"Paid by\" when confirming a detected Google Pay payment.';
+
+  @override
+  String get checkForUpdates => 'Check for Updates';
+
+  @override
+  String get checkingForUpdates => 'Checking for updates...';
+
+  @override
+  String get upToDate => 'You\'re up to date';
+
+  @override
+  String get updateAvailableTitle => 'Update available';
+
+  @override
+  String updateAvailableMessage(String version) {
+    return 'Version $version is available.';
+  }
+
+  @override
+  String get updateNow => 'Update Now';
+
+  @override
+  String get updateLater => 'Later';
+
+  @override
+  String get downloadingUpdate => 'Downloading update...';
+
+  @override
+  String get updateDownloadFailed =>
+      'Couldn\'t download the update. Try again later.';
+
+  @override
+  String get installPermissionRequired =>
+      'SplitBalance needs permission to install app updates.';
+
+  @override
+  String get grantInstallPermission => 'Grant Install Permission';
 }

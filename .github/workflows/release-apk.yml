@@ -33,6 +33,13 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Determine version from tag
+        id: version
+        # Strips the leading "v" so the tag (e.g. v2.0.2) becomes the app's
+        # versionName - this is what the in-app update checker compares
+        # against the GitHub release tag to detect a new version.
+        run: echo "name=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
       - name: Decode release keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -54,7 +61,10 @@ jobs:
           EOF
 
       - name: Build release APK
-        run: flutter build apk --release
+        run: |
+          flutter build apk --release \
+            --build-name=${{ steps.version.outputs.name }} \
+            --build-number=${{ github.run_number }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

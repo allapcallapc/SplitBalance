@@ -1093,6 +1093,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Used to pre-fill \"Paid by\" when confirming a detected Google Pay payment.'**
   String get whoAreYouHint;
+
+  /// Button label to manually check for a new app version
+  ///
+  /// In en, this message translates to:
+  /// **'Check for Updates'**
+  String get checkForUpdates;
+
+  /// Status message while checking for a new app version
+  ///
+  /// In en, this message translates to:
+  /// **'Checking for updates...'**
+  String get checkingForUpdates;
+
+  /// Status message when no update is available
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re up to date'**
+  String get upToDate;
+
+  /// Dialog title when a new app version is available
+  ///
+  /// In en, this message translates to:
+  /// **'Update available'**
+  String get updateAvailableTitle;
+
+  /// Dialog message when a new app version is available
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version} is available.'**
+  String updateAvailableMessage(String version);
+
+  /// Button label to download and install the available update
+  ///
+  /// In en, this message translates to:
+  /// **'Update Now'**
+  String get updateNow;
+
+  /// Button label to dismiss the update dialog without updating
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get updateLater;
+
+  /// Status message while the update APK is downloading
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading update...'**
+  String get downloadingUpdate;
+
+  /// Status message when downloading the update fails
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t download the update. Try again later.'**
+  String get updateDownloadFailed;
+
+  /// Explanation shown when the install-unknown-apps permission is missing
+  ///
+  /// In en, this message translates to:
+  /// **'SplitBalance needs permission to install app updates.'**
+  String get installPermissionRequired;
+
+  /// Button label to open system settings for the install-unknown-apps permission
+  ///
+  /// In en, this message translates to:
+  /// **'Grant Install Permission'**
+  String get grantInstallPermission;
 }
 
 class _AppLocalizationsDelegate
