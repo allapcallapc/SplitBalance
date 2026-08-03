@@ -19,6 +19,7 @@ class ConfigScreen extends StatefulWidget {
 class _ConfigScreenState extends State<ConfigScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _createHouseholdNameController = TextEditingController();
   final _joinCodeController = TextEditingController();
   final _joinNameController = TextEditingController();
@@ -59,6 +60,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _createHouseholdNameController.dispose();
     _joinCodeController.dispose();
     _joinNameController.dispose();
@@ -132,6 +134,12 @@ class _ConfigScreenState extends State<ConfigScreen> {
       );
       return;
     }
+    if (_isSignUpMode && password != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passwords do not match')),
+      );
+      return;
+    }
     final success = _isSignUpMode
         ? await configProvider.signUp(email, password)
         : await configProvider.signIn(email, password);
@@ -170,6 +178,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
             NativeCredentialFields(
               emailController: _emailController,
               passwordController: _passwordController,
+              confirmPasswordController: _confirmPasswordController,
               isSignUp: _isSignUpMode,
               onSubmit: () => _handleAuthSubmit(configProvider),
             ),
@@ -193,7 +202,10 @@ class _ConfigScreenState extends State<ConfigScreen> {
             TextButton(
               onPressed: configProvider.isLoading
                   ? null
-                  : () => setState(() => _isSignUpMode = !_isSignUpMode),
+                  : () => setState(() {
+                        _isSignUpMode = !_isSignUpMode;
+                        _confirmPasswordController.clear();
+                      }),
               child: Text(_isSignUpMode
                   ? 'Already have an account? Sign in'
                   : "Don't have an account? Sign up"),
@@ -687,6 +699,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                 final snackL10n = AppLocalizations.of(context)!;
                                 _emailController.clear();
                                 _passwordController.clear();
+                                _confirmPasswordController.clear();
                                 _createHouseholdNameController.clear();
                                 _joinCodeController.clear();
                                 _joinNameController.clear();
