@@ -1,4 +1,4 @@
-package com.example.splitbalance
+package com.splitbalance.app
 
 import android.Manifest
 import android.app.Notification
