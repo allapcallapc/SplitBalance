@@ -266,6 +266,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get pink => 'Rose';
 
   @override
+  String get teal => 'Sarcelle';
+
+  @override
   String get language => 'Langue';
 
   @override
