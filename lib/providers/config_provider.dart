@@ -1,35 +1,36 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:convert';
 import '../models/app_config.dart';
-import '../services/google_drive_service.dart';
-import '../services/csv_service.dart';
 
 class ConfigProvider with ChangeNotifier {
-  final GoogleDriveService _driveService = GoogleDriveService();
+  SupabaseClient get _supabase => Supabase.instance.client;
+
   AppConfig _config = AppConfig(person1Name: '', person2Name: '');
   bool _isLoading = false;
   String? _error;
-  String? _restoreError; // Error from automatic session restoration
-  String? _restoreErrorDetails; // Detailed error information
   bool _navigateToCategoriesRequested =
       false; // Flag to request navigation to categories screen
   bool _navigateToCategoriesTabRequested =
       false; // Flag to request navigation to Categories tab (index 1) within Payment Splits screen
+  // Maps auth user id -> person_name for the current household's members,
+  // so the UI can tell which of person1Name/person2Name belongs to whoever
+  // is currently logged in (person1Name/person2Name are ordered by
+  // join-order, not by "is this me").
+  Map<String, String> _memberNamesByUserId = {};
 
   AppConfig get config => _config;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  String? get restoreError => _restoreError;
-  String? get restoreErrorDetails => _restoreErrorDetails;
   bool get navigateToCategoriesRequested => _navigateToCategoriesRequested;
   bool get navigateToCategoriesTabRequested =>
       _navigateToCategoriesTabRequested;
-  GoogleDriveService get driveService => _driveService;
-  bool get isSignedIn => _driveService.isSignedIn;
-  GoogleSignInAccount? get currentUser => _driveService.currentUser;
+  bool get isSignedIn => _supabase.auth.currentSession != null;
+  User? get currentUser => _supabase.auth.currentUser;
+  String? get householdId => _config.householdId;
+  String? get myPersonName =>
+      currentUser == null ? null : _memberNamesByUserId[currentUser!.id];
   AppThemeMode get themeMode => _config.themeMode;
   AppLanguage get language => _config.language;
   Locale get locale => Locale(_config.language.localeCode);
@@ -37,6 +38,9 @@ class ConfigProvider with ChangeNotifier {
   ConfigProvider() {
     // Load config asynchronously to ensure app is fully initialized
     Future.microtask(() => _loadConfig());
+    // Supabase persists sessions itself; just react to changes (sign-in,
+    // sign-out, token refresh) elsewhere in the app (e.g. a second tab).
+    _supabase.auth.onAuthStateChange.listen((_) => notifyListeners());
   }
 
   Future<void> _loadConfig() async {
@@ -44,71 +48,26 @@ class ConfigProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Log configuration status for debugging
-      print('=== ConfigProvider: Loading configuration ===');
-      if (kIsWeb) {
-        print('Running on Web platform');
-      } else {
-        print('Running on ${defaultTargetPlatform.toString()} platform');
-      }
-
       final prefs = await SharedPreferences.getInstance();
       final configJson = prefs.getString('app_config');
 
       if (configJson != null && configJson.isNotEmpty) {
         try {
-          final decoded = jsonDecode(configJson);
-          _config = AppConfig.fromJson(decoded);
-
-          print(
-              'Config loaded: Person1=${_config.person1Name}, Person2=${_config.person2Name}, Folder=${_config.googleDriveFolderId}');
+          _config = AppConfig.fromJson(jsonDecode(configJson));
         } catch (e) {
           print('Error parsing config JSON: $e, JSON: $configJson');
-          // If parsing fails, use defaults
           _config = AppConfig(person1Name: '', person2Name: '');
         }
       } else {
-        // No saved config, use defaults
         _config = AppConfig(person1Name: '', person2Name: '');
-        print('No saved config found, using defaults');
       }
 
-      _restoreError = null;
-      _restoreErrorDetails = null;
-
-      // Attempt to silently restore a previous Google sign-in session so the
-      // user isn't forced to log in again every time the app is reopened.
-      // Restricted to native platforms: the popup-based web flow doesn't have
-      // a reliable silent-restore path and previously caused FedCM errors.
-      if (!kIsWeb) {
-        final wasSignedIn = prefs.getBool('was_signed_in') ?? false;
-        if (wasSignedIn) {
-          try {
-            final restored = await _driveService.signInSilently();
-            if (restored) {
-              print('Session restored via silent sign-in: ${currentUser?.email}');
-            } else {
-              print('Silent sign-in did not restore a previous session');
-              await prefs.setBool('was_signed_in', false);
-            }
-          } catch (e) {
-            print('Silent sign-in failed: $e');
-            _restoreError =
-                'Could not restore your previous session automatically. Please sign in again.';
-            _restoreErrorDetails = e.toString();
-          }
-        }
-      }
-
-      // Restore folder ID if available, and reload person names now that the
-      // sign-in session (if any) has been restored above.
-      if (_config.googleDriveFolderId != null &&
-          _config.googleDriveFolderId!.isNotEmpty) {
-        _driveService.setFolderId(_config.googleDriveFolderId!);
-
-        if (isSignedIn) {
-          await _loadPersonNamesFromDrive();
-        }
+      // Supabase.initialize() (called in main.dart before runApp) already
+      // recovers any persisted session from local storage, so there's no
+      // manual silent sign-in step needed here - isSignedIn already
+      // reflects the restored session by the time this provider builds.
+      if (isSignedIn) {
+        await _loadHousehold();
       }
 
       _error = null;
@@ -121,52 +80,32 @@ class ConfigProvider with ChangeNotifier {
     }
   }
 
-  // Reload config from storage (useful after save to verify)
-  // This reloads from SharedPreferences and then from Drive if signed in
+  // Reload config from storage (useful after save to verify), then refresh
+  // household membership from the server if signed in.
   Future<void> reloadConfig() async {
-    // Load from SharedPreferences first
     final prefs = await SharedPreferences.getInstance();
     final configJson = prefs.getString('app_config');
 
     if (configJson != null && configJson.isNotEmpty) {
       try {
-        final decoded = jsonDecode(configJson);
-        final loadedConfig = AppConfig.fromJson(decoded);
-
-        // Restore folder ID if available
-        if (loadedConfig.googleDriveFolderId != null &&
-            loadedConfig.googleDriveFolderId!.isNotEmpty) {
-          _driveService.setFolderId(loadedConfig.googleDriveFolderId!);
-          _config = _config.copyWith(
-              googleDriveFolderId: loadedConfig.googleDriveFolderId);
-        }
-
-        // If signed in and folder is selected, load person names from Drive (folder-specific data)
-        // Otherwise, use person names from SharedPreferences
-        if (isSignedIn &&
-            _driveService.folderId != null &&
-            _driveService.folderId!.isNotEmpty) {
-          // Load from Drive - this will update config with Drive person names
-          await _loadPersonNamesFromDrive();
-          // Note: _loadPersonNamesFromDrive already updates _config and saves to SharedPreferences
-        } else {
-          // Not signed in or no folder - use SharedPreferences values
-          _config = _config.copyWith(
-            person1Name: loadedConfig.person1Name,
-            person2Name: loadedConfig.person2Name,
-          );
-        }
+        final loadedConfig = AppConfig.fromJson(jsonDecode(configJson));
+        _config = _config.copyWith(householdId: loadedConfig.householdId);
       } catch (e) {
         print('Error parsing config JSON during reload: $e');
       }
     }
 
+    if (isSignedIn && _config.householdId != null) {
+      await _loadHousehold();
+    }
+
     notifyListeners();
   }
 
-  // Force reload person names from Drive (useful after sign-in or folder selection)
-  Future<void> reloadPersonNamesFromDrive() async {
-    await _loadPersonNamesFromDrive();
+  // Force reload household member names from Supabase (useful after
+  // sign-in, creating/joining a household, or a member renaming themself)
+  Future<void> reloadHouseholdMembers() async {
+    await _loadHousehold();
     notifyListeners();
   }
 
@@ -190,77 +129,63 @@ class ConfigProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> signIn() async {
+  Future<bool> signUp(String email, String password) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final success = await _driveService.signIn();
-      if (!success) {
-        _error = 'Sign in was cancelled. Please try again.';
-        _isLoading = false;
-        notifyListeners();
-        // Clear sign-in flag
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('was_signed_in', false);
+      final response =
+          await _supabase.auth.signUp(email: email, password: password);
+      if (response.user == null) {
+        _error = 'Sign up failed. Please try again.';
+        return false;
+      }
+      if (response.session == null) {
+        // Project has email confirmation enabled - the account exists but
+        // isn't usable until the user clicks the link in their inbox.
+        _error = 'Check your email to confirm your account, then sign in.';
+        return false;
+      }
+      _error = null;
+      return true;
+    } on AuthException catch (e) {
+      _error = e.message;
+      return false;
+    } catch (e) {
+      _error = 'Sign up error: $e';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> signIn(String email, String password) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await _supabase.auth
+          .signInWithPassword(email: email, password: password);
+      if (response.user == null) {
+        _error = 'Sign in was unsuccessful. Please try again.';
         return false;
       }
 
-      // Save sign-in state
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('was_signed_in', true);
-      // Clear last restore attempt time so we can restore on next page load if needed
-      await prefs.remove('last_restore_attempt_time');
-
-      // Clear any previous errors (including restore errors)
+      await _loadHousehold();
       _error = null;
-      _restoreError = null;
-      _restoreErrorDetails = null;
-
-      // After successful sign-in, load person names from Drive folder if folder is selected
-      await _loadPersonNamesFromDrive();
-
-      _isLoading = false;
-      notifyListeners();
       return true;
+    } on AuthException catch (e) {
+      _error = e.message;
+      return false;
     } catch (e) {
-      final errorMessage = e.toString();
-
-      // Provide helpful error messages
-      if (errorMessage.contains('popup_closed_by_user')) {
-        _error = 'Sign in was cancelled. Please try again.';
-      } else if (errorMessage.contains('network_error') ||
-          errorMessage.contains('network')) {
-        _error =
-            'Network error. Please check your internet connection and try again.';
-      } else if (errorMessage.contains('access_denied')) {
-        _error = 'Access denied. Please grant the necessary permissions.';
-      } else if (errorMessage.contains('redirect_uri_mismatch') ||
-          errorMessage.contains('redirect')) {
-        _error =
-            'Configuration Error: Redirect URI mismatch.\n\nIn Google Cloud Console, edit your OAuth Client ID and add:\n\nAuthorized JavaScript origins:\n• http://localhost:8080\n• http://127.0.0.1:8080\n\nAuthorized redirect URIs:\n• http://localhost:8080\n• http://localhost:8080/\n• http://127.0.0.1:8080\n• http://127.0.0.1:8080/\n\nThen click SAVE and try again.';
-      } else if (errorMessage.contains('origin') ||
-          errorMessage.contains('JavaScript') ||
-          errorMessage.contains('origins')) {
-        _error =
-            'Configuration Error: JavaScript origin not authorized.\n\nIn Google Cloud Console:\n1. Edit your OAuth 2.0 Client ID (Web application)\n2. Under "Authorized JavaScript origins", add:\n   • http://localhost:8080\n   • http://127.0.0.1:8080\n3. Under "Authorized redirect URIs", add:\n   • http://localhost:8080\n   • http://localhost:8080/\n   • http://127.0.0.1:8080\n   • http://127.0.0.1:8080/\n4. Click SAVE and wait a few seconds\n5. Try signing in again';
-      } else if (errorMessage.contains('invalid_client') ||
-          errorMessage.contains('client_id')) {
-        _error =
-            'Configuration Error: Invalid or missing Client ID.\n\nPlease:\n1. Verify your Client ID in lib/config/google_sign_in_config.dart\n2. Verify web/index.html meta tag has the same Client ID\n3. Make sure you created a "Web application" OAuth client ID';
-      } else if (errorMessage.contains('popup_blocked') ||
-          errorMessage.contains('popup')) {
-        _error =
-            'Popup blocked! Please allow popups for this site and try again.';
-      } else {
-        _error =
-            'Sign in error: $errorMessage\n\nCommon fixes:\n1. Add http://localhost:8080 to "Authorized JavaScript origins"\n2. Add redirect URIs to "Authorized redirect URIs"\n3. Enable Google Drive API\n4. Wait a few seconds after saving changes';
-      }
-
+      _error = 'Sign in error: $e';
+      return false;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      return false;
     }
   }
 
@@ -269,11 +194,19 @@ class ConfigProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await _driveService.signOut();
-      _config = _config.copyWith(googleDriveFolderId: null);
-      // Clear sign-in flag
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('was_signed_in', false);
+      await _supabase.auth.signOut();
+      // Built directly (not via copyWith) so householdId/person names are
+      // actually cleared - copyWith's `x ?? this.x` pattern can't null out
+      // a field once set. Device-local prefs (language/theme/mePersonName)
+      // are preserved since they're independent of who's logged in.
+      _config = AppConfig(
+        person1Name: '',
+        person2Name: '',
+        themeMode: _config.themeMode,
+        language: _config.language,
+        mePersonName: _config.mePersonName,
+      );
+      _memberNamesByUserId = {};
       await _saveConfig();
       _error = null;
     } catch (e) {
@@ -290,9 +223,8 @@ class ConfigProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Sign out from Google if signed in
       try {
-        await _driveService.signOut();
+        await _supabase.auth.signOut();
       } catch (e) {
         // Ignore sign out errors
       }
@@ -314,81 +246,148 @@ class ConfigProvider with ChangeNotifier {
     }
   }
 
-  Future<void> setPersonNames(String person1Name, String person2Name) async {
-    _config = _config.copyWith(
-      person1Name: person1Name,
-      person2Name: person2Name,
-    );
-    await _saveConfig();
-
-    // Also save person names to Drive folder if folder is selected and signed in
-    if (isSignedIn &&
-        _driveService.folderId != null &&
-        (person1Name.isNotEmpty || person2Name.isNotEmpty)) {
-      try {
-        final csvContent =
-            CsvService.personNamesToCsv(person1Name, person2Name);
-        await _driveService.uploadPersonNames(csvContent);
-        print('Person names saved to Drive folder');
-      } catch (e) {
-        print('Error saving person names to Drive: $e');
-        // Don't throw error - local save succeeded, Drive save is secondary
-        // But we should still notify user if Drive save fails
-        _error = 'Person names saved locally but failed to save to Drive: $e';
-      }
+  // Create a new household and join it as its first member.
+  Future<bool> createHousehold(String personName) async {
+    if (!isSignedIn) {
+      _error = 'Not signed in';
+      notifyListeners();
+      return false;
     }
 
+    _isLoading = true;
+    _error = null;
     notifyListeners();
+
+    try {
+      final id = await _supabase
+          .rpc('create_household', params: {'name': personName}) as String;
+      _config = _config.copyWith(
+        householdId: id,
+        person1Name: personName,
+        person2Name: '',
+      );
+      await _saveConfig();
+      _error = null;
+      return true;
+    } catch (e) {
+      _error = 'Failed to create household: $e';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
-  Future<void> setFolderId(String folderId) async {
-    _driveService.setFolderId(folderId);
-    _config = _config.copyWith(googleDriveFolderId: folderId);
-    await _saveConfig();
+  // Join an existing household using the invite code the other person shared.
+  Future<bool> joinHousehold(String inviteCode, String personName) async {
+    if (!isSignedIn) {
+      _error = 'Not signed in';
+      notifyListeners();
+      return false;
+    }
 
-    // Try to load person names from Drive folder when folder is selected
-    await _loadPersonNamesFromDrive();
-
+    _isLoading = true;
+    _error = null;
     notifyListeners();
+
+    try {
+      final id = await _supabase.rpc('join_household', params: {
+        'code': inviteCode.trim(),
+        'name': personName,
+      }) as String;
+      _config = _config.copyWith(householdId: id);
+      await _saveConfig();
+      await _loadHousehold();
+      _error = null;
+      return true;
+    } catch (e) {
+      _error = 'Failed to join household: $e';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
-  // Load person names from Drive folder if signed in and folder is selected
-  Future<void> _loadPersonNamesFromDrive() async {
-    if (!isSignedIn ||
-        _driveService.folderId == null ||
-        _driveService.folderId!.isEmpty) {
+  // Fetch the current household's invite code, to share with the other person.
+  Future<String?> getInviteCode() async {
+    if (_config.householdId == null) return null;
+    try {
+      final row = await _supabase
+          .from('households')
+          .select('invite_code')
+          .eq('id', _config.householdId!)
+          .single();
+      return row['invite_code'] as String?;
+    } catch (e) {
+      print('Error fetching invite code: $e');
+      return null;
+    }
+  }
+
+  // Update the current user's own display name within the household.
+  Future<void> updateMyPersonName(String name) async {
+    if (!isSignedIn || _config.householdId == null || currentUser == null) {
       return;
     }
 
     try {
-      final personNamesCsv = await _driveService.downloadPersonNames();
-      if (personNamesCsv.isNotEmpty) {
-        final personNames = CsvService.personNamesFromCsv(personNamesCsv);
-        final drivePerson1 = personNames['person1Name']?.trim() ?? '';
-        final drivePerson2 = personNames['person2Name']?.trim() ?? '';
-
-        // If Drive has person names, load them (folder-specific data)
-        if (drivePerson1.isNotEmpty || drivePerson2.isNotEmpty) {
-          // Always update with Drive names when loading from Drive
-          // This ensures folder-specific data is loaded correctly
-          _config = _config.copyWith(
-            person1Name: drivePerson1,
-            person2Name: drivePerson2,
-          );
-          // Update local storage to match Drive
-          await _saveConfig();
-          print(
-              'Person names loaded from Drive folder: Person1=$drivePerson1, Person2=$drivePerson2');
-        } else {
-          print('Person names CSV exists but is empty - no names to load');
-        }
-      } else {
-        print('No person_names.csv found in Drive folder - folder may be new');
-      }
+      await _supabase
+          .from('household_members')
+          .update({'person_name': name})
+          .eq('household_id', _config.householdId!)
+          .eq('user_id', currentUser!.id);
+      await _loadHousehold();
+      _error = null;
     } catch (e) {
-      print('Error loading person names from Drive folder: $e');
-      // Don't fail if person names load fails - folder might be new and not have person names yet
-      // File might not exist yet, which is normal for new folders
+      _error = 'Failed to update name: $e';
+    }
+    notifyListeners();
+  }
+
+  // Load household membership (id + both people's names) from Supabase.
+  // Falls back to discovering the household from household_members when no
+  // household id is cached locally yet (e.g. fresh install, cache cleared).
+  Future<void> _loadHousehold() async {
+    if (!isSignedIn || currentUser == null) return;
+
+    try {
+      String? id = _config.householdId;
+      if (id == null) {
+        final row = await _supabase
+            .from('household_members')
+            .select('household_id')
+            .eq('user_id', currentUser!.id)
+            .limit(1)
+            .maybeSingle();
+        id = row?['household_id'] as String?;
+        if (id == null) {
+          // Not part of a household yet - nothing more to load.
+          return;
+        }
+      }
+
+      final members = await _supabase
+          .from('household_members')
+          .select('user_id, person_name, joined_at')
+          .eq('household_id', id)
+          .order('joined_at', ascending: true);
+
+      final names =
+          members.map((m) => m['person_name'] as String).toList();
+      _memberNamesByUserId = {
+        for (final m in members)
+          m['user_id'] as String: m['person_name'] as String,
+      };
+
+      _config = _config.copyWith(
+        householdId: id,
+        person1Name: names.isNotEmpty ? names[0] : '',
+        person2Name: names.length > 1 ? names[1] : '',
+      );
+      await _saveConfig();
+    } catch (e) {
+      print('Error loading household: $e');
     }
   }
 
@@ -437,12 +436,6 @@ class ConfigProvider with ChangeNotifier {
 
   void clearError() {
     _error = null;
-    notifyListeners();
-  }
-
-  void clearRestoreError() {
-    _restoreError = null;
-    _restoreErrorDetails = null;
     notifyListeners();
   }
 }

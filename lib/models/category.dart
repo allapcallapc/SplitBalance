@@ -1,7 +1,15 @@
 class Category {
+  final String? id;
   final String name;
 
-  Category({required this.name});
+  Category({this.id, required this.name});
+
+  // Convert to a Supabase row payload (no id: assigned by the database)
+  Map<String, dynamic> toMap() => {'name': name};
+
+  factory Category.fromMap(Map<String, dynamic> map) {
+    return Category(id: map['id'] as String, name: map['name'] as String);
+  }
 
   // Convert to CSV row
   List<String> toCsvRow() {

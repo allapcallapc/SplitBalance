@@ -1,6 +1,7 @@
 import 'package:intl/intl.dart';
 
 class PaymentSplit {
+  final String? id;
   final DateTime? endDate; // null means bills after the last end date
   final String category; // "all" for default or specific category name
   final String person1;
@@ -9,6 +10,7 @@ class PaymentSplit {
   final double person2Percentage;
 
   PaymentSplit({
+    this.id,
     this.endDate,
     required this.category,
     required this.person1,
@@ -27,6 +29,36 @@ class PaymentSplit {
     if (person2Percentage < 0 || person2Percentage > 100) {
       throw ArgumentError('Person2 percentage must be between 0 and 100');
     }
+  }
+
+  // Convert to a Supabase row payload (no id: assigned by the database).
+  // Note: "all"-category splits are UI-only and must never be sent here -
+  // the database rejects them via a check constraint, matching the old
+  // CsvService behavior of dropping them before persisting.
+  Map<String, dynamic> toMap() {
+    final dateFormatter = DateFormat('yyyy-MM-dd');
+    return {
+      'end_date': endDate != null ? dateFormatter.format(endDate!) : null,
+      'category': category,
+      'person1': person1,
+      'person1_percentage': person1Percentage,
+      'person2': person2,
+      'person2_percentage': person2Percentage,
+    };
+  }
+
+  factory PaymentSplit.fromMap(Map<String, dynamic> map) {
+    return PaymentSplit(
+      id: map['id'] as String,
+      endDate: map['end_date'] != null
+          ? DateTime.parse(map['end_date'] as String)
+          : null,
+      category: map['category'] as String,
+      person1: map['person1'] as String,
+      person1Percentage: (map['person1_percentage'] as num).toDouble(),
+      person2: map['person2'] as String,
+      person2Percentage: (map['person2_percentage'] as num).toDouble(),
+    );
   }
 
   // Convert to CSV row
@@ -187,6 +219,7 @@ class PaymentSplit {
   }
 
   PaymentSplit copyWith({
+    String? id,
     DateTime? endDate,
     String? category,
     String? person1,
@@ -195,6 +228,7 @@ class PaymentSplit {
     double? person2Percentage,
   }) {
     return PaymentSplit(
+      id: id ?? this.id,
       endDate: endDate ?? this.endDate,
       category: category ?? this.category,
       person1: person1 ?? this.person1,

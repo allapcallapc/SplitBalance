@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/bill.dart';
-import '../services/csv_service.dart';
 import 'config_provider.dart';
 
 class BillsProvider with ChangeNotifier {
@@ -12,10 +12,11 @@ class BillsProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  // Load bills from Google Drive
+  SupabaseClient get _supabase => Supabase.instance.client;
+
+  // Load bills for the current household from Supabase
   Future<void> loadBills(ConfigProvider configProvider) async {
-    if (!configProvider.isSignedIn ||
-        configProvider.driveService.folderId == null) {
+    if (!configProvider.isSignedIn || configProvider.householdId == null) {
       return;
     }
 
@@ -24,18 +25,15 @@ class BillsProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final csvContent = await configProvider.driveService.downloadBills();
-      if (csvContent.isEmpty) {
-        _bills.clear();
-        _isLoading = false;
-        notifyListeners();
-        return;
-      }
+      final rows = await _supabase
+          .from('bills')
+          .select()
+          .eq('household_id', configProvider.householdId!)
+          .order('date', ascending: false);
 
-      _bills.clear();
-      _bills.addAll(CsvService.billsFromCsv(csvContent));
-      // Sort by date (newest first)
-      _bills.sort((a, b) => b.date.compareTo(a.date));
+      _bills
+        ..clear()
+        ..addAll(rows.map((row) => Bill.fromMap(row)));
       _error = null;
     } catch (e) {
       _error = 'Failed to load bills: $e';
@@ -45,11 +43,10 @@ class BillsProvider with ChangeNotifier {
     }
   }
 
-  // Save bills to Google Drive
-  Future<void> saveBills(ConfigProvider configProvider) async {
-    if (!configProvider.isSignedIn ||
-        configProvider.driveService.folderId == null) {
-      _error = 'Not signed in or folder not set';
+  // Add a bill
+  Future<void> addBill(Bill bill, ConfigProvider configProvider) async {
+    if (!configProvider.isSignedIn || configProvider.householdId == null) {
+      _error = 'Not signed in or no household selected';
       notifyListeners();
       return;
     }
@@ -59,23 +56,24 @@ class BillsProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final csvContent = CsvService.billsToCsv(_bills);
-      await configProvider.driveService.uploadBills(csvContent);
+      final row = await _supabase
+          .from('bills')
+          .insert({
+            ...bill.toMap(),
+            'household_id': configProvider.householdId,
+          })
+          .select()
+          .single();
+
+      _bills.add(Bill.fromMap(row));
+      _bills.sort((a, b) => b.date.compareTo(a.date));
       _error = null;
     } catch (e) {
-      _error = 'Failed to save bills: $e';
+      _error = 'Failed to add bill: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
     }
-  }
-
-  // Add a bill
-  Future<void> addBill(Bill bill, ConfigProvider configProvider) async {
-    _bills.add(bill);
-    // Sort by date (newest first)
-    _bills.sort((a, b) => b.date.compareTo(a.date));
-    await saveBills(configProvider);
   }
 
   // Update a bill
@@ -87,10 +85,34 @@ class BillsProvider with ChangeNotifier {
       return;
     }
 
-    _bills[index] = updatedBill;
-    // Sort by date (newest first)
-    _bills.sort((a, b) => b.date.compareTo(a.date));
-    await saveBills(configProvider);
+    final id = _bills[index].id;
+    if (id == null) {
+      _error = 'Bill has not finished saving yet';
+      notifyListeners();
+      return;
+    }
+
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final row = await _supabase
+          .from('bills')
+          .update(updatedBill.toMap())
+          .eq('id', id)
+          .select()
+          .single();
+
+      _bills[index] = Bill.fromMap(row);
+      _bills.sort((a, b) => b.date.compareTo(a.date));
+      _error = null;
+    } catch (e) {
+      _error = 'Failed to update bill: $e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // Delete a bill
@@ -101,8 +123,27 @@ class BillsProvider with ChangeNotifier {
       return;
     }
 
-    _bills.removeAt(index);
-    await saveBills(configProvider);
+    final id = _bills[index].id;
+    if (id == null) {
+      _error = 'Bill has not finished saving yet';
+      notifyListeners();
+      return;
+    }
+
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _supabase.from('bills').delete().eq('id', id);
+      _bills.removeAt(index);
+      _error = null;
+    } catch (e) {
+      _error = 'Failed to delete bill: $e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // Get bill by index

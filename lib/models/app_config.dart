@@ -40,7 +40,7 @@ enum AppLanguage {
 }
 
 class AppConfig {
-  final String? googleDriveFolderId;
+  final String? householdId;
   final String person1Name;
   final String person2Name;
   final AppThemeMode themeMode;
@@ -50,7 +50,7 @@ class AppConfig {
   final String mePersonName;
 
   AppConfig({
-    this.googleDriveFolderId,
+    this.householdId,
     required this.person1Name,
     required this.person2Name,
     this.themeMode = AppThemeMode.light,
@@ -60,7 +60,7 @@ class AppConfig {
 
   Map<String, dynamic> toJson() {
     return {
-      'googleDriveFolderId': googleDriveFolderId,
+      'householdId': householdId,
       'person1Name': person1Name,
       'person2Name': person2Name,
       'themeMode': themeMode.name,
@@ -95,7 +95,7 @@ class AppConfig {
     }
 
     return AppConfig(
-      googleDriveFolderId: json['googleDriveFolderId'] as String?,
+      householdId: json['householdId'] as String?,
       person1Name: json['person1Name'] as String? ?? '',
       person2Name: json['person2Name'] as String? ?? '',
       themeMode: themeMode,
@@ -105,7 +105,7 @@ class AppConfig {
   }
 
   AppConfig copyWith({
-    String? googleDriveFolderId,
+    String? householdId,
     String? person1Name,
     String? person2Name,
     AppThemeMode? themeMode,
@@ -113,7 +113,7 @@ class AppConfig {
     String? mePersonName,
   }) {
     return AppConfig(
-      googleDriveFolderId: googleDriveFolderId ?? this.googleDriveFolderId,
+      householdId: householdId ?? this.householdId,
       person1Name: person1Name ?? this.person1Name,
       person2Name: person2Name ?? this.person2Name,
       themeMode: themeMode ?? this.themeMode,
