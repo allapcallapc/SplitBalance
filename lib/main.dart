@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'config/supabase_config.dart';
 import 'l10n/app_localizations.dart';
 import 'providers/config_provider.dart';
 import 'providers/bills_provider.dart';
@@ -16,7 +18,12 @@ import 'screens/pending_payments_screen.dart';
 import 'screens/add_edit_bill_screen.dart';
 import 'models/app_config.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    anonKey: SupabaseConfig.anonKey,
+  );
   runApp(const SplitBalanceApp());
 }
 
@@ -218,7 +225,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     final configProvider = context.read<ConfigProvider>();
     final categoriesProvider = context.read<CategoriesProvider>();
     final isConfigComplete = configProvider.isSignedIn &&
-        configProvider.driveService.folderId != null &&
+        configProvider.householdId != null &&
         configProvider.config.person1Name.trim().isNotEmpty &&
         configProvider.config.person2Name.trim().isNotEmpty &&
         categoriesProvider.categories.isNotEmpty;
@@ -260,23 +267,23 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
         final isSignedIn = configProvider.isSignedIn;
 
         // Check if configuration flow is complete
-        // Required steps: Login -> Folder -> Person Names -> Categories
-        final hasFolder = configProvider.driveService.folderId != null;
-        final hasPersonNames =
-            configProvider.config.person1Name.trim().isNotEmpty &&
-                configProvider.config.person2Name.trim().isNotEmpty;
+        // Required steps: Login -> Household -> Categories
+        // (A second household member joining is no longer a gate here - a
+        // household always has at least one named member as soon as it
+        // exists, and the app is fully usable solo while waiting for the
+        // other person to join via invite code.)
+        final hasHousehold = configProvider.householdId != null;
         final hasCategories = categoriesProvider.categories.isNotEmpty;
 
         // Config is complete when all steps are done
-        final isConfigComplete =
-            isSignedIn && hasFolder && hasPersonNames && hasCategories;
+        final isConfigComplete = isSignedIn && hasHousehold && hasCategories;
 
-        // Allow partial navigation when person names are set (to create categories)
+        // Allow partial navigation when household is set (to create categories)
         final canNavigateToCreateCategories =
-            isSignedIn && hasFolder && hasPersonNames && !hasCategories;
+            isSignedIn && hasHousehold && !hasCategories;
 
         // Determine if nav bar should be shown
-        final shouldShowNavBar = isSignedIn && hasFolder && hasPersonNames;
+        final shouldShowNavBar = isSignedIn && hasHousehold;
 
         // ABSOLUTE MINIMAL: Only initialize on first build, NO auto-navigation at all
         if (_wasSignedIn == null) {

@@ -57,8 +57,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
     calculationProvider.setCalculating(true);
 
     // Ensure data is loaded
-    if (configProvider.isSignedIn &&
-        configProvider.driveService.folderId != null) {
+    if (configProvider.isSignedIn && configProvider.householdId != null) {
       await categoriesProvider.loadCategories(configProvider);
       await billsProvider.loadBills(configProvider);
       await splitsProvider.loadPaymentSplits(configProvider);

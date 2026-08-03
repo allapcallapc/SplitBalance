@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/payment_split.dart';
 import '../models/category.dart' as models;
-import '../services/csv_service.dart';
 import 'config_provider.dart';
 
 class PaymentSplitsProvider with ChangeNotifier {
@@ -13,10 +13,21 @@ class PaymentSplitsProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  // Load payment splits from Google Drive
+  SupabaseClient get _supabase => Supabase.instance.client;
+
+  void _sortSplits() {
+    // Sort by end date (newest first, nulls last)
+    _splits.sort((a, b) {
+      if (a.endDate == null && b.endDate == null) return 0;
+      if (a.endDate == null) return 1; // nulls last
+      if (b.endDate == null) return -1; // nulls last
+      return b.endDate!.compareTo(a.endDate!);
+    });
+  }
+
+  // Load payment splits for the current household from Supabase
   Future<void> loadPaymentSplits(ConfigProvider configProvider) async {
-    if (!configProvider.isSignedIn ||
-        configProvider.driveService.folderId == null) {
+    if (!configProvider.isSignedIn || configProvider.householdId == null) {
       return;
     }
 
@@ -25,24 +36,15 @@ class PaymentSplitsProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final csvContent =
-          await configProvider.driveService.downloadPaymentSplits();
-      if (csvContent.isEmpty) {
-        _splits.clear();
-        _isLoading = false;
-        notifyListeners();
-        return;
-      }
+      final rows = await _supabase
+          .from('payment_splits')
+          .select()
+          .eq('household_id', configProvider.householdId!);
 
-      _splits.clear();
-      _splits.addAll(CsvService.paymentSplitsFromCsv(csvContent));
-      // Sort by end date (newest first, nulls last)
-      _splits.sort((a, b) {
-        if (a.endDate == null && b.endDate == null) return 0;
-        if (a.endDate == null) return 1; // nulls last
-        if (b.endDate == null) return -1; // nulls last
-        return b.endDate!.compareTo(a.endDate!);
-      });
+      _splits
+        ..clear()
+        ..addAll(rows.map((row) => PaymentSplit.fromMap(row)));
+      _sortSplits();
       _error = null;
     } catch (e) {
       _error = 'Failed to load payment splits: $e';
@@ -52,34 +54,15 @@ class PaymentSplitsProvider with ChangeNotifier {
     }
   }
 
-  // Save payment splits to Google Drive
-  Future<void> savePaymentSplits(ConfigProvider configProvider) async {
-    if (!configProvider.isSignedIn ||
-        configProvider.driveService.folderId == null) {
-      _error = 'Not signed in or folder not set';
+  // Add a payment split
+  Future<void> addPaymentSplit(PaymentSplit split,
+      ConfigProvider configProvider, List<models.Category> categories) async {
+    if (!configProvider.isSignedIn || configProvider.householdId == null) {
+      _error = 'Not signed in or no household selected';
       notifyListeners();
       return;
     }
 
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      final csvContent = CsvService.paymentSplitsToCsv(_splits);
-      await configProvider.driveService.uploadPaymentSplits(csvContent);
-      _error = null;
-    } catch (e) {
-      _error = 'Failed to save payment splits: $e';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  // Add a payment split
-  Future<void> addPaymentSplit(PaymentSplit split,
-      ConfigProvider configProvider, List<models.Category> categories) async {
     // Validate category exists (unless "all")
     if (split.category != 'all') {
       final categoryExists = categories.any((c) => c.name == split.category);
@@ -90,22 +73,33 @@ class PaymentSplitsProvider with ChangeNotifier {
       }
     }
 
-    // Check for overlapping date ranges with same category (optional validation)
-    // This is a soft validation - we allow overlaps but warn user
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
 
     try {
-      _splits.add(split);
-      // Sort by end date (newest first, nulls last)
-      _splits.sort((a, b) {
-        if (a.endDate == null && b.endDate == null) return 0;
-        if (a.endDate == null) return 1; // nulls last
-        if (b.endDate == null) return -1; // nulls last
-        return b.endDate!.compareTo(a.endDate!);
-      });
-      await savePaymentSplits(configProvider);
+      if (split.category == 'all') {
+        // "all"-category splits are UI-only bulk-edit helpers and are never
+        // persisted (the database rejects them via a check constraint,
+        // matching the old CsvService behavior of dropping them on save).
+        _splits.add(split);
+      } else {
+        final row = await _supabase
+            .from('payment_splits')
+            .insert({
+              ...split.toMap(),
+              'household_id': configProvider.householdId,
+            })
+            .select()
+            .single();
+        _splits.add(PaymentSplit.fromMap(row));
+      }
+      _sortSplits();
       _error = null;
     } catch (e) {
       _error = 'Failed to add payment split: $e';
+    } finally {
+      _isLoading = false;
       notifyListeners();
     }
   }
@@ -130,19 +124,46 @@ class PaymentSplitsProvider with ChangeNotifier {
       }
     }
 
+    final existingId = _splits[index].id;
+
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
     try {
-      _splits[index] = updatedSplit;
-      // Sort by end date (newest first, nulls last)
-      _splits.sort((a, b) {
-        if (a.endDate == null && b.endDate == null) return 0;
-        if (a.endDate == null) return 1; // nulls last
-        if (b.endDate == null) return -1; // nulls last
-        return b.endDate!.compareTo(a.endDate!);
-      });
-      await savePaymentSplits(configProvider);
+      if (updatedSplit.category == 'all') {
+        // Never persisted - see addPaymentSplit.
+        if (existingId != null) {
+          await _supabase.from('payment_splits').delete().eq('id', existingId);
+        }
+        _splits[index] = updatedSplit;
+      } else if (existingId == null) {
+        // The split being edited was itself an unpersisted "all" split -
+        // this edit gives it a real category, so it needs a fresh insert.
+        final row = await _supabase
+            .from('payment_splits')
+            .insert({
+              ...updatedSplit.toMap(),
+              'household_id': configProvider.householdId,
+            })
+            .select()
+            .single();
+        _splits[index] = PaymentSplit.fromMap(row);
+      } else {
+        final row = await _supabase
+            .from('payment_splits')
+            .update(updatedSplit.toMap())
+            .eq('id', existingId)
+            .select()
+            .single();
+        _splits[index] = PaymentSplit.fromMap(row);
+      }
+      _sortSplits();
       _error = null;
     } catch (e) {
       _error = 'Failed to update payment split: $e';
+    } finally {
+      _isLoading = false;
       notifyListeners();
     }
   }
@@ -156,8 +177,24 @@ class PaymentSplitsProvider with ChangeNotifier {
       return;
     }
 
-    _splits.removeAt(index);
-    await savePaymentSplits(configProvider);
+    final id = _splits[index].id;
+
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      if (id != null) {
+        await _supabase.from('payment_splits').delete().eq('id', id);
+      }
+      _splits.removeAt(index);
+      _error = null;
+    } catch (e) {
+      _error = 'Failed to delete payment split: $e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // Get payment split by index
@@ -172,22 +209,31 @@ class PaymentSplitsProvider with ChangeNotifier {
   // This is called when a category is deleted
   Future<void> removeSplitsByCategory(
       String categoryName, ConfigProvider configProvider) async {
+    if (configProvider.householdId == null) return;
+
     final categoryLower = categoryName.toLowerCase().trim();
-    bool removedAny = false;
-
-    // Remove splits in reverse order to maintain correct indices
-    for (int i = _splits.length - 1; i >= 0; i--) {
-      final splitCategory = _splits[i].category.toLowerCase().trim();
-      if (splitCategory == categoryLower) {
-        _splits.removeAt(i);
-        removedAny = true;
+    final removedIds = <String>{};
+    _splits.removeWhere((split) {
+      final matches = split.category.toLowerCase().trim() == categoryLower;
+      if (matches && split.id != null) {
+        removedIds.add(split.id!);
       }
-    }
+      return matches;
+    });
 
-    // Save if any splits were removed
-    if (removedAny) {
-      await savePaymentSplits(configProvider);
+    if (removedIds.isEmpty) return;
+
+    try {
+      await _supabase
+          .from('payment_splits')
+          .delete()
+          .eq('household_id', configProvider.householdId!)
+          .inFilter('id', removedIds.toList());
+      _error = null;
+    } catch (e) {
+      _error = 'Failed to remove payment splits for deleted category: $e';
     }
+    notifyListeners();
   }
 
   void clearError() {

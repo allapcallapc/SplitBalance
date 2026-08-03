@@ -1,6 +1,7 @@
 import 'package:intl/intl.dart';
 
 class Bill {
+  final String? id;
   final DateTime date;
   final double amount;
   final String paidBy;
@@ -8,12 +9,36 @@ class Bill {
   final String details;
 
   Bill({
+    this.id,
     required this.date,
     required this.amount,
     required this.paidBy,
     required this.category,
     this.details = '',
   });
+
+  // Convert to a Supabase row payload (no id: assigned by the database)
+  Map<String, dynamic> toMap() {
+    final dateFormatter = DateFormat('yyyy-MM-dd');
+    return {
+      'date': dateFormatter.format(date),
+      'amount': amount,
+      'paid_by': paidBy,
+      'category': category,
+      'details': details,
+    };
+  }
+
+  factory Bill.fromMap(Map<String, dynamic> map) {
+    return Bill(
+      id: map['id'] as String,
+      date: DateTime.parse(map['date'] as String),
+      amount: (map['amount'] as num).toDouble(),
+      paidBy: map['paid_by'] as String,
+      category: map['category'] as String,
+      details: map['details'] as String? ?? '',
+    );
+  }
 
   // Convert to CSV row
   List<String> toCsvRow() {
@@ -63,6 +88,7 @@ class Bill {
   }
 
   Bill copyWith({
+    String? id,
     DateTime? date,
     double? amount,
     String? paidBy,
@@ -70,6 +96,7 @@ class Bill {
     String? details,
   }) {
     return Bill(
+      id: id ?? this.id,
       date: date ?? this.date,
       amount: amount ?? this.amount,
       paidBy: paidBy ?? this.paidBy,

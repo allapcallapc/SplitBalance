@@ -21,7 +21,7 @@ class _PaymentSplitsScreenState extends State<PaymentSplitsScreen>
   late TabController _tabController;
   bool _isLoadingData = false;
   ConfigProvider? _configProvider;
-  String? _lastLoadedFolderId; // Track which folder we loaded data for
+  String? _lastLoadedHouseholdId; // Track which household we loaded data for
 
   @override
   void initState() {
@@ -56,13 +56,13 @@ class _PaymentSplitsScreenState extends State<PaymentSplitsScreen>
   void _onConfigChanged() {
     if (!mounted || _configProvider == null) return;
 
-    final currentFolderId = _configProvider!.driveService.folderId;
+    final currentHouseholdId = _configProvider!.householdId;
 
-    // Reload data if folder changes
+    // Reload data if household changes
     if (_configProvider!.isSignedIn &&
-        currentFolderId != null &&
-        currentFolderId != _lastLoadedFolderId) {
-      // Folder changed or just selected - reload data
+        currentHouseholdId != null &&
+        currentHouseholdId != _lastLoadedHouseholdId) {
+      // Household changed or just joined/created - reload data
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _loadData();
@@ -92,12 +92,11 @@ class _PaymentSplitsScreenState extends State<PaymentSplitsScreen>
     final splitsProvider = context.read<PaymentSplitsProvider>();
     final categoriesProvider = context.read<CategoriesProvider>();
 
-    if (!configProvider.isSignedIn ||
-        configProvider.driveService.folderId == null) {
+    if (!configProvider.isSignedIn || configProvider.householdId == null) {
       return;
     }
 
-    _lastLoadedFolderId = configProvider.driveService.folderId;
+    _lastLoadedHouseholdId = configProvider.householdId;
     _isLoadingData = true;
     try {
       // Load categories first, then splits
