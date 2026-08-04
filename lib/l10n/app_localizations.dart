@@ -740,6 +740,12 @@ abstract class AppLocalizations {
   /// **'Please enter a category name'**
   String get enterCategoryName;
 
+  /// Label for the category icon picker
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an icon'**
+  String get chooseIcon;
+
   /// Dismiss button label
   ///
   /// In en, this message translates to:

@@ -182,6 +182,7 @@
   },
   "categoryInUse": "Impossible de supprimer une catégorie qui est utilisée",
   "categoryInUseSubtitle": "Cette catégorie est utilisée par des factures ou des répartitions de paiement. Veuillez d'abord les supprimer ou les modifier.",
+  "chooseIcon": "Choisir une icône",
   "enterCategoryName": "Veuillez entrer un nom de catégorie",
   "dismiss": "Ignorer",
   "paymentSplits": "Répartitions de paiement",
