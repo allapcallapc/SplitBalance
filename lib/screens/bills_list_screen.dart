@@ -6,7 +6,6 @@ import '../providers/bills_provider.dart';
 import '../providers/categories_provider.dart';
 import '../providers/config_provider.dart';
 import '../providers/pending_payments_provider.dart';
-import '../providers/categories_provider.dart';
 import '../models/bill.dart';
 import '../utils/category_icons.dart';
 import 'add_edit_bill_screen.dart';
