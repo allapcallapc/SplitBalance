@@ -428,12 +428,6 @@ class ConfigProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setMePersonName(String name) async {
-    _config = _config.copyWith(mePersonName: name);
-    await _saveConfig();
-    notifyListeners();
-  }
-
   void clearError() {
     _error = null;
     notifyListeners();

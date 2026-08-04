@@ -272,8 +272,6 @@
   "addPackageName": "Ajouter un nom de package",
   "androidOnlyFeature": "Cette fonctionnalité est disponible uniquement sur Android",
   "pendingPaymentsTooltip": "Paiements en attente",
-  "whoAreYou": "Quelle personne êtes-vous ?",
-  "whoAreYouHint": "Utilisé pour pré-remplir « Payé par » lors de la confirmation d'un paiement Google Pay détecté.",
   "checkForUpdates": "Vérifier les mises à jour",
   "checkingForUpdates": "Vérification des mises à jour...",
   "upToDate": "Vous êtes à jour",
