@@ -110,104 +110,129 @@ class _BillsListScreenState extends State<BillsListScreen>
     return defaultCategoryIcon;
   }
 
-  // Filter row: lets the user narrow the bills list down by who paid
-  // (person) and/or category. Both filters are independent and combinable;
-  // "All" (null) clears a given filter.
-  Widget _buildFilterBar(BuildContext context) {
+  // Filters live behind a single icon button in the app bar, which opens a
+  // modal bottom sheet with the person/category dropdowns. Both filters are
+  // independent and combinable; "All" (null) clears a given filter.
+  void _showFilterModal(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Consumer2<BillsProvider, ConfigProvider>(
-      builder: (context, billsProvider, configProvider, child) {
-        final personOptions = <String>{
-          if (configProvider.config.person1Name.isNotEmpty)
-            configProvider.config.person1Name,
-          if (configProvider.config.person2Name.isNotEmpty)
-            configProvider.config.person2Name,
-          // Include any payer already present on a bill, in case a person
-          // was renamed or removed from the household but old bills remain.
-          for (final bill in billsProvider.bills)
-            if (bill.paidBy.isNotEmpty) bill.paidBy,
-        }.toList()
-          ..sort();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      // Without this, Material 3 clamps the sheet to a centered, capped
+      // width on wide viewports, which reads as a floating dialog stranded
+      // in the middle of the screen rather than an edge-to-edge sheet.
+      constraints: const BoxConstraints(maxWidth: double.infinity),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+            ),
+            child: Consumer2<BillsProvider, ConfigProvider>(
+              builder: (context, billsProvider, configProvider, child) {
+                final personOptions = <String>{
+                  if (configProvider.config.person1Name.isNotEmpty)
+                    configProvider.config.person1Name,
+                  if (configProvider.config.person2Name.isNotEmpty)
+                    configProvider.config.person2Name,
+                  // Include any payer already present on a bill, in case a
+                  // person was renamed or removed from the household but old
+                  // bills remain.
+                  for (final bill in billsProvider.bills)
+                    if (bill.paidBy.isNotEmpty) bill.paidBy,
+                }.toList()
+                  ..sort();
 
-        return Consumer<CategoriesProvider>(
-          builder: (context, categoriesProvider, child) {
-            final categoryOptions = <String>{
-              for (final category in categoriesProvider.categories)
-                category.name,
-              // Same rationale as above: keep filterable even if a category
-              // was later deleted but is still referenced by existing bills.
-              for (final bill in billsProvider.bills)
-                if (bill.category.isNotEmpty) bill.category,
-            }.toList()
-              ..sort();
+                return Consumer<CategoriesProvider>(
+                  builder: (context, categoriesProvider, child) {
+                    final categoryOptions = <String>{
+                      for (final category in categoriesProvider.categories)
+                        category.name,
+                      // Same rationale as above: keep filterable even if a
+                      // category was later deleted but is still referenced by
+                      // existing bills.
+                      for (final bill in billsProvider.bills)
+                        if (bill.category.isNotEmpty) bill.category,
+                    }.toList()
+                      ..sort();
 
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String?>(
-                      initialValue: billsProvider.filterPaidBy,
-                      decoration: InputDecoration(
-                        labelText: l10n.filterByPerson,
-                        isDense: true,
-                        border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                      ),
-                      items: [
-                        DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text(l10n.allPeople),
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              l10n.filters,
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            const Spacer(),
+                            if (billsProvider.hasActiveFilters)
+                              TextButton(
+                                onPressed: billsProvider.clearFilters,
+                                child: Text(l10n.clearFilters),
+                              ),
+                          ],
                         ),
-                        for (final person in personOptions)
-                          DropdownMenuItem<String?>(
-                            value: person,
-                            child: Text(person),
+                        const SizedBox(height: 16),
+                        DropdownButtonFormField<String?>(
+                          initialValue: billsProvider.filterPaidBy,
+                          decoration: InputDecoration(
+                            labelText: l10n.filterByPerson,
+                            border: const OutlineInputBorder(),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
                           ),
-                      ],
-                      onChanged: (value) {
-                        billsProvider.setPaidByFilter(value);
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: DropdownButtonFormField<String?>(
-                      initialValue: billsProvider.filterCategory,
-                      decoration: InputDecoration(
-                        labelText: l10n.filterByCategory,
-                        isDense: true,
-                        border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                      ),
-                      items: [
-                        DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text(l10n.allCategories),
+                          items: [
+                            DropdownMenuItem<String?>(
+                              value: null,
+                              child: Text(l10n.allPeople),
+                            ),
+                            for (final person in personOptions)
+                              DropdownMenuItem<String?>(
+                                value: person,
+                                child: Text(person),
+                              ),
+                          ],
+                          onChanged: (value) {
+                            billsProvider.setPaidByFilter(value);
+                          },
                         ),
-                        for (final category in categoryOptions)
-                          DropdownMenuItem<String?>(
-                            value: category,
-                            child: Text(category),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String?>(
+                          initialValue: billsProvider.filterCategory,
+                          decoration: InputDecoration(
+                            labelText: l10n.filterByCategory,
+                            border: const OutlineInputBorder(),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
                           ),
+                          items: [
+                            DropdownMenuItem<String?>(
+                              value: null,
+                              child: Text(l10n.allCategories),
+                            ),
+                            for (final category in categoryOptions)
+                              DropdownMenuItem<String?>(
+                                value: category,
+                                child: Text(category),
+                              ),
+                          ],
+                          onChanged: (value) {
+                            billsProvider.setCategoryFilter(value);
+                          },
+                        ),
+                        const SizedBox(height: 16),
                       ],
-                      onChanged: (value) {
-                        billsProvider.setCategoryFilter(value);
-                      },
-                    ),
-                  ),
-                  if (billsProvider.hasActiveFilters)
-                    IconButton(
-                      icon: const Icon(Icons.filter_alt_off),
-                      tooltip: l10n.clearFilters,
-                      onPressed: billsProvider.clearFilters,
-                    ),
-                ],
-              ),
-            );
-          },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
         );
       },
     );
@@ -264,6 +289,17 @@ class _BillsListScreenState extends State<BillsListScreen>
           ],
         ),
         actions: [
+          Consumer<BillsProvider>(
+            builder: (context, billsProvider, child) => IconButton(
+              icon: Badge(
+                isLabelVisible: billsProvider.hasActiveFilters,
+                smallSize: 8,
+                child: const Icon(Icons.filter_list),
+              ),
+              onPressed: () => _showFilterModal(context),
+              tooltip: l10n.filters,
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () async {
@@ -318,7 +354,6 @@ class _BillsListScreenState extends State<BillsListScreen>
               );
             },
           ),
-          _buildFilterBar(context),
           Expanded(
             child: Consumer2<BillsProvider, CategoriesProvider>(
               builder: (context, billsProvider, categoriesProvider, child) {

@@ -38,6 +38,7 @@
   "allPeople": "Toutes les personnes",
   "allCategories": "Toutes les catégories",
   "clearFilters": "Effacer les filtres",
+  "filters": "Filtres",
   "selectWhoPaid": "Veuillez sélectionner qui a payé",
   "selectCategory": "Veuillez sélectionner une catégorie",
   "enterValidAmount": "Veuillez entrer un montant valide",

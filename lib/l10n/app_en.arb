@@ -129,6 +129,10 @@
   "@clearFilters": {
     "description": "Button to reset all active bill list filters"
   },
+  "filters": "Filters",
+  "@filters": {
+    "description": "Title of the bill list filters modal, and tooltip for the button that opens it"
+  },
   "selectWhoPaid": "Please select who paid",
   "@selectWhoPaid": {
     "description": "Validation message for paid by selection"

@@ -105,6 +105,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get clearFilters => 'Clear filters';
 
   @override
+  String get filters => 'Filters';
+
+  @override
   String get selectWhoPaid => 'Please select who paid';
 
   @override

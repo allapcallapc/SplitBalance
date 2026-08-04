@@ -284,6 +284,12 @@ abstract class AppLocalizations {
   /// **'Clear filters'**
   String get clearFilters;
 
+  /// Title of the bill list filters modal, and tooltip for the button that opens it
+  ///
+  /// In en, this message translates to:
+  /// **'Filters'**
+  String get filters;
+
   /// Validation message for paid by selection
   ///
   /// In en, this message translates to:

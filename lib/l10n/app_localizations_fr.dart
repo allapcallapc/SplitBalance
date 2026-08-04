@@ -105,6 +105,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get clearFilters => 'Effacer les filtres';
 
   @override
+  String get filters => 'Filtres';
+
+  @override
   String get selectWhoPaid => 'Veuillez sélectionner qui a payé';
 
   @override
