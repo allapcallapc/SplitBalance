@@ -180,6 +180,77 @@ class _ConfigScreenState extends State<ConfigScreen> {
     }
   }
 
+  // Below this screen width the theme picker switches from a single 1x4 row
+  // to a 2x2 grid so the segments don't get squeezed on small phones.
+  // 600 is the standard Material breakpoint between compact and medium
+  // window sizes.
+  static const double _themeGridBreakpoint = 600;
+
+  Widget _buildThemeSelector(ConfigProvider configProvider) {
+    final segments = <ButtonSegment<AppThemeMode>>[
+      ButtonSegment<AppThemeMode>(
+        value: AppThemeMode.light,
+        label: Text(AppLocalizations.of(context)!.light),
+        icon: const Icon(Icons.light_mode),
+      ),
+      ButtonSegment<AppThemeMode>(
+        value: AppThemeMode.dark,
+        label: Text(AppLocalizations.of(context)!.dark),
+        icon: const Icon(Icons.dark_mode),
+      ),
+      ButtonSegment<AppThemeMode>(
+        value: AppThemeMode.pink,
+        label: Text(AppLocalizations.of(context)!.pink),
+        icon: const Icon(Icons.favorite),
+      ),
+      ButtonSegment<AppThemeMode>(
+        value: AppThemeMode.teal,
+        label: Text(AppLocalizations.of(context)!.teal),
+        icon: const Icon(Icons.water_drop),
+      ),
+    ];
+
+    void onSelectionChanged(Set<AppThemeMode> selected) {
+      if (selected.isNotEmpty) {
+        configProvider.setThemeMode(selected.first);
+      }
+    }
+
+    final isSmallScreen =
+        MediaQuery.sizeOf(context).width < _themeGridBreakpoint;
+
+    if (isSmallScreen) {
+      // Small screens: lay the 4 options out as a 2x2 grid (two rows of two
+      // segments each) instead of squeezing them into one row.
+      return Column(
+        children: [
+          SegmentedButton<AppThemeMode>(
+            segments: segments.sublist(0, 2),
+            selected: {configProvider.themeMode}
+                .intersection({segments[0].value, segments[1].value}),
+            emptySelectionAllowed: true,
+            onSelectionChanged: onSelectionChanged,
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<AppThemeMode>(
+            segments: segments.sublist(2, 4),
+            selected: {configProvider.themeMode}
+                .intersection({segments[2].value, segments[3].value}),
+            emptySelectionAllowed: true,
+            onSelectionChanged: onSelectionChanged,
+          ),
+        ],
+      );
+    }
+
+    // Larger screens: keep all 4 options on a single 1x4 row.
+    return SegmentedButton<AppThemeMode>(
+      segments: segments,
+      selected: {configProvider.themeMode},
+      onSelectionChanged: onSelectionChanged,
+    );
+  }
+
   Widget _buildAuthCard(ConfigProvider configProvider) {
     return Card(
       child: Padding(
@@ -619,36 +690,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        SegmentedButton<AppThemeMode>(
-                          segments: [
-                            ButtonSegment<AppThemeMode>(
-                              value: AppThemeMode.light,
-                              label: Text(AppLocalizations.of(context)!.light),
-                              icon: const Icon(Icons.light_mode),
-                            ),
-                            ButtonSegment<AppThemeMode>(
-                              value: AppThemeMode.dark,
-                              label: Text(AppLocalizations.of(context)!.dark),
-                              icon: const Icon(Icons.dark_mode),
-                            ),
-                            ButtonSegment<AppThemeMode>(
-                              value: AppThemeMode.pink,
-                              label: Text(AppLocalizations.of(context)!.pink),
-                              icon: const Icon(Icons.favorite),
-                            ),
-                            ButtonSegment<AppThemeMode>(
-                              value: AppThemeMode.teal,
-                              label: Text(AppLocalizations.of(context)!.teal),
-                              icon: const Icon(Icons.water_drop),
-                            ),
-                          ],
-                          selected: {configProvider.themeMode},
-                          onSelectionChanged: (Set<AppThemeMode> selected) {
-                            if (selected.isNotEmpty) {
-                              configProvider.setThemeMode(selected.first);
-                            }
-                          },
-                        ),
+                        _buildThemeSelector(configProvider),
                         const SizedBox(height: 24),
                         // Language Selection
                         Row(
