@@ -8,9 +8,46 @@ class BillsProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
+  // Active list filters. Null/empty means "no filter" (i.e. "All").
+  String? _filterPaidBy;
+  String? _filterCategory;
+
   List<Bill> get bills => List.unmodifiable(_bills);
   bool get isLoading => _isLoading;
   String? get error => _error;
+
+  String? get filterPaidBy => _filterPaidBy;
+  String? get filterCategory => _filterCategory;
+  bool get hasActiveFilters =>
+      (_filterPaidBy != null && _filterPaidBy!.isNotEmpty) ||
+      (_filterCategory != null && _filterCategory!.isNotEmpty);
+
+  // Bills currently visible in the list, after applying the active
+  // person/category filters. Reactive: recomputed on every read, and a
+  // notifyListeners() is fired whenever a filter changes or bills reload.
+  List<Bill> get filteredBills => filterBills(
+        paidBy: _filterPaidBy,
+        category: _filterCategory,
+      );
+
+  // Update the "paid by" filter. Pass null (or empty) to clear it.
+  void setPaidByFilter(String? paidBy) {
+    _filterPaidBy = (paidBy == null || paidBy.isEmpty) ? null : paidBy;
+    notifyListeners();
+  }
+
+  // Update the category filter. Pass null (or empty) to clear it.
+  void setCategoryFilter(String? category) {
+    _filterCategory = (category == null || category.isEmpty) ? null : category;
+    notifyListeners();
+  }
+
+  // Reset both filters back to "All".
+  void clearFilters() {
+    _filterPaidBy = null;
+    _filterCategory = null;
+    notifyListeners();
+  }
 
   SupabaseClient get _supabase => Supabase.instance.client;
 

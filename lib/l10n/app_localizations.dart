@@ -254,6 +254,36 @@ abstract class AppLocalizations {
   /// **'Category'**
   String get category;
 
+  /// Label for the filter dropdown to filter bills by who paid
+  ///
+  /// In en, this message translates to:
+  /// **'Person'**
+  String get filterByPerson;
+
+  /// Label for the filter dropdown to filter bills by category
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get filterByCategory;
+
+  /// Option to clear the person filter and show bills paid by anyone
+  ///
+  /// In en, this message translates to:
+  /// **'All people'**
+  String get allPeople;
+
+  /// Label for all categories option
+  ///
+  /// In en, this message translates to:
+  /// **'All Categories'**
+  String get allCategories;
+
+  /// Button to reset all active bill list filters
+  ///
+  /// In en, this message translates to:
+  /// **'Clear filters'**
+  String get clearFilters;
+
   /// Validation message for paid by selection
   ///
   /// In en, this message translates to:
@@ -649,12 +679,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'End Date'**
   String get endDate;
-
-  /// Label for all categories option
-  ///
-  /// In en, this message translates to:
-  /// **'All Categories'**
-  String get allCategories;
 
   /// Label for person percentage
   ///

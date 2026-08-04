@@ -109,6 +109,26 @@
   "@category": {
     "description": "Category label"
   },
+  "filterByPerson": "Person",
+  "@filterByPerson": {
+    "description": "Label for the filter dropdown to filter bills by who paid"
+  },
+  "filterByCategory": "Category",
+  "@filterByCategory": {
+    "description": "Label for the filter dropdown to filter bills by category"
+  },
+  "allPeople": "All people",
+  "@allPeople": {
+    "description": "Option to clear the person filter and show bills paid by anyone"
+  },
+  "allCategories": "All categories",
+  "@allCategories": {
+    "description": "Option to clear the category filter and show bills in any category"
+  },
+  "clearFilters": "Clear filters",
+  "@clearFilters": {
+    "description": "Button to reset all active bill list filters"
+  },
   "selectWhoPaid": "Please select who paid",
   "@selectWhoPaid": {
     "description": "Validation message for paid by selection"

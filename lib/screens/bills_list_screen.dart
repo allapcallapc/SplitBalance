@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/bills_provider.dart';
+import '../providers/categories_provider.dart';
 import '../providers/config_provider.dart';
 import '../providers/pending_payments_provider.dart';
 import '../models/bill.dart';
@@ -86,10 +87,12 @@ class _BillsListScreenState extends State<BillsListScreen>
   Future<void> _loadData() async {
     final configProvider = _configProvider ?? context.read<ConfigProvider>();
     final billsProvider = context.read<BillsProvider>();
+    final categoriesProvider = context.read<CategoriesProvider>();
 
     if (configProvider.isSignedIn && configProvider.householdId != null) {
       _lastLoadedHouseholdId = configProvider.householdId;
       await billsProvider.loadBills(configProvider);
+      await categoriesProvider.loadCategories(configProvider);
     }
   }
 
@@ -109,6 +112,109 @@ class _BillsListScreenState extends State<BillsListScreen>
       // If only one character, repeat it
       return '${trimmed[0]}${trimmed[0]}'.toUpperCase();
     }
+  }
+
+  // Filter row: lets the user narrow the bills list down by who paid
+  // (person) and/or category. Both filters are independent and combinable;
+  // "All" (null) clears a given filter.
+  Widget _buildFilterBar(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Consumer2<BillsProvider, ConfigProvider>(
+      builder: (context, billsProvider, configProvider, child) {
+        final personOptions = <String>{
+          if (configProvider.config.person1Name.isNotEmpty)
+            configProvider.config.person1Name,
+          if (configProvider.config.person2Name.isNotEmpty)
+            configProvider.config.person2Name,
+          // Include any payer already present on a bill, in case a person
+          // was renamed or removed from the household but old bills remain.
+          for (final bill in billsProvider.bills)
+            if (bill.paidBy.isNotEmpty) bill.paidBy,
+        }.toList()
+          ..sort();
+
+        return Consumer<CategoriesProvider>(
+          builder: (context, categoriesProvider, child) {
+            final categoryOptions = <String>{
+              for (final category in categoriesProvider.categories)
+                category.name,
+              // Same rationale as above: keep filterable even if a category
+              // was later deleted but is still referenced by existing bills.
+              for (final bill in billsProvider.bills)
+                if (bill.category.isNotEmpty) bill.category,
+            }.toList()
+              ..sort();
+
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String?>(
+                      initialValue: billsProvider.filterPaidBy,
+                      decoration: InputDecoration(
+                        labelText: l10n.filterByPerson,
+                        isDense: true,
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                      ),
+                      items: [
+                        DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text(l10n.allPeople),
+                        ),
+                        for (final person in personOptions)
+                          DropdownMenuItem<String?>(
+                            value: person,
+                            child: Text(person),
+                          ),
+                      ],
+                      onChanged: (value) {
+                        billsProvider.setPaidByFilter(value);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DropdownButtonFormField<String?>(
+                      initialValue: billsProvider.filterCategory,
+                      decoration: InputDecoration(
+                        labelText: l10n.filterByCategory,
+                        isDense: true,
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                      ),
+                      items: [
+                        DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text(l10n.allCategories),
+                        ),
+                        for (final category in categoryOptions)
+                          DropdownMenuItem<String?>(
+                            value: category,
+                            child: Text(category),
+                          ),
+                      ],
+                      onChanged: (value) {
+                        billsProvider.setCategoryFilter(value);
+                      },
+                    ),
+                  ),
+                  if (billsProvider.hasActiveFilters)
+                    IconButton(
+                      icon: const Icon(Icons.filter_alt_off),
+                      tooltip: l10n.clearFilters,
+                      onPressed: billsProvider.clearFilters,
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _deleteBill(BuildContext context, int index, Bill bill) async {
@@ -216,6 +322,7 @@ class _BillsListScreenState extends State<BillsListScreen>
               );
             },
           ),
+          _buildFilterBar(context),
           Expanded(
             child: Consumer<BillsProvider>(
               builder: (context, billsProvider, child) {
@@ -285,11 +392,46 @@ class _BillsListScreenState extends State<BillsListScreen>
                   );
                 }
 
+                final visibleBills = billsProvider.filteredBills;
+
+                if (visibleBills.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.filter_alt_off,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          l10n.noBillsYet,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: billsProvider.clearFilters,
+                          icon: const Icon(Icons.filter_alt_off),
+                          label: Text(l10n.clearFilters),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
                 return ListView.builder(
-                  itemCount: billsProvider.bills.length,
+                  itemCount: visibleBills.length,
                   padding: const EdgeInsets.all(8),
-                  itemBuilder: (context, index) {
-                    final bill = billsProvider.bills[index];
+                  itemBuilder: (context, listIndex) {
+                    final bill = visibleBills[listIndex];
+                    // Provider mutation methods (update/delete) address bills
+                    // by their index in the full, unfiltered list, so map
+                    // back to that index rather than using listIndex.
+                    final index = billsProvider.bills.indexOf(bill);
                     final dateFormat = DateFormat('yyyy-MM-dd');
                     final currencyFormat = NumberFormat.currency(symbol: '\$');
 

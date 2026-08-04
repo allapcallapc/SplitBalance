@@ -90,6 +90,21 @@ class AppLocalizationsFr extends AppLocalizations {
   String get category => 'Catégorie';
 
   @override
+  String get filterByPerson => 'Personne';
+
+  @override
+  String get filterByCategory => 'Catégorie';
+
+  @override
+  String get allPeople => 'Toutes les personnes';
+
+  @override
+  String get allCategories => 'Toutes les catégories';
+
+  @override
+  String get clearFilters => 'Effacer les filtres';
+
+  @override
   String get selectWhoPaid => 'Veuillez sélectionner qui a payé';
 
   @override
@@ -307,9 +322,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get endDate => 'Date de fin';
-
-  @override
-  String get allCategories => 'Toutes les catégories';
 
   @override
   String personPercentage(String personName) {
