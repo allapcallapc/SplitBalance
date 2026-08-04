@@ -5,7 +5,9 @@ import '../l10n/app_localizations.dart';
 import '../providers/bills_provider.dart';
 import '../providers/config_provider.dart';
 import '../providers/pending_payments_provider.dart';
+import '../providers/categories_provider.dart';
 import '../models/bill.dart';
+import '../utils/category_icons.dart';
 import 'add_edit_bill_screen.dart';
 import 'pending_payments_screen.dart';
 
@@ -93,22 +95,17 @@ class _BillsListScreenState extends State<BillsListScreen>
     }
   }
 
-  String _getCategoryInitials(String category) {
-    final trimmed = category.trim();
-    if (trimmed.isEmpty) {
-      return '??';
+  // Bills only store the category name (not an id/reference), so look up
+  // the matching Category to get its icon. Falls back to the default icon
+  // if the category was since renamed/deleted or has no icon set.
+  IconData _iconForCategory(
+      String categoryName, CategoriesProvider categoriesProvider) {
+    for (final category in categoriesProvider.categories) {
+      if (category.name == categoryName) {
+        return category.iconData;
+      }
     }
-    final words = trimmed.split(' ');
-    if (words.length >= 2) {
-      // If multiple words, use first letter of first two words
-      return '${words[0][0]}${words[1][0]}'.toUpperCase();
-    } else if (trimmed.length >= 2) {
-      // If single word with 2+ characters, use first two letters
-      return trimmed.substring(0, 2).toUpperCase();
-    } else {
-      // If only one character, repeat it
-      return '${trimmed[0]}${trimmed[0]}'.toUpperCase();
-    }
+    return defaultCategoryIcon;
   }
 
   Future<void> _deleteBill(BuildContext context, int index, Bill bill) async {
@@ -217,8 +214,8 @@ class _BillsListScreenState extends State<BillsListScreen>
             },
           ),
           Expanded(
-            child: Consumer<BillsProvider>(
-              builder: (context, billsProvider, child) {
+            child: Consumer2<BillsProvider, CategoriesProvider>(
+              builder: (context, billsProvider, categoriesProvider, child) {
                 if (billsProvider.isLoading) {
                   return const Center(child: CircularProgressIndicator());
                 }
@@ -299,12 +296,9 @@ class _BillsListScreenState extends State<BillsListScreen>
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: Theme.of(context).primaryColor,
-                          child: Text(
-                            _getCategoryInitials(bill.category),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          child: Icon(
+                            _iconForCategory(bill.category, categoriesProvider),
+                            color: Colors.white,
                           ),
                         ),
                         subtitle: Column(

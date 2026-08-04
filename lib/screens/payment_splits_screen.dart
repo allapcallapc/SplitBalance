@@ -8,6 +8,7 @@ import '../providers/config_provider.dart';
 import '../providers/bills_provider.dart';
 import '../models/payment_split.dart';
 import '../models/category.dart';
+import '../utils/category_icons.dart';
 
 class PaymentSplitsScreen extends StatefulWidget {
   const PaymentSplitsScreen({super.key});
@@ -1745,7 +1746,7 @@ class _CategoriesTab extends StatelessWidget {
                             vertical: 4,
                           ),
                           child: ListTile(
-                            leading: const Icon(Icons.category),
+                            leading: Icon(category.iconData),
                             title: Text(category.name),
                             subtitle: isInUse
                                 ? Text(
@@ -1836,52 +1837,71 @@ class _CategoriesTab extends StatelessWidget {
     final controller = TextEditingController();
     final categoriesProvider = context.read<CategoriesProvider>();
     final configProvider = context.read<ConfigProvider>();
+    String? selectedIcon;
 
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.addCategory),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: l10n.category,
-            border: const OutlineInputBorder(),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(l10n.addCategory),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: controller,
+                  decoration: InputDecoration(
+                    labelText: l10n.category,
+                    border: const OutlineInputBorder(),
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 16),
+                Text(l10n.chooseIcon,
+                    style: Theme.of(context).textTheme.labelMedium),
+                const SizedBox(height: 8),
+                _CategoryIconPicker(
+                  selectedIcon: selectedIcon,
+                  onSelected: (key) => setState(() => selectedIcon = key),
+                ),
+              ],
+            ),
           ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final name = controller.text.trim();
-              if (name.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.enterCategoryName)),
-                );
-                return;
-              }
-
-              await categoriesProvider.addCategory(
-                Category(name: name),
-                configProvider,
-              );
-
-              if (context.mounted) {
-                if (categoriesProvider.error != null) {
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(l10n.cancel),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final name = controller.text.trim();
+                if (name.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(categoriesProvider.error!)),
+                    SnackBar(content: Text(l10n.enterCategoryName)),
                   );
-                } else {
-                  Navigator.pop(context);
+                  return;
                 }
-              }
-            },
-            child: Text(l10n.add),
-          ),
-        ],
+
+                await categoriesProvider.addCategory(
+                  Category(name: name, icon: selectedIcon),
+                  configProvider,
+                );
+
+                if (context.mounted) {
+                  if (categoriesProvider.error != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(categoriesProvider.error!)),
+                    );
+                  } else {
+                    Navigator.pop(context);
+                  }
+                }
+              },
+              child: Text(l10n.add),
+            ),
+          ],
+        ),
       ),
     );
     controller.dispose();
@@ -1896,53 +1916,72 @@ class _CategoriesTab extends StatelessWidget {
     final controller = TextEditingController(text: category.name);
     final categoriesProvider = context.read<CategoriesProvider>();
     final configProvider = context.read<ConfigProvider>();
+    String? selectedIcon = category.icon;
 
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.editCategory),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: l10n.category,
-            border: const OutlineInputBorder(),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(l10n.editCategory),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: controller,
+                  decoration: InputDecoration(
+                    labelText: l10n.category,
+                    border: const OutlineInputBorder(),
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 16),
+                Text(l10n.chooseIcon,
+                    style: Theme.of(context).textTheme.labelMedium),
+                const SizedBox(height: 8),
+                _CategoryIconPicker(
+                  selectedIcon: selectedIcon,
+                  onSelected: (key) => setState(() => selectedIcon = key),
+                ),
+              ],
+            ),
           ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final name = controller.text.trim();
-              if (name.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.enterCategoryName)),
-                );
-                return;
-              }
-
-              await categoriesProvider.updateCategory(
-                index,
-                Category(name: name),
-                configProvider,
-              );
-
-              if (context.mounted) {
-                if (categoriesProvider.error != null) {
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(l10n.cancel),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final name = controller.text.trim();
+                if (name.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(categoriesProvider.error!)),
+                    SnackBar(content: Text(l10n.enterCategoryName)),
                   );
-                } else {
-                  Navigator.pop(context);
+                  return;
                 }
-              }
-            },
-            child: Text(l10n.save),
-          ),
-        ],
+
+                await categoriesProvider.updateCategory(
+                  index,
+                  Category(name: name, icon: selectedIcon),
+                  configProvider,
+                );
+
+                if (context.mounted) {
+                  if (categoriesProvider.error != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(categoriesProvider.error!)),
+                    );
+                  } else {
+                    Navigator.pop(context);
+                  }
+                }
+              },
+              child: Text(l10n.save),
+            ),
+          ],
+        ),
       ),
     );
     controller.dispose();
@@ -2004,5 +2043,57 @@ class _CategoriesTab extends StatelessWidget {
         );
       }
     }
+  }
+}
+
+// Grid of selectable icons used when adding/editing a category. Selecting
+// null (no explicit choice) falls back to [defaultCategoryIcon] wherever the
+// category's icon is displayed - see Category.iconData.
+class _CategoryIconPicker extends StatelessWidget {
+  final String? selectedIcon;
+  final ValueChanged<String> onSelected;
+
+  const _CategoryIconPicker({
+    required this.selectedIcon,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: categoryIconOptions.entries.map((entry) {
+        final key = entry.key;
+        final iconData = entry.value;
+        final isSelected =
+            selectedIcon == key || (selectedIcon == null && key == 'category');
+
+        return InkWell(
+          onTap: () => onSelected(key),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? colorScheme.primaryContainer
+                  : colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isSelected ? colorScheme.primary : Colors.transparent,
+                width: 2,
+              ),
+            ),
+            child: Icon(
+              iconData,
+              color: isSelected ? colorScheme.primary : colorScheme.onSurface,
+            ),
+          ),
+        );
+      }).toList(),
+    );
   }
 }

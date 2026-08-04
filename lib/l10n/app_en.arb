@@ -484,6 +484,10 @@
   "@enterCategoryName": {
     "description": "Validation message for category name"
   },
+  "chooseIcon": "Choose an icon",
+  "@chooseIcon": {
+    "description": "Label for the category icon picker"
+  },
   "dismiss": "Dismiss",
   "@dismiss": {
     "description": "Dismiss button label"

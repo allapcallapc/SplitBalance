@@ -7,6 +7,7 @@ import '../providers/bills_provider.dart';
 import '../providers/payment_splits_provider.dart';
 import '../providers/categories_provider.dart';
 import '../providers/config_provider.dart';
+import '../utils/category_icons.dart';
 
 class SummaryScreen extends StatefulWidget {
   const SummaryScreen({super.key, this.navigationNotifier});
@@ -289,7 +290,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               catBalance.person1Paid + catBalance.person2Paid;
                           return TableRow(
                             children: [
-                              _buildTableCell(catBalance.category),
+                              _buildCategoryCell(
+                                catBalance.category,
+                                categoriesProvider,
+                              ),
                               _buildTableCell(currencyFormat.format(total),
                                   isRightAligned: true),
                               _buildTableCell(
@@ -456,6 +460,37 @@ class _SummaryScreenState extends State<SummaryScreen> {
           fontWeight: FontWeight.bold,
           fontSize: 16,
         ),
+      ),
+    );
+  }
+
+  // Category balances only carry the category name, so look up the matching
+  // Category to render its icon (falling back to the default icon if it was
+  // since renamed/deleted or has no icon set).
+  Widget _buildCategoryCell(
+    String categoryName,
+    CategoriesProvider categoriesProvider,
+  ) {
+    IconData iconData = defaultCategoryIcon;
+    for (final category in categoriesProvider.categories) {
+      if (category.name == categoryName) {
+        iconData = category.iconData;
+        break;
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(iconData, size: 18),
+          const SizedBox(width: 8),
+          Text(
+            categoryName,
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+          ),
+        ],
       ),
     );
   }

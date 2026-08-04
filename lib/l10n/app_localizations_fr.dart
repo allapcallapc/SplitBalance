@@ -365,6 +365,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get enterCategoryName => 'Veuillez entrer un nom de catégorie';
 
   @override
+  String get chooseIcon => 'Choisir une icône';
+
+  @override
   String get dismiss => 'Ignorer';
 
   @override

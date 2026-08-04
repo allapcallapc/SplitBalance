@@ -362,6 +362,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enterCategoryName => 'Please enter a category name';
 
   @override
+  String get chooseIcon => 'Choose an icon';
+
+  @override
   String get dismiss => 'Dismiss';
 
   @override

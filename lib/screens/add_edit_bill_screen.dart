@@ -240,7 +240,14 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
                 items: categoriesProvider.categories
                     .map((category) => DropdownMenuItem<String>(
                           value: category.name,
-                          child: Text(category.name),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(category.iconData, size: 18),
+                              const SizedBox(width: 8),
+                              Text(category.name),
+                            ],
+                          ),
                         ))
                     .toList(),
                 onChanged: (value) {
