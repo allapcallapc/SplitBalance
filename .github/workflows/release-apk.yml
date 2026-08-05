@@ -1,30 +1,18 @@
 name: Release APK
 
-# Triggered directly by a tag push (e.g. pushed from a developer machine),
-# or invoked as a reusable workflow by release-please.yml. Checkout always
-# uses the run's own ref (github.ref_name) rather than the "tag" input:
-# for a direct tag push that's the tag itself, but when release-please
-# calls this the underlying git tag doesn't exist yet - it creates a draft
-# release only, and the tag materializes when that release is published,
-# which the final step below does itself after attaching the APK. So the
-# run's own ref (main, at the commit release-please is releasing) is what
-# actually exists to check out.
-#
-# Publishing (the final step) uses a PAT (RELEASE_PLEASE_TOKEN secret),
-# not the default GITHUB_TOKEN: GitHub's loop-prevention rule means a
-# release published with the default token wouldn't fire deploy.yml's own
-# `release: published` trigger, and deploy.yml needs to run as its own,
-# separately-triggered run (scoped to the real tag ref) to satisfy its
-# GitHub Pages environment's deployment branch policy.
+# Invoked as a reusable workflow by release-please.yml only - not
+# triggered by a tag push. The final step below publishes the release
+# using a PAT, which creates the underlying tag as a side effect; if this
+# workflow also listened for `push: tags`, that tag creation would
+# redundantly re-trigger a second run of itself, which would then fail
+# trying to re-upload an asset to the now-immutable, already-published
+# release.
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_call:
     inputs:
       tag:
-        description: 'Tag/version being released (defaults to the pushed tag when triggered directly)'
-        required: false
+        description: 'Tag/version being released'
+        required: true
         type: string
       generate_release_notes:
         description: 'Auto-generate release notes (set false when the release already has notes, e.g. from release-please)'
@@ -63,7 +51,7 @@ jobs:
         id: version
         uses: ./.github/actions/version-from-tag
         with:
-          tag: ${{ inputs.tag || github.ref_name }}
+          tag: ${{ inputs.tag }}
 
       - name: Decode release keystore
         env:
@@ -95,7 +83,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-          tag_name: ${{ inputs.tag || github.ref_name }}
+          tag_name: ${{ inputs.tag }}
           files: build/app/outputs/flutter-apk/app-release.apk
           generate_release_notes: ${{ inputs.generate_release_notes != false }}
           draft: false
