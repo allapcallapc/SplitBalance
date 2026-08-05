@@ -1,24 +1,21 @@
 name: Release APK
 
-# Fires when a release is created, including a draft. GitHub's immutable
-# releases feature only allows attaching assets before a release is
-# published, so this job builds the APK, attaches it while the release is
-# still a draft, and then publishes it (which creates the tag, if it's
-# new). If a release is created already-published (skipping the draft
-# step), the build job below is skipped since there's no way to attach the
-# asset to it anymore.
+# Triggered by a tag push. Tags are only ever created by the "Cut Release"
+# workflow (workflow_dispatch), never pre-created as a GitHub Release via
+# the UI, so this always creates the release from scratch here - avoiding
+# GitHub's immutable-releases restriction, which blocks attaching assets
+# to a release that already exists and is published.
 on:
-  release:
-    types: [created]
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   test:
-    if: github.event.release.draft == true
     uses: ./.github/workflows/test.yml
 
   build:
     needs: test
-    if: github.event.release.draft == true
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -26,8 +23,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.release.target_commitish }}
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -47,7 +42,7 @@ jobs:
         id: version
         uses: ./.github/actions/version-from-tag
         with:
-          tag: ${{ github.event.release.tag_name }}
+          tag: ${{ github.ref_name }}
 
       - name: Decode release keystore
         env:
@@ -75,9 +70,8 @@ jobs:
             --build-name=${{ steps.version.outputs.name }} \
             --build-number=${{ github.run_number }}
 
-      - name: Attach APK and publish release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.release.tag_name }}
           files: build/app/outputs/flutter-apk/app-release.apk
-          draft: false
+          generate_release_notes: true
