@@ -1,0 +1,66 @@
+name: Cut Release
+
+# One-click release: "Run workflow", optionally type a version (e.g.
+# 2.1.0, no leading "v"), leave it blank to auto-bump the patch version.
+# This only creates and pushes the tag - release-apk.yml and deploy.yml
+# already react to that tag push to build the APK, create the GitHub
+# Release, and deploy the web build, so nothing here duplicates that work.
+# Creating the tag here (rather than pre-creating a GitHub Release via the
+# UI) means release-apk.yml always creates its release from scratch, so
+# there's no race with GitHub's immutable-releases restriction.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, e.g. 2.1.0 (leave blank to auto-bump the patch version)'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Determine and create tag
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          set -euo pipefail
+
+          latest_tag=$(git tag -l 'v*' | sort -V | tail -n1)
+          latest_version="${latest_tag#v}"
+          latest_version="${latest_version:-0.0.0}"
+
+          if [ -n "$INPUT_VERSION" ]; then
+            version="${INPUT_VERSION#v}"
+          else
+            IFS='.' read -r major minor patch <<< "$latest_version"
+            version="${major}.${minor}.$((patch + 1))"
+          fi
+
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'$version' is not a valid X.Y.Z version"
+            exit 1
+          fi
+
+          tag="v${version}"
+
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "::error::Tag $tag already exists"
+            exit 1
+          fi
+
+          echo "Cutting $tag (previous: ${latest_tag:-none})"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "$tag"
+          git push origin "$tag"
