@@ -63,7 +63,7 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
          * Extracts the first money-looking amount out of [text], or null if none is found.
          * Pure/static so it can be unit tested without an Android runtime.
          */
-        fun extractAmount(text: String): Double? {
+        internal fun extractAmount(text: String): Double? {
             val matcher = AMOUNT_PATTERN.matcher(text)
             if (!matcher.find()) return null
             val digitsOnly = matcher.group().replace(Regex("[^0-9.,]"), "")
@@ -103,7 +103,7 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
          * tradeoff — this only queues a "confirm as bill?" prompt, it never creates a
          * bill outright — in exchange for not silently dropping real payments.
          */
-        fun looksLikePayment(combinedText: String, amount: Double?): Boolean {
+        internal fun looksLikePayment(combinedText: String, amount: Double?): Boolean {
             if (amount != null) return true
             val lower = combinedText.lowercase(Locale.getDefault())
             return PAYMENT_KEYWORDS.any { lower.contains(it) }
