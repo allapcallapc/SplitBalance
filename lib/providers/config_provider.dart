@@ -9,6 +9,7 @@ class ConfigProvider with ChangeNotifier {
 
   AppConfig _config = AppConfig(person1Name: '', person2Name: '');
   bool _isLoading = false;
+  bool _initialLoadComplete = false;
   String? _error;
   bool _navigateToCategoriesRequested =
       false; // Flag to request navigation to categories screen
@@ -22,6 +23,11 @@ class ConfigProvider with ChangeNotifier {
 
   AppConfig get config => _config;
   bool get isLoading => _isLoading;
+  // True until the persisted session/config/household lookup that runs once
+  // at app boot has resolved. The UI uses this to hold on a splash screen
+  // instead of briefly showing the config screen before switching to bills
+  // once the restored session turns out to be fully configured.
+  bool get isInitializing => !_initialLoadComplete;
   String? get error => _error;
   bool get navigateToCategoriesRequested => _navigateToCategoriesRequested;
   bool get navigateToCategoriesTabRequested =>
@@ -76,6 +82,7 @@ class ConfigProvider with ChangeNotifier {
       print('Error loading config: $e');
     } finally {
       _isLoading = false;
+      _initialLoadComplete = true;
       notifyListeners();
     }
   }
