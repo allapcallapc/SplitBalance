@@ -31,9 +31,15 @@ jobs:
           
       - name: Get dependencies
         run: flutter pub get
-        
+
+      - name: Determine version from tag
+        id: version
+        uses: ./.github/actions/version-from-tag
+
       - name: Build web app
-        run: flutter build web --base-href "/${{ github.event.repository.name }}/"
+        run: |
+          flutter build web --base-href "/${{ github.event.repository.name }}/" \
+            --build-name=${{ steps.version.outputs.name }}
         
       - name: List build output
         run: ls -la build/web/
