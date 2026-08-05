@@ -60,13 +60,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
     // Ensure data is loaded
     if (configProvider.isSignedIn && configProvider.householdId != null) {
       await categoriesProvider.loadCategories(configProvider);
-      await billsProvider.loadBills(configProvider);
+      await billsProvider.loadAllBills(configProvider);
       await splitsProvider.loadPaymentSplits(configProvider);
     }
 
     // Calculate balances
     await calculationProvider.calculateBalances(
-      bills: billsProvider.bills,
+      bills: billsProvider.allBills,
       splits: splitsProvider.splits,
       categories: categoriesProvider.categories,
       person1Name: configProvider.config.person1Name.isNotEmpty
@@ -384,13 +384,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         const Divider(),
                         _buildSummaryRow(
                           l10n.totalBills,
-                          '${billsProvider.bills.length}',
+                          '${billsProvider.allBills.length}',
                           Colors.grey,
                         ),
                         _buildSummaryRow(
                           l10n.totalAmount,
                           currencyFormat.format(
-                            billsProvider.bills.fold(
+                            billsProvider.allBills.fold(
                               0.0,
                               (sum, bill) => sum + bill.amount,
                             ),

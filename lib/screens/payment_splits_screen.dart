@@ -1638,8 +1638,11 @@ class _CategoriesTab extends StatelessWidget {
           );
         }
 
-        // Use watch to rebuild when bills or splits change so "in use" status updates correctly
-        final billsData = context.watch<BillsProvider>().bills;
+        // Use watch to rebuild when bills or splits change so "in use" status updates correctly.
+        // allBills (not the paginated bills list screen's page) so every
+        // bill referencing a category counts toward "in use", not just
+        // whichever page happens to be loaded.
+        final billsData = context.watch<BillsProvider>().allBills;
         final splitsData = context.watch<PaymentSplitsProvider>().splits;
 
         // Show error banner if there's an error but we have categories to display
