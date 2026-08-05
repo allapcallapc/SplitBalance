@@ -19,6 +19,12 @@ class BillsProvider with ChangeNotifier {
   final List<Bill> _allBills = [];
   bool _isLoadingAll = false;
 
+  // Bumped by every loadBills() call. Lets loadBills()/loadMoreBills() tell
+  // whether they're still the most recent request before applying their
+  // response, so a slow response from a filter the user has since changed
+  // away from can't clobber newer state (or vice versa).
+  int _requestId = 0;
+
   String? _error;
 
   // Active list filters. Null/empty means "no filter" (i.e. "All").
@@ -94,7 +100,12 @@ class BillsProvider with ChangeNotifier {
       return;
     }
 
+    // Starting a fresh page-1 load invalidates any loadMoreBills() already
+    // in flight for the previous filter/page window.
+    final requestId = ++_requestId;
+
     _isLoading = true;
+    _isLoadingMore = false;
     _error = null;
     notifyListeners();
 
@@ -104,16 +115,24 @@ class BillsProvider with ChangeNotifier {
           .order('id', ascending: false)
           .range(0, pageSize - 1);
 
+      // A newer loadBills() call (e.g. a fast second filter change) has
+      // since superseded this one; drop the stale response.
+      if (requestId != _requestId) return;
+
       _bills
         ..clear()
         ..addAll(rows.map((row) => Bill.fromMap(row)));
       _hasMore = rows.length == pageSize;
       _error = null;
     } catch (e) {
-      _error = 'Failed to load bills: $e';
+      if (requestId == _requestId) {
+        _error = 'Failed to load bills: $e';
+      }
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (requestId == _requestId) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -125,6 +144,7 @@ class BillsProvider with ChangeNotifier {
       return;
     }
 
+    final requestId = _requestId;
     _isLoadingMore = true;
     notifyListeners();
 
@@ -134,14 +154,23 @@ class BillsProvider with ChangeNotifier {
           .order('id', ascending: false)
           .range(_bills.length, _bills.length + pageSize - 1);
 
+      // A loadBills() reset happened while this was in flight (e.g. the
+      // filter changed) — its results belong to a window that no longer
+      // exists, so drop them instead of appending onto the new page 1.
+      if (requestId != _requestId) return;
+
       _bills.addAll(rows.map((row) => Bill.fromMap(row)));
       _hasMore = rows.length == pageSize;
       _error = null;
     } catch (e) {
-      _error = 'Failed to load more bills: $e';
+      if (requestId == _requestId) {
+        _error = 'Failed to load more bills: $e';
+      }
     } finally {
-      _isLoadingMore = false;
-      notifyListeners();
+      if (requestId == _requestId) {
+        _isLoadingMore = false;
+        notifyListeners();
+      }
     }
   }
 
