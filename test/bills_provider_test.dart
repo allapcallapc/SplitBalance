@@ -196,4 +196,187 @@ void main() {
       expect(provider.allBills, isEmpty);
     });
   });
+
+  group('BillsProvider - updateBillById / deleteBillById', () {
+    Map<String, dynamic> echoUpdate(String id, Map<String, dynamic> data) => {
+          'id': id,
+          'date': data['date'],
+          'amount': data['amount'],
+          'paid_by': data['paid_by'],
+          'category': data['category'],
+          'details': data['details'],
+        };
+
+    test('updateBillById refreshes _bills via a refetch and updates '
+        '_allBills in place', () async {
+      var fetchCallCount = 0;
+      var page = [billRow('bill-1', '2026-01-01', category: 'Groceries')];
+
+      final provider = BillsProvider(
+        insertBillRow: (data) async => echoUpdate('bill-1', data),
+        updateBillRow: (id, data) async => echoUpdate(id, data),
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required int offset,
+          required int limit,
+        }) async {
+          fetchCallCount++;
+          return page;
+        },
+      );
+
+      // Seed one bill (the add itself triggers a refetch too).
+      await provider.addBillForHousehold(
+        Bill(
+          date: DateTime.parse('2026-01-01'),
+          amount: 10.0,
+          paidBy: 'Alice',
+          category: 'Groceries',
+        ),
+        'household-1',
+      );
+      expect(fetchCallCount, 1);
+
+      // Edit it: the server's authoritative page reflects the new category.
+      page = [billRow('bill-1', '2026-01-01', category: 'Rent')];
+      await provider.updateBillById(
+        'bill-1',
+        Bill(
+          id: 'bill-1',
+          date: DateTime.parse('2026-01-01'),
+          amount: 10.0,
+          paidBy: 'Alice',
+          category: 'Rent',
+        ),
+        'household-1',
+      );
+
+      expect(fetchCallCount, 2);
+      expect(provider.bills.single.category, 'Rent');
+      expect(provider.allBills.single.category, 'Rent');
+      expect(provider.error, isNull);
+    });
+
+    test('updateBillById with no household id skips the refetch but still '
+        'updates _allBills', () async {
+      var fetchCallCount = 0;
+      final provider = BillsProvider(
+        updateBillRow: (id, data) async => echoUpdate(id, data),
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required int offset,
+          required int limit,
+        }) async {
+          fetchCallCount++;
+          return const [];
+        },
+      );
+
+      await provider.updateBillById(
+        'bill-1',
+        Bill(
+          date: DateTime.parse('2026-01-01'),
+          amount: 10.0,
+          paidBy: 'Alice',
+          category: 'Rent',
+        ),
+        null,
+      );
+
+      expect(fetchCallCount, 0);
+      expect(provider.allBills.single.category, 'Rent');
+    });
+
+    test('updateBillById surfaces a failure without touching the bill '
+        'lists', () async {
+      final provider = BillsProvider(
+        updateBillRow: (id, data) async => throw Exception('network error'),
+      );
+
+      await provider.updateBillById(
+        'bill-1',
+        Bill(
+          date: DateTime.parse('2026-01-01'),
+          amount: 10.0,
+          paidBy: 'Alice',
+          category: 'Rent',
+        ),
+        'household-1',
+      );
+
+      expect(provider.error, contains('Failed to update bill'));
+      expect(provider.allBills, isEmpty);
+    });
+
+    test('deleteBillById removes the bill from both bills and allBills',
+        () async {
+      var deletedId = '';
+      final provider = BillsProvider(
+        insertBillRow: (data) async => echoUpdate('bill-1', data),
+        deleteBillRow: (id) async => deletedId = id,
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required int offset,
+          required int limit,
+        }) async =>
+            [billRow('bill-1', '2026-01-01')],
+      );
+
+      await provider.addBillForHousehold(
+        Bill(
+          date: DateTime.parse('2026-01-01'),
+          amount: 10.0,
+          paidBy: 'Alice',
+          category: 'Groceries',
+        ),
+        'household-1',
+      );
+      expect(provider.bills, isNotEmpty);
+
+      await provider.deleteBillById('bill-1');
+
+      expect(deletedId, 'bill-1');
+      expect(provider.bills, isEmpty);
+      expect(provider.allBills, isEmpty);
+      expect(provider.error, isNull);
+    });
+
+    test('deleteBillById surfaces a failure and leaves the bill lists '
+        'untouched', () async {
+      final provider = BillsProvider(
+        insertBillRow: (data) async => echoUpdate('bill-1', data),
+        deleteBillRow: (id) async => throw Exception('network error'),
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required int offset,
+          required int limit,
+        }) async =>
+            [billRow('bill-1', '2026-01-01')],
+      );
+
+      await provider.addBillForHousehold(
+        Bill(
+          date: DateTime.parse('2026-01-01'),
+          amount: 10.0,
+          paidBy: 'Alice',
+          category: 'Groceries',
+        ),
+        'household-1',
+      );
+
+      await provider.deleteBillById('bill-1');
+
+      expect(provider.error, contains('Failed to delete bill'));
+      expect(provider.bills, isNotEmpty);
+      expect(provider.allBills, isNotEmpty);
+    });
+  });
 }

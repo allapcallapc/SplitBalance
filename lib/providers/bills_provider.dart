@@ -20,17 +20,32 @@ typedef InsertBillRow = Future<Map<String, dynamic>> Function(
   Map<String, dynamic> data,
 );
 
+// Updates the row with the given id and returns the saved row.
+typedef UpdateBillRow = Future<Map<String, dynamic>> Function(
+  String id,
+  Map<String, dynamic> data,
+);
+
+// Deletes the row with the given id.
+typedef DeleteBillRow = Future<void> Function(String id);
+
 class BillsProvider with ChangeNotifier {
   BillsProvider({
     FetchBillsPage? fetchBillsPage,
     InsertBillRow? insertBillRow,
+    UpdateBillRow? updateBillRow,
+    DeleteBillRow? deleteBillRow,
   })  : _fetchBillsPage = fetchBillsPage ?? _defaultFetchBillsPage,
-        _insertBillRow = insertBillRow ?? _defaultInsertBillRow;
+        _insertBillRow = insertBillRow ?? _defaultInsertBillRow,
+        _updateBillRow = updateBillRow ?? _defaultUpdateBillRow,
+        _deleteBillRow = deleteBillRow ?? _defaultDeleteBillRow;
 
   static const int pageSize = 25;
 
   final FetchBillsPage _fetchBillsPage;
   final InsertBillRow _insertBillRow;
+  final UpdateBillRow _updateBillRow;
+  final DeleteBillRow _deleteBillRow;
 
   // Paginated, server-filtered bills backing the bills list screen.
   final List<Bill> _bills = [];
@@ -143,6 +158,22 @@ class BillsProvider with ChangeNotifier {
         .insert(data)
         .select()
         .single();
+  }
+
+  static Future<Map<String, dynamic>> _defaultUpdateBillRow(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    return await Supabase.instance.client
+        .from('bills')
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
+  }
+
+  static Future<void> _defaultDeleteBillRow(String id) async {
+    await Supabase.instance.client.from('bills').delete().eq('id', id);
   }
 
   // Load the first page of bills for the current household, applying the
@@ -376,18 +407,22 @@ class BillsProvider with ChangeNotifier {
       return;
     }
 
+    await updateBillById(id, updatedBill, configProvider.householdId);
+  }
+
+  // Core of updateBill(), scoped to a bill id and (optional) household id
+  // rather than an index into `_bills`/a ConfigProvider, so it can be
+  // exercised in tests without a real signed-in Supabase session.
+  @visibleForTesting
+  Future<void> updateBillById(
+      String id, Bill updatedBill, String? householdId) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     Bill saved;
     try {
-      final row = await _supabase
-          .from('bills')
-          .update(updatedBill.toMap())
-          .eq('id', id)
-          .select()
-          .single();
+      final row = await _updateBillRow(id, updatedBill.toMap());
       saved = Bill.fromMap(row);
     } catch (e) {
       _error = 'Failed to update bill: $e';
@@ -408,7 +443,9 @@ class BillsProvider with ChangeNotifier {
     // position or taken it out of the active filter, which a local splice
     // into `_bills` can't safely reason about relative to the already-loaded
     // window/offset. Re-fetch page 1 instead.
-    await loadBills(configProvider);
+    if (householdId != null) {
+      await loadBillsForHousehold(householdId);
+    }
   }
 
   // Delete a bill
@@ -426,14 +463,19 @@ class BillsProvider with ChangeNotifier {
       return;
     }
 
+    await deleteBillById(id);
+  }
+
+  @visibleForTesting
+  Future<void> deleteBillById(String id) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      await _supabase.from('bills').delete().eq('id', id);
-      // Remove by id, not the captured index: a loadBills() reset could have
-      // run while the delete was in flight, making `index` describe a
+      await _deleteBillRow(id);
+      // Remove by id, not a caller-supplied index: a loadBills() reset could
+      // have run while the delete was in flight, making an index describe a
       // different row (or none) by the time we get here.
       _bills.removeWhere((b) => b.id == id);
       _allBills.removeWhere((b) => b.id == id);
