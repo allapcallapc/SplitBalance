@@ -59,6 +59,56 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
             "[\\$€£₹]\\s?\\d{1,3}(?:[.,]\\d{3})*(?:[.,]\\d{2})?|\\d{1,3}(?:[.,]\\d{3})*(?:[.,]\\d{2})?\\s?[\\$€£₹]"
         )
 
+        /**
+         * Extracts the first money-looking amount out of [text], or null if none is found.
+         * Pure/static so it can be unit tested without an Android runtime.
+         */
+        internal fun extractAmount(text: String): Double? {
+            val matcher = AMOUNT_PATTERN.matcher(text)
+            if (!matcher.find()) return null
+            val digitsOnly = matcher.group().replace(Regex("[^0-9.,]"), "")
+
+            val normalized = when {
+                digitsOnly.contains(',') && digitsOnly.contains('.') ->
+                    // Both separators present: the last one wins as the decimal point.
+                    if (digitsOnly.lastIndexOf(',') > digitsOnly.lastIndexOf('.')) {
+                        digitsOnly.replace(".", "").replace(',', '.')
+                    } else {
+                        digitsOnly.replace(",", "")
+                    }
+                digitsOnly.contains(',') ->
+                    // Only commas: treat as a decimal separator if exactly 2 digits follow it.
+                    if (digitsOnly.length - digitsOnly.lastIndexOf(',') - 1 == 2) {
+                        digitsOnly.replace(',', '.')
+                    } else {
+                        digitsOnly.replace(",", "")
+                    }
+                else -> digitsOnly
+            }
+
+            return normalized.toDoubleOrNull()
+        }
+
+        /**
+         * Whether a notification's combined title/text should be treated as a payment.
+         * Notifications only reach here from a watched payment-app package (see
+         * [getWatchedPackages]), so a recognizable money amount is on its own enough of
+         * a signal — e.g. Google Wallet's tap-to-pay format ("$31.20 with SOME BANK
+         * CARD ••1234") never uses verbs like "paid" or "purchase" but always has an amount.
+         * The keyword list catches the remaining cases where a payment is described
+         * without an amount attached.
+         *
+         * This is intentionally permissive: a non-payment notification with a dollar
+         * figure (a balance summary, a promo) will also match. That's an accepted
+         * tradeoff — this only queues a "confirm as bill?" prompt, it never creates a
+         * bill outright — in exchange for not silently dropping real payments.
+         */
+        internal fun looksLikePayment(combinedText: String, amount: Double?): Boolean {
+            if (amount != null) return true
+            val lower = combinedText.lowercase(Locale.getDefault())
+            return PAYMENT_KEYWORDS.any { lower.contains(it) }
+        }
+
         fun getWatchedPackages(context: Context): Set<String> {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             return prefs.getStringSet(WATCHED_PACKAGES_KEY, null) ?: DEFAULT_WATCHED_PACKAGES
@@ -116,13 +166,11 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
         val combined = listOf(title, text, bigText).filter { it.isNotBlank() }.joinToString(" — ")
         if (combined.isBlank()) return
 
-        val lower = combined.lowercase(Locale.getDefault())
-        val looksLikePayment = PAYMENT_KEYWORDS.any { lower.contains(it) }
-        if (!looksLikePayment) return
+        val amount = extractAmount(combined)
+        if (!looksLikePayment(combined, amount)) return
 
         val id = "${sbn.key}_${sbn.postTime}"
         val rawText = if (bigText.isNotBlank()) bigText else text
-        val amount = extractAmount(combined)
 
         val entry = JSONObject().apply {
             put("id", id)
@@ -134,32 +182,6 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
 
         appendToQueue(entry)
         showAlertNotification(id, amount, rawText)
-    }
-
-    private fun extractAmount(text: String): Double? {
-        val matcher = AMOUNT_PATTERN.matcher(text)
-        if (!matcher.find()) return null
-        val digitsOnly = matcher.group().replace(Regex("[^0-9.,]"), "")
-
-        val normalized = when {
-            digitsOnly.contains(',') && digitsOnly.contains('.') ->
-                // Both separators present: the last one wins as the decimal point.
-                if (digitsOnly.lastIndexOf(',') > digitsOnly.lastIndexOf('.')) {
-                    digitsOnly.replace(".", "").replace(',', '.')
-                } else {
-                    digitsOnly.replace(",", "")
-                }
-            digitsOnly.contains(',') ->
-                // Only commas: treat as a decimal separator if exactly 2 digits follow it.
-                if (digitsOnly.length - digitsOnly.lastIndexOf(',') - 1 == 2) {
-                    digitsOnly.replace(',', '.')
-                } else {
-                    digitsOnly.replace(",", "")
-                }
-            else -> digitsOnly
-        }
-
-        return normalized.toDoubleOrNull()
     }
 
     private fun isoNow(): String {
