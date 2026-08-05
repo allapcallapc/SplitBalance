@@ -9,10 +9,15 @@ class CategoriesProvider with ChangeNotifier {
   final List<models.Category> _categories = [];
   bool _isLoading = false;
   String? _error;
+  String? _loadedForHouseholdId;
 
   List<models.Category> get categories => List.unmodifiable(_categories);
   bool get isLoading => _isLoading;
   String? get error => _error;
+  // Whether loadCategories has run (successfully or not) for this household,
+  // so callers can tell "no categories yet" apart from "haven't checked yet".
+  bool hasLoadedForHousehold(String? householdId) =>
+      householdId != null && _loadedForHouseholdId == householdId;
 
   SupabaseClient get _supabase => Supabase.instance.client;
 
@@ -46,6 +51,7 @@ class CategoriesProvider with ChangeNotifier {
       _error = 'Failed to load categories: $e';
     } finally {
       _isLoading = false;
+      _loadedForHouseholdId = configProvider.householdId;
       notifyListeners();
     }
   }

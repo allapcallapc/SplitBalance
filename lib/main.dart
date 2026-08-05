@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -203,6 +205,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   late final ValueNotifier<int> _navigationNotifier = ValueNotifier<int>(0);
   late final List<Widget> _screens;
 
+  // Tracks whether we're still waiting on the household/categories lookups
+  // for the current (isSignedIn, householdId) combo - see _settleKeyFor.
+  // Re-arms on every sign-in/sign-out/household change, not just at boot,
+  // so logging in doesn't show config-then-bills either (see GH issue #21).
+  Object? _settledForKey;
+  bool _forceSettledOverride = false;
+  bool _settleTimerPending = false;
+  Timer? _settleTimeoutTimer;
+
   @override
   void initState() {
     super.initState();
@@ -232,6 +243,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _settleTimeoutTimer?.cancel();
     _navigationNotifier.dispose();
     super.dispose();
   }
@@ -318,34 +330,83 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
         // Determine if nav bar should be shown
         final shouldShowNavBar = isSignedIn && hasHousehold;
 
-        // ABSOLUTE MINIMAL: Only initialize on first build, NO auto-navigation at all
-        if (_wasSignedIn == null) {
-          _wasSignedIn = isSignedIn;
-          if (isSignedIn && isConfigComplete) {
-            _selectedIndex = 0; // Bills screen
-            _hasAutoNavigatedToBills = true;
-          } else {
-            _selectedIndex = 3; // Config screen
-          }
-        } else if (_wasSignedIn != isSignedIn) {
-          _wasSignedIn = isSignedIn;
-          if (!isSignedIn) {
-            _selectedIndex = 3; // Config screen only on sign-out
-            _hasAutoNavigatedToBills = false;
-          }
-          // NO auto-navigation on sign-in
+        // Wait for the session/household/categories lookups for the current
+        // sign-in state to settle before deciding which screen to land on.
+        // Without this, a restored session (or a fresh sign-in) briefly reads
+        // as "not configured" (household and categories haven't loaded from
+        // the network yet), we land on the config screen, and then flip to
+        // bills a moment later once they do. Re-armed via _settledForKey
+        // whenever isSignedIn/householdId changes, so this covers both app
+        // boot and logging in mid-session.
+        // Note: the screens below (in particular BillsListScreen) are what
+        // actually kick off the household/categories fetches, so they must
+        // stay mounted the whole time - only the splash overlay toggles.
+        final settleKey = '$isSignedIn:${configProvider.householdId}';
+        if (_settledForKey != settleKey) {
+          _settledForKey = settleKey;
+          _forceSettledOverride = false;
+          _settleTimeoutTimer?.cancel();
+          _settleTimerPending = false;
         }
 
-        // A session restored on app launch (silent sign-in) resolves
-        // asynchronously, often after the first build and sometimes after
-        // categories finish loading from Drive. Once everything settles into
-        // a fully-configured state for the first time this launch, land on
-        // Bills instead of leaving the user stuck on whichever screen was
-        // shown while things were still loading. Only happens once per
-        // sign-in session so it never overrides manual navigation afterwards.
-        if (!_hasAutoNavigatedToBills && isSignedIn && isConfigComplete) {
-          _selectedIndex = 0; // Bills screen
-          _hasAutoNavigatedToBills = true;
+        final configSettled = !configProvider.isInitializing;
+        final needsCategories = configSettled && isSignedIn && hasHousehold;
+        final categoriesSettled = !needsCategories ||
+            categoriesProvider
+                .hasLoadedForHousehold(configProvider.householdId);
+        final rawSettled = configSettled && categoriesSettled;
+
+        if (rawSettled) {
+          _settleTimeoutTimer?.cancel();
+          _settleTimerPending = false;
+          _forceSettledOverride = false;
+        } else if (!_settleTimerPending) {
+          // Fallback so a slow/offline network doesn't strand the user on
+          // the splash screen forever - just fall through to whatever state
+          // we have.
+          _settleTimerPending = true;
+          _settleTimeoutTimer = Timer(const Duration(seconds: 3), () {
+            if (mounted) {
+              setState(() {
+                _forceSettledOverride = true;
+                _settleTimerPending = false;
+              });
+            }
+          });
+        }
+
+        final settled = rawSettled || _forceSettledOverride;
+
+        // ABSOLUTE MINIMAL: Only initialize on first build, NO auto-navigation at all
+        if (settled) {
+          if (_wasSignedIn == null) {
+            _wasSignedIn = isSignedIn;
+            if (isSignedIn && isConfigComplete) {
+              _selectedIndex = 0; // Bills screen
+              _hasAutoNavigatedToBills = true;
+            } else {
+              _selectedIndex = 3; // Config screen
+            }
+          } else if (_wasSignedIn != isSignedIn) {
+            _wasSignedIn = isSignedIn;
+            if (!isSignedIn) {
+              _selectedIndex = 3; // Config screen only on sign-out
+              _hasAutoNavigatedToBills = false;
+            }
+            // NO auto-navigation on sign-in
+          }
+
+          // A session restored on app launch (silent sign-in) resolves
+          // asynchronously, often after the first build and sometimes after
+          // categories finish loading from Drive. Once everything settles into
+          // a fully-configured state for the first time this launch, land on
+          // Bills instead of leaving the user stuck on whichever screen was
+          // shown while things were still loading. Only happens once per
+          // sign-in session so it never overrides manual navigation afterwards.
+          if (!_hasAutoNavigatedToBills && isSignedIn && isConfigComplete) {
+            _selectedIndex = 0; // Bills screen
+            _hasAutoNavigatedToBills = true;
+          }
         }
 
         // Always use the same Scaffold structure to prevent widget tree changes
@@ -365,17 +426,29 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
             : 3; // Force ConfigScreen (index 3) when no nav bar
 
         // Notify when navigation changes (for SummaryScreen to refresh)
-        if (bodyIndex != _previousBodyIndex) {
+        if (settled && bodyIndex != _previousBodyIndex) {
           _navigationNotifier.value = bodyIndex;
           _previousBodyIndex = bodyIndex;
         }
 
         return Scaffold(
-          body: IndexedStack(
-            index: bodyIndex,
-            children: _screens,
+          body: Stack(
+            children: [
+              IndexedStack(
+                index: bodyIndex,
+                children: _screens,
+              ),
+              // Covers the config/bills decision until it's fully resolved
+              // (see the settling check above) so it never flashes on screen.
+              if (!settled)
+                const Positioned.fill(
+                  child: Scaffold(
+                    body: Center(child: CircularProgressIndicator()),
+                  ),
+                ),
+            ],
           ),
-          bottomNavigationBar: shouldShowNavBar
+          bottomNavigationBar: (settled && shouldShowNavBar)
               ? NavigationBar(
                   selectedIndex: safeIndex,
                   onDestinationSelected: (index) {
