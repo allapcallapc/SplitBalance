@@ -1,20 +1,15 @@
 name: Deploy to GitHub Pages
 
-# Triggered directly by a tag push (e.g. pushed from a developer machine),
-# or invoked as a reusable workflow by cut-release.yml. It's called
-# directly rather than relying on the tag push there to cascade into this
-# trigger, because tags pushed using the default GITHUB_TOKEN don't fire
-# other workflows' triggers (GitHub's loop-prevention rule).
+# Triggered by a release being published (not a tag push): release-apk.yml
+# is what actually publishes releases (using a PAT so this trigger fires
+# at all - see its own comments), and by the time a release is published,
+# a real APK build has already succeeded, so gating web deploys on the
+# same event keeps both in lockstep. This also means the github-pages
+# environment's deployment branch policy evaluates against the real tag
+# ref this run is scoped to, not some other branch.
 on:
-  push:
-    tags:
-      - 'v*'
-  workflow_call:
-    inputs:
-      tag:
-        description: 'Tag to deploy (defaults to the pushed tag when triggered directly)'
-        required: false
-        type: string
+  release:
+    types: [published]
 
 jobs:
   test:
@@ -35,7 +30,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || github.ref_name }}
+          ref: ${{ github.event.release.tag_name }}
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -49,25 +44,25 @@ jobs:
         id: version
         uses: ./.github/actions/version-from-tag
         with:
-          tag: ${{ inputs.tag || github.ref_name }}
+          tag: ${{ github.event.release.tag_name }}
 
       - name: Build web app
         run: |
           flutter build web --base-href "/${{ github.event.repository.name }}/" \
             --build-name=${{ steps.version.outputs.name }}
-        
+
       - name: List build output
         run: ls -la build/web/
         continue-on-error: true
-        
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
-      
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: './build/web'
-      
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

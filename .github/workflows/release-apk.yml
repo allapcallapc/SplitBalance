@@ -1,10 +1,21 @@
 name: Release APK
 
 # Triggered directly by a tag push (e.g. pushed from a developer machine),
-# or invoked as a reusable workflow by cut-release.yml. It's called
-# directly rather than relying on the tag push there to cascade into this
-# trigger, because tags pushed using the default GITHUB_TOKEN don't fire
-# other workflows' triggers (GitHub's loop-prevention rule).
+# or invoked as a reusable workflow by release-please.yml. Checkout always
+# uses the run's own ref (github.ref_name) rather than the "tag" input:
+# for a direct tag push that's the tag itself, but when release-please
+# calls this the underlying git tag doesn't exist yet - it creates a draft
+# release only, and the tag materializes when that release is published,
+# which the final step below does itself after attaching the APK. So the
+# run's own ref (main, at the commit release-please is releasing) is what
+# actually exists to check out.
+#
+# Publishing (the final step) uses a PAT (RELEASE_PLEASE_TOKEN secret),
+# not the default GITHUB_TOKEN: GitHub's loop-prevention rule means a
+# release published with the default token wouldn't fire deploy.yml's own
+# `release: published` trigger, and deploy.yml needs to run as its own,
+# separately-triggered run (scoped to the real tag ref) to satisfy its
+# GitHub Pages environment's deployment branch policy.
 on:
   push:
     tags:
@@ -12,9 +23,13 @@ on:
   workflow_call:
     inputs:
       tag:
-        description: 'Tag to release (defaults to the pushed tag when triggered directly)'
+        description: 'Tag/version being released (defaults to the pushed tag when triggered directly)'
         required: false
         type: string
+      generate_release_notes:
+        description: 'Auto-generate release notes (set false when the release already has notes, e.g. from release-please)'
+        required: false
+        type: boolean
 
 jobs:
   test:
@@ -29,8 +44,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag || github.ref_name }}
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -78,9 +91,11 @@ jobs:
             --build-name=${{ steps.version.outputs.name }} \
             --build-number=${{ github.run_number }}
 
-      - name: Create GitHub Release
+      - name: Attach APK and publish release
         uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           tag_name: ${{ inputs.tag || github.ref_name }}
           files: build/app/outputs/flutter-apk/app-release.apk
-          generate_release_notes: true
+          generate_release_notes: ${{ inputs.generate_release_notes != false }}
+          draft: false
