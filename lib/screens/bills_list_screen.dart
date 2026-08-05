@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -22,11 +24,13 @@ class _BillsListScreenState extends State<BillsListScreen>
     with WidgetsBindingObserver {
   ConfigProvider? _configProvider;
   String? _lastLoadedHouseholdId; // Track which household we loaded data for
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
       _loadPendingPayments();
@@ -49,8 +53,21 @@ class _BillsListScreenState extends State<BillsListScreen>
   @override
   void dispose() {
     _configProvider?.removeListener(_onConfigChanged);
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    // Start loading the next page a bit before hitting the bottom so it's
+    // ready by the time the user gets there.
+    final threshold = _scrollController.position.maxScrollExtent - 200;
+    if (_scrollController.position.pixels >= threshold) {
+      final configProvider = _configProvider ?? context.read<ConfigProvider>();
+      context.read<BillsProvider>().loadMoreBills(configProvider);
+    }
   }
 
   @override
@@ -94,6 +111,7 @@ class _BillsListScreenState extends State<BillsListScreen>
       _lastLoadedHouseholdId = configProvider.householdId;
       await billsProvider.loadBills(configProvider);
       await categoriesProvider.loadCategories(configProvider);
+      unawaited(billsProvider.loadFilterOptions(configProvider));
     }
   }
 
@@ -133,16 +151,18 @@ class _BillsListScreenState extends State<BillsListScreen>
             ),
             child: Consumer2<BillsProvider, ConfigProvider>(
               builder: (context, billsProvider, configProvider, child) {
+                // billsProvider.paidByOptions/categoryOptions come from a
+                // dedicated distinct-values query (loadFilterOptions), so
+                // renamed/removed payers and categories stay filterable even
+                // though bills themselves are now fetched page-by-page.
                 final personOptions = <String>{
                   if (configProvider.config.person1Name.isNotEmpty)
                     configProvider.config.person1Name,
                   if (configProvider.config.person2Name.isNotEmpty)
                     configProvider.config.person2Name,
-                  // Include any payer already present on a bill, in case a
-                  // person was renamed or removed from the household but old
-                  // bills remain.
-                  for (final bill in billsProvider.bills)
-                    if (bill.paidBy.isNotEmpty) bill.paidBy,
+                  ...billsProvider.paidByOptions,
+                  if (billsProvider.filterPaidBy != null)
+                    billsProvider.filterPaidBy!,
                 }.toList()
                   ..sort();
 
@@ -151,11 +171,12 @@ class _BillsListScreenState extends State<BillsListScreen>
                     final categoryOptions = <String>{
                       for (final category in categoriesProvider.categories)
                         category.name,
-                      // Same rationale as above: keep filterable even if a
-                      // category was later deleted but is still referenced by
-                      // existing bills.
-                      for (final bill in billsProvider.bills)
-                        if (bill.category.isNotEmpty) bill.category,
+                      ...billsProvider.categoryOptions,
+                      // Keep the currently active filter selectable even if
+                      // it no longer matches a live category or a value
+                      // loadFilterOptions() has picked up yet.
+                      if (billsProvider.filterCategory != null)
+                        billsProvider.filterCategory!,
                     }.toList()
                       ..sort();
 
@@ -172,7 +193,8 @@ class _BillsListScreenState extends State<BillsListScreen>
                             const Spacer(),
                             if (billsProvider.hasActiveFilters)
                               TextButton(
-                                onPressed: billsProvider.clearFilters,
+                                onPressed: () =>
+                                    billsProvider.clearFilters(configProvider),
                                 child: Text(l10n.clearFilters),
                               ),
                           ],
@@ -198,7 +220,7 @@ class _BillsListScreenState extends State<BillsListScreen>
                               ),
                           ],
                           onChanged: (value) {
-                            billsProvider.setPaidByFilter(value);
+                            billsProvider.setPaidByFilter(value, configProvider);
                           },
                         ),
                         const SizedBox(height: 12),
@@ -222,7 +244,8 @@ class _BillsListScreenState extends State<BillsListScreen>
                               ),
                           ],
                           onChanged: (value) {
-                            billsProvider.setCategoryFilter(value);
+                            billsProvider.setCategoryFilter(
+                                value, configProvider);
                           },
                         ),
                         const SizedBox(height: 16),
@@ -385,6 +408,36 @@ class _BillsListScreenState extends State<BillsListScreen>
                 }
 
                 if (billsProvider.bills.isEmpty) {
+                  if (billsProvider.hasActiveFilters) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.filter_alt_off,
+                            size: 64,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            l10n.noBillsYet,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            onPressed: () => billsProvider
+                                .clearFilters(context.read<ConfigProvider>()),
+                            icon: const Icon(Icons.filter_alt_off),
+                            label: Text(l10n.clearFilters),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -423,46 +476,26 @@ class _BillsListScreenState extends State<BillsListScreen>
                   );
                 }
 
-                final visibleBills = billsProvider.filteredBills;
-
-                if (visibleBills.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.filter_alt_off,
-                          size: 64,
-                          color: Colors.grey,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          l10n.noBillsYet,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton.icon(
-                          onPressed: billsProvider.clearFilters,
-                          icon: const Icon(Icons.filter_alt_off),
-                          label: Text(l10n.clearFilters),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                final visibleBills = billsProvider.bills;
 
                 return ListView.builder(
-                  itemCount: visibleBills.length,
+                  controller: _scrollController,
+                  itemCount:
+                      visibleBills.length + (billsProvider.isLoadingMore ? 1 : 0),
                   padding: const EdgeInsets.all(8),
                   itemBuilder: (context, listIndex) {
+                    if (listIndex >= visibleBills.length) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+
                     final bill = visibleBills[listIndex];
                     // Provider mutation methods (update/delete) address bills
-                    // by their index in the full, unfiltered list, so map
-                    // back to that index rather than using listIndex.
-                    final index = billsProvider.bills.indexOf(bill);
+                    // by their index in the currently loaded list, which
+                    // matches listIndex since visibleBills is billsProvider.bills.
+                    final index = listIndex;
                     final dateFormat = DateFormat('yyyy-MM-dd');
                     final currencyFormat = NumberFormat.currency(symbol: '\$');
 
