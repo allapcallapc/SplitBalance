@@ -23,11 +23,21 @@ class CategoriesProvider with ChangeNotifier {
 
   // Load categories for the current household from Supabase
   Future<void> loadCategories(ConfigProvider configProvider) async {
-    if (!configProvider.isSignedIn || configProvider.householdId == null) {
+    // Captured up front (rather than re-read from configProvider after the
+    // await below) so that if the household changes while this call is in
+    // flight, its result is attributed to the household it actually queried
+    // - not whichever household happens to be current when it finishes.
+    final householdId = configProvider.householdId;
+    if (!configProvider.isSignedIn || householdId == null) {
       return;
     }
 
-    // Prevent multiple simultaneous calls
+    // Prevent multiple simultaneous calls. Note: if the household changes
+    // again while a call for the previous household is still in flight, this
+    // guard makes the new call a no-op rather than queuing a retry - the new
+    // household won't be (re)loaded until something else triggers it (e.g.
+    // BillsListScreen reacting to a subsequent config change). Acceptable
+    // for how rarely households actually change mid-session.
     if (_isLoading) {
       return;
     }
@@ -40,7 +50,7 @@ class CategoriesProvider with ChangeNotifier {
       final rows = await _supabase
           .from('categories')
           .select()
-          .eq('household_id', configProvider.householdId!)
+          .eq('household_id', householdId)
           .order('name', ascending: true);
 
       _categories
@@ -51,7 +61,7 @@ class CategoriesProvider with ChangeNotifier {
       _error = 'Failed to load categories: $e';
     } finally {
       _isLoading = false;
-      _loadedForHouseholdId = configProvider.householdId;
+      _loadedForHouseholdId = householdId;
       notifyListeners();
     }
   }

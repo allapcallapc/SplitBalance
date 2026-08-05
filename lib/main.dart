@@ -206,10 +206,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   late final List<Widget> _screens;
 
   // Tracks whether we're still waiting on the household/categories lookups
-  // for the current (isSignedIn, householdId) combo - see _settleKeyFor.
-  // Re-arms on every sign-in/sign-out/household change, not just at boot,
-  // so logging in doesn't show config-then-bills either (see GH issue #21).
-  Object? _settledForKey;
+  // for the current (isSignedIn, householdId) combo - see the settleKey
+  // computation in build(). Re-arms on every sign-in/sign-out/household
+  // change, not just at boot, so logging in doesn't show config-then-bills
+  // either (see GH issue #21).
+  String? _settledForKey;
   bool _forceSettledOverride = false;
   bool _settleTimerPending = false;
   Timer? _settleTimeoutTimer;
@@ -441,9 +442,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
               // Covers the config/bills decision until it's fully resolved
               // (see the settling check above) so it never flashes on screen.
               if (!settled)
-                const Positioned.fill(
-                  child: Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
+                Positioned.fill(
+                  child: ColoredBox(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    child: const Center(child: CircularProgressIndicator()),
                   ),
                 ),
             ],
