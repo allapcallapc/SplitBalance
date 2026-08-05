@@ -221,8 +221,10 @@ class _ConfigScreenState extends State<ConfigScreen> {
 
     if (isSmallScreen) {
       // Small screens: lay the 4 options out as a 2x2 grid (two rows of two
-      // segments each) instead of squeezing them into one row.
+      // segments each) instead of squeezing them into one row. Stretch to
+      // full width so it lines up with the Language selector below it.
       return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SegmentedButton<AppThemeMode>(
             segments: segments.sublist(0, 2),
