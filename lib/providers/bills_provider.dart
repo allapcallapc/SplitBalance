@@ -176,12 +176,13 @@ class BillsProvider with ChangeNotifier {
     }
   }
 
-  bool _matchesActiveFilters(Bill bill) {
-    if (_filterPaidBy != null && bill.paidBy != _filterPaidBy) return false;
-    if (_filterCategory != null && bill.category != _filterCategory) {
-      return false;
-    }
-    return true;
+  // Sort order that matches the server's `.order('date', ..).order('id', ..)`
+  // so locally-maintained lists (_allBills) don't drift from what a fresh
+  // fetch would return when two bills share a date.
+  int _byDateThenId(Bill a, Bill b) {
+    final byDate = b.date.compareTo(a.date);
+    if (byDate != 0) return byDate;
+    return (b.id ?? '').compareTo(a.id ?? '');
   }
 
   // Add a bill
@@ -196,6 +197,7 @@ class BillsProvider with ChangeNotifier {
     _error = null;
     notifyListeners();
 
+    Bill saved;
     try {
       final row = await _supabase
           .from('bills')
@@ -205,26 +207,22 @@ class BillsProvider with ChangeNotifier {
           })
           .select()
           .single();
-
-      final saved = Bill.fromMap(row);
-
-      // Only surface the new bill in the paginated list if it matches the
-      // active filters; otherwise it belongs on a page/filter we're not
-      // currently viewing.
-      if (_matchesActiveFilters(saved)) {
-        _bills.add(saved);
-        _bills.sort((a, b) => b.date.compareTo(a.date));
-      }
-
-      _allBills.add(saved);
-      _allBills.sort((a, b) => b.date.compareTo(a.date));
-      _error = null;
+      saved = Bill.fromMap(row);
     } catch (e) {
       _error = 'Failed to add bill: $e';
-    } finally {
       _isLoading = false;
       notifyListeners();
+      return;
     }
+
+    _allBills.add(saved);
+    _allBills.sort(_byDateThenId);
+
+    // Re-fetch page 1 from the server rather than optimistically splicing
+    // the new row into `_bills`: the new bill's position relative to the
+    // already-loaded window can't be determined locally, and guessing wrong
+    // desyncs the .range() offset that loadMoreBills() relies on.
+    await loadBills(configProvider);
   }
 
   // Update a bill
@@ -247,6 +245,7 @@ class BillsProvider with ChangeNotifier {
     _error = null;
     notifyListeners();
 
+    Bill saved;
     try {
       final row = await _supabase
           .from('bills')
@@ -254,30 +253,27 @@ class BillsProvider with ChangeNotifier {
           .eq('id', id)
           .select()
           .single();
-
-      final saved = Bill.fromMap(row);
-
-      // The edit may have moved the bill out of the active filters (e.g.
-      // changed its category away from the one being filtered on).
-      if (_matchesActiveFilters(saved)) {
-        _bills[index] = saved;
-        _bills.sort((a, b) => b.date.compareTo(a.date));
-      } else {
-        _bills.removeAt(index);
-      }
-
-      final allIndex = _allBills.indexWhere((b) => b.id == id);
-      if (allIndex != -1) {
-        _allBills[allIndex] = saved;
-        _allBills.sort((a, b) => b.date.compareTo(a.date));
-      }
-      _error = null;
+      saved = Bill.fromMap(row);
     } catch (e) {
       _error = 'Failed to update bill: $e';
-    } finally {
       _isLoading = false;
       notifyListeners();
+      return;
     }
+
+    final allIndex = _allBills.indexWhere((b) => b.id == id);
+    if (allIndex != -1) {
+      _allBills[allIndex] = saved;
+    } else {
+      _allBills.add(saved);
+    }
+    _allBills.sort(_byDateThenId);
+
+    // Same rationale as addBill: the edit may have changed the bill's sort
+    // position or taken it out of the active filter, which a local splice
+    // into `_bills` can't safely reason about relative to the already-loaded
+    // window/offset. Re-fetch page 1 instead.
+    await loadBills(configProvider);
   }
 
   // Delete a bill
