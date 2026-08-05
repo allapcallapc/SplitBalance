@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -109,6 +111,7 @@ class _BillsListScreenState extends State<BillsListScreen>
       _lastLoadedHouseholdId = configProvider.householdId;
       await billsProvider.loadBills(configProvider);
       await categoriesProvider.loadCategories(configProvider);
+      unawaited(billsProvider.loadFilterOptions(configProvider));
     }
   }
 
@@ -148,16 +151,16 @@ class _BillsListScreenState extends State<BillsListScreen>
             ),
             child: Consumer2<BillsProvider, ConfigProvider>(
               builder: (context, billsProvider, configProvider, child) {
-                // Filter options come from current household config/categories
-                // rather than the bills themselves: bills are now fetched
-                // page-by-page, so scanning loaded bills would only surface
-                // whichever payers/categories happen to be on the current
-                // page instead of every value used historically.
+                // billsProvider.paidByOptions/categoryOptions come from a
+                // dedicated distinct-values query (loadFilterOptions), so
+                // renamed/removed payers and categories stay filterable even
+                // though bills themselves are now fetched page-by-page.
                 final personOptions = <String>{
                   if (configProvider.config.person1Name.isNotEmpty)
                     configProvider.config.person1Name,
                   if (configProvider.config.person2Name.isNotEmpty)
                     configProvider.config.person2Name,
+                  ...billsProvider.paidByOptions,
                   if (billsProvider.filterPaidBy != null)
                     billsProvider.filterPaidBy!,
                 }.toList()
@@ -168,8 +171,10 @@ class _BillsListScreenState extends State<BillsListScreen>
                     final categoryOptions = <String>{
                       for (final category in categoriesProvider.categories)
                         category.name,
+                      ...billsProvider.categoryOptions,
                       // Keep the currently active filter selectable even if
-                      // it no longer matches a live category.
+                      // it no longer matches a live category or a value
+                      // loadFilterOptions() has picked up yet.
                       if (billsProvider.filterCategory != null)
                         billsProvider.filterCategory!,
                     }.toList()

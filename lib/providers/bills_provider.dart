@@ -19,6 +19,13 @@ class BillsProvider with ChangeNotifier {
   final List<Bill> _allBills = [];
   bool _isLoadingAll = false;
 
+  // Every distinct paid-by/category value ever used on a household bill,
+  // for the filter dropdown options. Populated by loadFilterOptions(),
+  // which projects just these two columns so it stays cheap even though it
+  // scans every bill row (unlike _allBills, which pulls full rows).
+  List<String> _paidByOptions = [];
+  List<String> _categoryOptions = [];
+
   // Bumped by every loadBills() call. Lets loadBills()/loadMoreBills() tell
   // whether they're still the most recent request before applying their
   // response, so a slow response from a filter the user has since changed
@@ -33,6 +40,8 @@ class BillsProvider with ChangeNotifier {
 
   List<Bill> get bills => List.unmodifiable(_bills);
   List<Bill> get allBills => List.unmodifiable(_allBills);
+  List<String> get paidByOptions => List.unmodifiable(_paidByOptions);
+  List<String> get categoryOptions => List.unmodifiable(_categoryOptions);
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
   bool get isLoadingAll => _isLoadingAll;
@@ -202,6 +211,41 @@ class BillsProvider with ChangeNotifier {
     } finally {
       _isLoadingAll = false;
       notifyListeners();
+    }
+  }
+
+  // Load every distinct paid-by/category value used across the household's
+  // bills, for the filter dropdown options. Renamed/deleted payers and
+  // categories stay filterable this way even though they're no longer in
+  // ConfigProvider/CategoriesProvider. Only the two narrow columns are
+  // fetched (not full bill rows), and dedup happens client-side since
+  // PostgREST has no SELECT DISTINCT.
+  Future<void> loadFilterOptions(ConfigProvider configProvider) async {
+    if (!configProvider.isSignedIn || configProvider.householdId == null) {
+      return;
+    }
+
+    try {
+      final rows = await _supabase
+          .from('bills')
+          .select('paid_by, category')
+          .eq('household_id', configProvider.householdId!);
+
+      final paidBySet = <String>{};
+      final categorySet = <String>{};
+      for (final row in rows) {
+        final paidBy = row['paid_by'] as String?;
+        final category = row['category'] as String?;
+        if (paidBy != null && paidBy.isNotEmpty) paidBySet.add(paidBy);
+        if (category != null && category.isNotEmpty) categorySet.add(category);
+      }
+
+      _paidByOptions = paidBySet.toList()..sort();
+      _categoryOptions = categorySet.toList()..sort();
+      notifyListeners();
+    } catch (_) {
+      // Best-effort: leave whatever options were already loaded in place
+      // rather than surfacing this as a blocking error.
     }
   }
 
