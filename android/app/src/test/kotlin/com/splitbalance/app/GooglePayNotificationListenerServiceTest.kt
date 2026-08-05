@@ -60,4 +60,18 @@ class GooglePayNotificationListenerServiceTest {
     fun `extractAmount returns null when there is no amount`() {
         assertNull(GooglePayNotificationListenerService.extractAmount("Your card was added"))
     }
+
+    @Test
+    fun `accepted tradeoff - a non-payment notification with a dollar amount still matches`() {
+        // Documents an intentional false-positive: since this is only reached for a
+        // watched payment-app package, a balance/promo message with a dollar figure
+        // (e.g. "Your Google Wallet balance is $120.00") is treated as a payment too.
+        // The cost is low - it only queues a "confirm as bill?" prompt, never creates
+        // a bill outright - and it's what lets the real regression case above match.
+        val combined = "Google Wallet — Your balance is \$120.00"
+
+        val amount = GooglePayNotificationListenerService.extractAmount(combined)
+
+        assertTrue(GooglePayNotificationListenerService.looksLikePayment(combined, amount))
+    }
 }

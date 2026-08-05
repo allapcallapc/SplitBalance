@@ -36,6 +36,4 @@ jobs:
         run: flutter analyze --no-fatal-infos
 
       - name: Run Android unit tests
-        run: |
-          flutter build apk --debug --target-platform android-arm64
-          cd android && ./gradlew testDebugUnitTest
+        run: cd android && ./gradlew testDebugUnitTest

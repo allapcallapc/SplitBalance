@@ -97,6 +97,11 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
          * CARD ••1234") never uses verbs like "paid" or "purchase" but always has an amount.
          * The keyword list catches the remaining cases where a payment is described
          * without an amount attached.
+         *
+         * This is intentionally permissive: a non-payment notification with a dollar
+         * figure (a balance summary, a promo) will also match. That's an accepted
+         * tradeoff — this only queues a "confirm as bill?" prompt, it never creates a
+         * bill outright — in exchange for not silently dropping real payments.
          */
         fun looksLikePayment(combinedText: String, amount: Double?): Boolean {
             if (amount != null) return true
