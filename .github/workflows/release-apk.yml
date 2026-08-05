@@ -1,14 +1,20 @@
 name: Release APK
 
-# Triggered by a tag push. Tags are only ever created by the "Cut Release"
-# workflow (workflow_dispatch), never pre-created as a GitHub Release via
-# the UI, so this always creates the release from scratch here - avoiding
-# GitHub's immutable-releases restriction, which blocks attaching assets
-# to a release that already exists and is published.
+# Triggered directly by a tag push (e.g. pushed from a developer machine),
+# or invoked as a reusable workflow by cut-release.yml. It's called
+# directly rather than relying on the tag push there to cascade into this
+# trigger, because tags pushed using the default GITHUB_TOKEN don't fire
+# other workflows' triggers (GitHub's loop-prevention rule).
 on:
   push:
     tags:
       - 'v*'
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Tag to release (defaults to the pushed tag when triggered directly)'
+        required: false
+        type: string
 
 jobs:
   test:
@@ -23,6 +29,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -42,7 +50,7 @@ jobs:
         id: version
         uses: ./.github/actions/version-from-tag
         with:
-          tag: ${{ github.ref_name }}
+          tag: ${{ inputs.tag || github.ref_name }}
 
       - name: Decode release keystore
         env:
@@ -73,5 +81,6 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
           files: build/app/outputs/flutter-apk/app-release.apk
           generate_release_notes: true
