@@ -3,8 +3,34 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/bill.dart';
 import 'config_provider.dart';
 
+// Fetches one page of bill rows for [householdId], applying the optional
+// paid-by/category filters server-side and ordering by date/id descending.
+// Injectable so tests can control exactly when/in what order responses
+// resolve, without needing a real Supabase session.
+typedef FetchBillsPage = Future<List<Map<String, dynamic>>> Function({
+  required String householdId,
+  String? paidBy,
+  String? category,
+  required int offset,
+  required int limit,
+});
+
+// Inserts a bill row and returns the saved row (including its generated id).
+typedef InsertBillRow = Future<Map<String, dynamic>> Function(
+  Map<String, dynamic> data,
+);
+
 class BillsProvider with ChangeNotifier {
+  BillsProvider({
+    FetchBillsPage? fetchBillsPage,
+    InsertBillRow? insertBillRow,
+  })  : _fetchBillsPage = fetchBillsPage ?? _defaultFetchBillsPage,
+        _insertBillRow = insertBillRow ?? _defaultInsertBillRow;
+
   static const int pageSize = 25;
+
+  final FetchBillsPage _fetchBillsPage;
+  final InsertBillRow _insertBillRow;
 
   // Paginated, server-filtered bills backing the bills list screen.
   final List<Bill> _bills = [];
@@ -84,21 +110,39 @@ class BillsProvider with ChangeNotifier {
 
   SupabaseClient get _supabase => Supabase.instance.client;
 
-  PostgrestFilterBuilder<List<Map<String, dynamic>>> _billsQuery(
-      ConfigProvider configProvider) {
-    var query = _supabase
+  static Future<List<Map<String, dynamic>>> _defaultFetchBillsPage({
+    required String householdId,
+    String? paidBy,
+    String? category,
+    required int offset,
+    required int limit,
+  }) async {
+    var query = Supabase.instance.client
         .from('bills')
         .select()
-        .eq('household_id', configProvider.householdId!);
+        .eq('household_id', householdId);
 
-    if (_filterPaidBy != null) {
-      query = query.eq('paid_by', _filterPaidBy!);
+    if (paidBy != null) {
+      query = query.eq('paid_by', paidBy);
     }
-    if (_filterCategory != null) {
-      query = query.eq('category', _filterCategory!);
+    if (category != null) {
+      query = query.eq('category', category);
     }
 
-    return query;
+    return await query
+        .order('date', ascending: false)
+        .order('id', ascending: false)
+        .range(offset, offset + limit - 1);
+  }
+
+  static Future<Map<String, dynamic>> _defaultInsertBillRow(
+    Map<String, dynamic> data,
+  ) async {
+    return await Supabase.instance.client
+        .from('bills')
+        .insert(data)
+        .select()
+        .single();
   }
 
   // Load the first page of bills for the current household, applying the
@@ -108,7 +152,14 @@ class BillsProvider with ChangeNotifier {
     if (!configProvider.isSignedIn || configProvider.householdId == null) {
       return;
     }
+    await loadBillsForHousehold(configProvider.householdId!);
+  }
 
+  // Core of loadBills(), scoped to a household id rather than a
+  // ConfigProvider so it can be exercised in tests without a real signed-in
+  // Supabase session.
+  @visibleForTesting
+  Future<void> loadBillsForHousehold(String householdId) async {
     // Starting a fresh page-1 load invalidates any loadMoreBills() already
     // in flight for the previous filter/page window.
     final requestId = ++_requestId;
@@ -119,10 +170,13 @@ class BillsProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final rows = await _billsQuery(configProvider)
-          .order('date', ascending: false)
-          .order('id', ascending: false)
-          .range(0, pageSize - 1);
+      final rows = await _fetchBillsPage(
+        householdId: householdId,
+        paidBy: _filterPaidBy,
+        category: _filterCategory,
+        offset: 0,
+        limit: pageSize,
+      );
 
       // A newer loadBills() call (e.g. a fast second filter change) has
       // since superseded this one; drop the stale response.
@@ -148,20 +202,28 @@ class BillsProvider with ChangeNotifier {
   // Load the next page of bills (same filters as the current page) and
   // append it to the already-loaded list, for infinite scroll.
   Future<void> loadMoreBills(ConfigProvider configProvider) async {
-    if (_isLoading || _isLoadingMore || !_hasMore) return;
     if (!configProvider.isSignedIn || configProvider.householdId == null) {
       return;
     }
+    await loadMoreBillsForHousehold(configProvider.householdId!);
+  }
+
+  @visibleForTesting
+  Future<void> loadMoreBillsForHousehold(String householdId) async {
+    if (_isLoading || _isLoadingMore || !_hasMore) return;
 
     final requestId = _requestId;
     _isLoadingMore = true;
     notifyListeners();
 
     try {
-      final rows = await _billsQuery(configProvider)
-          .order('date', ascending: false)
-          .order('id', ascending: false)
-          .range(_bills.length, _bills.length + pageSize - 1);
+      final rows = await _fetchBillsPage(
+        householdId: householdId,
+        paidBy: _filterPaidBy,
+        category: _filterCategory,
+        offset: _bills.length,
+        limit: pageSize,
+      );
 
       // A loadBills() reset happened while this was in flight (e.g. the
       // filter changed) — its results belong to a window that no longer
@@ -265,21 +327,21 @@ class BillsProvider with ChangeNotifier {
       notifyListeners();
       return;
     }
+    await addBillForHousehold(bill, configProvider.householdId!);
+  }
 
+  @visibleForTesting
+  Future<void> addBillForHousehold(Bill bill, String householdId) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     Bill saved;
     try {
-      final row = await _supabase
-          .from('bills')
-          .insert({
-            ...bill.toMap(),
-            'household_id': configProvider.householdId,
-          })
-          .select()
-          .single();
+      final row = await _insertBillRow({
+        ...bill.toMap(),
+        'household_id': householdId,
+      });
       saved = Bill.fromMap(row);
     } catch (e) {
       _error = 'Failed to add bill: $e';
@@ -295,7 +357,7 @@ class BillsProvider with ChangeNotifier {
     // the new row into `_bills`: the new bill's position relative to the
     // already-loaded window can't be determined locally, and guessing wrong
     // desyncs the .range() offset that loadMoreBills() relies on.
-    await loadBills(configProvider);
+    await loadBillsForHousehold(householdId);
   }
 
   // Update a bill
