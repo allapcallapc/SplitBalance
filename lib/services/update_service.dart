@@ -99,12 +99,15 @@ class UpdateService {
       var received = 0;
 
       final sink = file.openWrite();
-      await streamedResponse.stream.map((chunk) {
-        received += chunk.length;
-        if (total > 0) onProgress?.call(received / total);
-        return chunk;
-      }).pipe(sink);
-      await sink.close();
+      try {
+        await streamedResponse.stream.map((chunk) {
+          received += chunk.length;
+          if (total > 0) onProgress?.call(received / total);
+          return chunk;
+        }).pipe(sink);
+      } finally {
+        await sink.close();
+      }
     } finally {
       client.close();
     }

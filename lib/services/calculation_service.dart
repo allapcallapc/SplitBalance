@@ -116,39 +116,42 @@ class CalculationService {
         }
       }
 
+      // Track by category. Paid amounts always count here, mirroring the
+      // grand totals above, even when there's no matching split - otherwise
+      // the category breakdown silently drops bills and doesn't sum to the
+      // grand total. Expected amounts only accumulate when a split applies,
+      // since without one there's no basis to expect a particular share.
+      final categoryKey = bill.category;
+      if (!categoryBalancesMap.containsKey(categoryKey)) {
+        categoryBalancesMap[categoryKey] = CategoryBalance(
+          category: categoryKey,
+          person1Paid: 0,
+          person2Paid: 0,
+          person1Expected: 0,
+          person2Expected: 0,
+        );
+      }
+
+      var person1Share = 0.0;
+      var person2Share = 0.0;
       if (matchingSplit != null) {
-        // Calculate expected amounts
-        final person1Share =
-            bill.amount * matchingSplit.person1Percentage / 100;
-        final person2Share =
-            bill.amount * matchingSplit.person2Percentage / 100;
+        person1Share = bill.amount * matchingSplit.person1Percentage / 100;
+        person2Share = bill.amount * matchingSplit.person2Percentage / 100;
 
         person1Expected += person1Share;
         person2Expected += person2Share;
-
-        // Track by category
-        final categoryKey = bill.category;
-        if (!categoryBalancesMap.containsKey(categoryKey)) {
-          categoryBalancesMap[categoryKey] = CategoryBalance(
-            category: categoryKey,
-            person1Paid: 0,
-            person2Paid: 0,
-            person1Expected: 0,
-            person2Expected: 0,
-          );
-        }
-
-        final catBalance = categoryBalancesMap[categoryKey]!;
-        categoryBalancesMap[categoryKey] = CategoryBalance(
-          category: categoryKey,
-          person1Paid:
-              catBalance.person1Paid + (isPaidByPerson1 ? bill.amount : 0),
-          person2Paid:
-              catBalance.person2Paid + (isPaidByPerson2 ? bill.amount : 0),
-          person1Expected: catBalance.person1Expected + person1Share,
-          person2Expected: catBalance.person2Expected + person2Share,
-        );
       }
+
+      final catBalance = categoryBalancesMap[categoryKey]!;
+      categoryBalancesMap[categoryKey] = CategoryBalance(
+        category: categoryKey,
+        person1Paid:
+            catBalance.person1Paid + (isPaidByPerson1 ? bill.amount : 0),
+        person2Paid:
+            catBalance.person2Paid + (isPaidByPerson2 ? bill.amount : 0),
+        person1Expected: catBalance.person1Expected + person1Share,
+        person2Expected: catBalance.person2Expected + person2Share,
+      );
     }
 
     // Calculate net balance

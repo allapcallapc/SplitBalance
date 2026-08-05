@@ -396,6 +396,16 @@ void main() {
       expect(result.person2Paid, 0.0);
       expect(result.person1Expected, 0.0); // No matching split, so no expected amount
       expect(result.person2Expected, 0.0);
+
+      // The category breakdown must still reflect the paid amount, so it
+      // sums to the grand total above, even though there's no expected
+      // amount to attribute without a matching split.
+      final foodBalance = result.categoryBalances['Food'];
+      expect(foodBalance, isNotNull);
+      expect(foodBalance!.person1Paid, 100.0);
+      expect(foodBalance.person2Paid, 0.0);
+      expect(foodBalance.person1Expected, 0.0);
+      expect(foodBalance.person2Expected, 0.0);
     });
 
     test('Throws error for invalid bill category', () {
