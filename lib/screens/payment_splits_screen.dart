@@ -1433,10 +1433,14 @@ class PeriodHeader extends StatelessWidget {
                   ],
                   if (isMissing) ...[
                     const SizedBox(width: 2),
-                    Icon(
-                      Icons.warning_amber_rounded,
-                      size: 16,
-                      color: colorScheme.error,
+                    Tooltip(
+                      message:
+                          'Missing ${missingAmount.toStringAsFixed(1)}%',
+                      child: Icon(
+                        Icons.warning_amber_rounded,
+                        size: 16,
+                        color: colorScheme.error,
+                      ),
                     ),
                   ],
                 ],
