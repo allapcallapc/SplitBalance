@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.1](https://github.com/allapcallapc/SplitBalance/compare/v2.1.0...v2.1.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* detect Google Wallet tap-to-pay notifications without a payment keyword ([#42](https://github.com/allapcallapc/SplitBalance/issues/42)) ([e9aeaa0](https://github.com/allapcallapc/SplitBalance/commit/e9aeaa0f9dc6df03d79d3235d404748b68dafa81))
+
 ## [2.1.0](https://github.com/allapcallapc/SplitBalance/compare/v2.0.10...v2.1.0) (2026-08-05)
 
 
