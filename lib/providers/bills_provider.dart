@@ -370,7 +370,10 @@ class BillsProvider with ChangeNotifier {
 
     try {
       await _supabase.from('bills').delete().eq('id', id);
-      _bills.removeAt(index);
+      // Remove by id, not the captured index: a loadBills() reset could have
+      // run while the delete was in flight, making `index` describe a
+      // different row (or none) by the time we get here.
+      _bills.removeWhere((b) => b.id == id);
       _allBills.removeWhere((b) => b.id == id);
       _error = null;
     } catch (e) {
