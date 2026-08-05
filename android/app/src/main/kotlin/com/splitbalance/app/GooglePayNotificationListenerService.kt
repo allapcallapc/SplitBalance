@@ -93,8 +93,8 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
          * Whether a notification's combined title/text should be treated as a payment.
          * Notifications only reach here from a watched payment-app package (see
          * [getWatchedPackages]), so a recognizable money amount is on its own enough of
-         * a signal — e.g. Google Wallet's tap-to-pay format ("$31.20 with BANK CARD
-         * ••1775") never uses verbs like "paid" or "purchase" but always has an amount.
+         * a signal — e.g. Google Wallet's tap-to-pay format ("$31.20 with SOME BANK
+         * CARD ••1234") never uses verbs like "paid" or "purchase" but always has an amount.
          * The keyword list catches the remaining cases where a payment is described
          * without an amount attached.
          */

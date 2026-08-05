@@ -10,10 +10,10 @@ class GooglePayNotificationListenerServiceTest {
 
     @Test
     fun `tap-to-pay transaction with no payment verb is still detected`() {
-        // Regression test: Google Wallet's real-world tap-to-pay format ("$31.20 with
-        // BANK CARD ..1775") contains no word from PAYMENT_KEYWORDS, so relying on
+        // Regression test: Google Wallet's real-world tap-to-pay format ("$X.XX with
+        // BANK CARD ..1234") contains no word from PAYMENT_KEYWORDS, so relying on
         // keywords alone silently dropped these notifications.
-        val combined = "BIRDHOUSE WINGERIE & B — \$31.20 with ECHO REMISES MASTERCARD BNC ••1775"
+        val combined = "SAMPLE MERCHANT — \$31.20 with SOME BANK CARD ••1234"
 
         val amount = GooglePayNotificationListenerService.extractAmount(combined)
 
