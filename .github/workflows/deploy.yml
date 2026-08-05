@@ -35,6 +35,8 @@ jobs:
       - name: Determine version from tag
         id: version
         uses: ./.github/actions/version-from-tag
+        with:
+          tag: ${{ github.ref_name }}
 
       - name: Build web app
         run: |

@@ -1,8 +1,16 @@
 name: 'Determine version from tag'
 description: >-
-  Strips the leading "v" so a pushed tag (e.g. v2.0.2) becomes the app's
-  version - this is what gets embedded via --build-name in Flutter builds,
-  and what the in-app update checker compares against the GitHub release tag.
+  Strips the leading "v" so a tag (e.g. v2.0.2) becomes the app's version -
+  this is what gets embedded via --build-name in Flutter builds, and what
+  the in-app update checker compares against the GitHub release tag.
+inputs:
+  tag:
+    description: >-
+      The tag name to derive the version from. Callers triggered by a tag
+      push can pass github.ref_name; callers triggered by a release event
+      (where the tag may not exist as a ref yet, e.g. an unpublished draft)
+      must pass github.event.release.tag_name instead.
+    required: true
 outputs:
   name:
     description: 'The tag with its leading "v" stripped, e.g. 2.0.2'
@@ -12,4 +20,6 @@ runs:
   steps:
     - id: version
       shell: bash
-      run: echo "name=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      env:
+        TAG: ${{ inputs.tag }}
+      run: echo "name=${TAG#v}" >> "$GITHUB_OUTPUT"

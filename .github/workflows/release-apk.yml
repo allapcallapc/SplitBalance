@@ -1,9 +1,15 @@
 name: Release APK
 
+# Fires when a release is created, including a draft. GitHub's immutable
+# releases feature only allows attaching assets before a release is
+# published, so this job builds the APK and attaches it to the release
+# while it's still a draft; publishing (and thus creating the tag, if it's
+# new) stays a manual step done via the GitHub UI. If a release is created
+# already-published (skipping the draft step), the build job below is
+# skipped since there's no way to attach the asset to it anymore.
 on:
-  push:
-    tags:
-      - 'v*'
+  release:
+    types: [created]
 
 jobs:
   test:
@@ -11,6 +17,7 @@ jobs:
 
   build:
     needs: test
+    if: github.event.release.draft == true
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -18,6 +25,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.target_commitish }}
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -36,6 +45,8 @@ jobs:
       - name: Determine version from tag
         id: version
         uses: ./.github/actions/version-from-tag
+        with:
+          tag: ${{ github.event.release.tag_name }}
 
       - name: Decode release keystore
         env:
@@ -63,8 +74,9 @@ jobs:
             --build-name=${{ steps.version.outputs.name }} \
             --build-number=${{ github.run_number }}
 
-      - name: Create GitHub Release
+      - name: Attach APK to draft release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.release.tag_name }}
           files: build/app/outputs/flutter-apk/app-release.apk
-          generate_release_notes: true
+          draft: true
