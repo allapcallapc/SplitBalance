@@ -1433,10 +1433,21 @@ class PeriodHeader extends StatelessWidget {
                   ],
                   if (isMissing) ...[
                     const SizedBox(width: 2),
-                    Icon(
-                      Icons.warning_amber_rounded,
-                      size: 16,
-                      color: colorScheme.error,
+                    Tooltip(
+                      // missingAmount only accounts for categories that
+                      // have a split defined but don't sum to 100%; a
+                      // wholly-undefined category (the other case
+                      // isMissing covers) leaves it at 0 or even negative,
+                      // so fall back to a generic message rather than
+                      // show a misleading "0.0%"/negative percentage.
+                      message: missingAmount > 0
+                          ? 'Missing ${missingAmount.toStringAsFixed(1)}%'
+                          : 'Missing category split',
+                      child: Icon(
+                        Icons.warning_amber_rounded,
+                        size: 16,
+                        color: colorScheme.error,
+                      ),
                     ),
                   ],
                 ],
