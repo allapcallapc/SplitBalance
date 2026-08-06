@@ -878,6 +878,24 @@ abstract class AppLocalizations {
   /// **'Total Amount'**
   String get totalAmount;
 
+  /// Header for the per-person expense count section in Statistics
+  ///
+  /// In en, this message translates to:
+  /// **'Expenses Added'**
+  String get expensesAdded;
+
+  /// Caption under each person's expense count in the Statistics card
+  ///
+  /// In en, this message translates to:
+  /// **'expenses'**
+  String get expenses;
+
+  /// Caption above the aggregate totals rows in the Statistics card
+  ///
+  /// In en, this message translates to:
+  /// **'Totals'**
+  String get totals;
+
   /// Button label to save bill
   ///
   /// In en, this message translates to:
