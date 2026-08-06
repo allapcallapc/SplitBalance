@@ -434,7 +434,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get expensesAdded => 'Expenses Added';
 
   @override
-  String get expenses => 'expenses';
+  String expenses(int count) {
+    return intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'expenses',
+      one: 'expense',
+    );
+  }
 
   @override
   String get totals => 'Totals';

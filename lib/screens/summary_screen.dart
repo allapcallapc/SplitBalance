@@ -176,12 +176,17 @@ class _SummaryScreenState extends State<SummaryScreen> {
             );
           }
 
-          final person1ExpenseCount = billsProvider.allBills
-              .where((bill) => bill.paidBy == result.person1Name)
-              .length;
-          final person2ExpenseCount = billsProvider.allBills
-              .where((bill) => bill.paidBy == result.person2Name)
-              .length;
+          // Mirrors CalculationService's mutually-exclusive person1-then-person2
+          // check, so a bill never double-counts if person1Name == person2Name.
+          var person1ExpenseCount = 0;
+          var person2ExpenseCount = 0;
+          for (final bill in billsProvider.allBills) {
+            if (bill.paidBy == result.person1Name) {
+              person1ExpenseCount++;
+            } else if (bill.paidBy == result.person2Name) {
+              person2ExpenseCount++;
+            }
+          }
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -450,6 +455,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
     final colorA = isDark ? _personAColorDark : _personAColorLight;
     final colorB = isDark ? _personBColorDark : _personBColorLight;
     final totalCount = person1Count + person2Count;
+    // person2's share is the remainder rather than independently rounded,
+    // so the two percentages always sum to 100.
+    final person1Percent =
+        totalCount > 0 ? ((person1Count / totalCount) * 100).round() : 0;
+    final person2Percent = 100 - person1Percent;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -510,7 +520,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 Text(
                   l10n.paymentSplitPersonDisplay(
                     person1Name,
-                    ((person1Count / totalCount) * 100).round().toString(),
+                    person1Percent.toString(),
                   ),
                   style: TextStyle(
                     fontSize: 11,
@@ -520,7 +530,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 Text(
                   l10n.paymentSplitPersonDisplay(
                     person2Name,
-                    ((person2Count / totalCount) * 100).round().toString(),
+                    person2Percent.toString(),
                   ),
                   style: TextStyle(
                     fontSize: 11,
@@ -589,7 +599,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               Text(
-                l10n.expenses,
+                l10n.expenses(count),
                 style: TextStyle(
                   fontSize: 10.5,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,

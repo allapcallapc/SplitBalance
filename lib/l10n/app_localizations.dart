@@ -887,8 +887,8 @@ abstract class AppLocalizations {
   /// Caption under each person's expense count in the Statistics card
   ///
   /// In en, this message translates to:
-  /// **'expenses'**
-  String get expenses;
+  /// **'{count, plural, =1{expense} other{expenses}}'**
+  String expenses(int count);
 
   /// Caption above the aggregate totals rows in the Statistics card
   ///
