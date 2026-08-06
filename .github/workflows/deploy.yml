@@ -4,12 +4,18 @@ name: Deploy to GitHub Pages
 # is what actually publishes releases (using a PAT so this trigger fires
 # at all - see its own comments), and by the time a release is published,
 # a real APK build has already succeeded, so gating web deploys on the
-# same event keeps both in lockstep. This also means the github-pages
-# environment's deployment branch policy evaluates against the real tag
-# ref this run is scoped to, not some other branch.
+# same event keeps both in lockstep.
+#
+# Deploys to the root of gh-pages (branch-based Pages source), alongside
+# /main/ and /pr-<n>/ published by deploy-main.yml and
+# deploy-pr-preview.yml - see those for the preview-environment setup.
 on:
   release:
     types: [published]
+
+concurrency:
+  group: gh-pages-publish
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -19,12 +25,10 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pages: write
-      id-token: write
+      contents: write
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
 
     steps:
       - name: Checkout repository
@@ -55,14 +59,13 @@ jobs:
         run: ls -la build/web/
         continue-on-error: true
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: './build/web'
-
+      # Production lives at the root of gh-pages, alongside /main/ (latest
+      # main branch) and /pr-<n>/ (per-PR previews) published by the other
+      # deploy workflows - keep_files so this push doesn't wipe them out.
       - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build/web
+          keep_files: true
+          commit_message: 'deploy: release ${{ github.event.release.tag_name }}'
