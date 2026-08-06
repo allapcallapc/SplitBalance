@@ -42,7 +42,7 @@ jobs:
       - name: Build web app
         run: |
           flutter build web --base-href "/${{ github.event.repository.name }}/main/" \
-            --build-name=${{ steps.version.outputs.name }}
+            --build-name=${{ steps.version.outputs.name }} --build-number=0
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
