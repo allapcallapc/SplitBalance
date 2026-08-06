@@ -434,6 +434,15 @@ class AppLocalizationsFr extends AppLocalizations {
   String get totalAmount => 'Montant total';
 
   @override
+  String get expensesAdded => 'Dépenses ajoutées';
+
+  @override
+  String get expenses => 'dépenses';
+
+  @override
+  String get totals => 'Totaux';
+
+  @override
   String get saveBill => 'Enregistrer la facture';
 
   @override

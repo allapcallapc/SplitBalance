@@ -176,6 +176,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
             );
           }
 
+          final person1ExpenseCount = billsProvider.allBills
+              .where((bill) => bill.paidBy == result.person1Name)
+              .length;
+          final person2ExpenseCount = billsProvider.allBills
+              .where((bill) => bill.paidBy == result.person2Name)
+              .length;
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -333,6 +340,27 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           ),
                         ),
                         const Divider(),
+                        _buildExpensesAddedSection(
+                          context,
+                          l10n,
+                          result.person1Name,
+                          person1ExpenseCount,
+                          result.person2Name,
+                          person2ExpenseCount,
+                        ),
+                        const Divider(),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4.0),
+                          child: Text(
+                            l10n.totals,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color:
+                                  Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
                         _buildSummaryRow(
                           l10n.totalBills,
                           '${calculationProvider.householdTotals?.billCount ?? 0}',
@@ -401,6 +429,192 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
   static final Color _person1Color = Colors.teal[600]!;
   static final Color _person2Color = Colors.orange[700]!;
+
+  // Fixed per-person accent colors, independent of the app's seed color, so
+  // the split stays legible and consistent across all four theme modes
+  // (light, dark, pink, teal) instead of shifting with the seed.
+  static const _personAColorLight = Color(0xFF2A78D6);
+  static const _personAColorDark = Color(0xFF3987E5);
+  static const _personBColorLight = Color(0xFFEB6834);
+  static const _personBColorDark = Color(0xFFD95926);
+
+  Widget _buildExpensesAddedSection(
+    BuildContext context,
+    AppLocalizations l10n,
+    String person1Name,
+    int person1Count,
+    String person2Name,
+    int person2Count,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorA = isDark ? _personAColorDark : _personAColorLight;
+    final colorB = isDark ? _personBColorDark : _personBColorLight;
+    final totalCount = person1Count + person2Count;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.expensesAdded,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _buildPersonCountTile(
+                    context, l10n, person1Name, person1Count, colorA),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: _buildPersonCountTile(
+                    context, l10n, person2Name, person2Count, colorB),
+              ),
+            ],
+          ),
+          if (totalCount > 0) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: SizedBox(
+                height: 8,
+                child: person1Count == 0
+                    ? Container(color: colorB)
+                    : person2Count == 0
+                        ? Container(color: colorA)
+                        : Row(
+                            children: [
+                              Expanded(
+                                flex: person1Count,
+                                child: Container(color: colorA),
+                              ),
+                              const SizedBox(width: 2),
+                              Expanded(
+                                flex: person2Count,
+                                child: Container(color: colorB),
+                              ),
+                            ],
+                          ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  l10n.paymentSplitPersonDisplay(
+                    person1Name,
+                    ((person1Count / totalCount) * 100).round().toString(),
+                  ),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                Text(
+                  l10n.paymentSplitPersonDisplay(
+                    person2Name,
+                    ((person2Count / totalCount) * 100).round().toString(),
+                  ),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPersonCountTile(
+    BuildContext context,
+    AppLocalizations l10n,
+    String name,
+    int count,
+    Color color,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+            border: Border.all(
+              color: color.withValues(alpha: isDark ? 0.5 : 0.35),
+              width: 2,
+            ),
+          ),
+          child: Text(
+            initial,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: color,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                name,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              Text(
+                '$count',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                l10n.expenses,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTableHeaderCell(String text, {bool isRightAligned = false}) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Text(
+        text,
+        textAlign: isRightAligned ? TextAlign.right : TextAlign.left,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+        ),
+      ),
+    );
+  }
 
   // Category balances only carry the category name, so look up the matching
   // Category to render its icon (falling back to the default icon if it was
