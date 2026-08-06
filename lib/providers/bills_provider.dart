@@ -3,14 +3,19 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/bill.dart';
 import 'config_provider.dart';
 
+// Which bill field the list is ordered by.
+enum BillSortField { date, amount }
+
 // Fetches one page of bill rows for [householdId], applying the optional
-// paid-by/category filters server-side and ordering by date/id descending.
+// paid-by/category filters and the sort field/direction server-side.
 // Injectable so tests can control exactly when/in what order responses
 // resolve, without needing a real Supabase session.
 typedef FetchBillsPage = Future<List<Map<String, dynamic>>> Function({
   required String householdId,
   String? paidBy,
   String? category,
+  required BillSortField sortField,
+  required bool sortAscending,
   required int offset,
   required int limit,
 });
@@ -79,6 +84,11 @@ class BillsProvider with ChangeNotifier {
   String? _filterPaidBy;
   String? _filterCategory;
 
+  // Active list sort. Defaults to newest-first by date, matching the
+  // screen's behavior before sorting was configurable.
+  BillSortField _sortField = BillSortField.date;
+  bool _sortAscending = false;
+
   List<Bill> get bills => List.unmodifiable(_bills);
   List<Bill> get allBills => List.unmodifiable(_allBills);
   List<String> get paidByOptions => List.unmodifiable(_paidByOptions);
@@ -94,6 +104,9 @@ class BillsProvider with ChangeNotifier {
   bool get hasActiveFilters =>
       (_filterPaidBy != null && _filterPaidBy!.isNotEmpty) ||
       (_filterCategory != null && _filterCategory!.isNotEmpty);
+
+  BillSortField get sortField => _sortField;
+  bool get sortAscending => _sortAscending;
 
   // Update the "paid by" filter and reload the first page with it applied
   // server-side. Pass null (or empty) to clear it.
@@ -123,12 +136,24 @@ class BillsProvider with ChangeNotifier {
     await loadBills(configProvider);
   }
 
+  // Update the sort field/direction and reload the first page ordered by it
+  // server-side.
+  Future<void> setSort(BillSortField field, bool ascending,
+      ConfigProvider configProvider) async {
+    if (field == _sortField && ascending == _sortAscending) return;
+    _sortField = field;
+    _sortAscending = ascending;
+    await loadBills(configProvider);
+  }
+
   SupabaseClient get _supabase => Supabase.instance.client;
 
   static Future<List<Map<String, dynamic>>> _defaultFetchBillsPage({
     required String householdId,
     String? paidBy,
     String? category,
+    required BillSortField sortField,
+    required bool sortAscending,
     required int offset,
     required int limit,
   }) async {
@@ -144,9 +169,10 @@ class BillsProvider with ChangeNotifier {
       query = query.eq('category', category);
     }
 
+    final column = sortField == BillSortField.date ? 'date' : 'amount';
     return await query
-        .order('date', ascending: false)
-        .order('id', ascending: false)
+        .order(column, ascending: sortAscending)
+        .order('id', ascending: sortAscending)
         .range(offset, offset + limit - 1);
   }
 
@@ -205,6 +231,8 @@ class BillsProvider with ChangeNotifier {
         householdId: householdId,
         paidBy: _filterPaidBy,
         category: _filterCategory,
+        sortField: _sortField,
+        sortAscending: _sortAscending,
         offset: 0,
         limit: pageSize,
       );
@@ -252,6 +280,8 @@ class BillsProvider with ChangeNotifier {
         householdId: householdId,
         paidBy: _filterPaidBy,
         category: _filterCategory,
+        sortField: _sortField,
+        sortAscending: _sortAscending,
         offset: _bills.length,
         limit: pageSize,
       );

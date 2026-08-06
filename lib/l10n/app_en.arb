@@ -133,6 +133,30 @@
   "@filters": {
     "description": "Title of the bill list filters modal, and tooltip for the button that opens it"
   },
+  "sortBy": "Sort by",
+  "@sortBy": {
+    "description": "Title of the bill list sort modal"
+  },
+  "sortByTooltip": "Sort",
+  "@sortByTooltip": {
+    "description": "Tooltip for the chip that opens the bill list sort modal"
+  },
+  "sortNewest": "Newest",
+  "@sortNewest": {
+    "description": "Sort chip/option label for bills ordered by date, newest first"
+  },
+  "sortOldest": "Oldest",
+  "@sortOldest": {
+    "description": "Sort chip/option label for bills ordered by date, oldest first"
+  },
+  "sortHighest": "Highest",
+  "@sortHighest": {
+    "description": "Sort chip/option label for bills ordered by amount, highest first"
+  },
+  "sortLowest": "Lowest",
+  "@sortLowest": {
+    "description": "Sort chip/option label for bills ordered by amount, lowest first"
+  },
   "selectWhoPaid": "Please select who paid",
   "@selectWhoPaid": {
     "description": "Validation message for paid by selection"

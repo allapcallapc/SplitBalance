@@ -220,7 +220,8 @@ class _BillsListScreenState extends State<BillsListScreen>
                               ),
                           ],
                           onChanged: (value) {
-                            billsProvider.setPaidByFilter(value, configProvider);
+                            billsProvider.setPaidByFilter(
+                                value, configProvider);
                           },
                         ),
                         const SizedBox(height: 12),
@@ -252,6 +253,105 @@ class _BillsListScreenState extends State<BillsListScreen>
                       ],
                     );
                   },
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Sort lives behind a tonal chip in the app bar (next to the filter
+  // icon) that always shows the current order. Tapping it opens a modal
+  // bottom sheet with segmented buttons for field and direction, mirroring
+  // the filter sheet above.
+  String _sortLabel(AppLocalizations l10n, BillsProvider billsProvider) {
+    if (billsProvider.sortField == BillSortField.date) {
+      return billsProvider.sortAscending ? l10n.sortOldest : l10n.sortNewest;
+    }
+    return billsProvider.sortAscending ? l10n.sortLowest : l10n.sortHighest;
+  }
+
+  void _showSortModal(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      constraints: const BoxConstraints(maxWidth: double.infinity),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+            ),
+            child: Consumer2<BillsProvider, ConfigProvider>(
+              builder: (context, billsProvider, configProvider, child) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      l10n.sortBy,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 16),
+                    SegmentedButton<BillSortField>(
+                      segments: [
+                        ButtonSegment(
+                          value: BillSortField.date,
+                          label: Text(l10n.date),
+                          icon: const Icon(Icons.calendar_today),
+                        ),
+                        ButtonSegment(
+                          value: BillSortField.amount,
+                          label: Text(l10n.amount),
+                          icon: const Icon(Icons.attach_money),
+                        ),
+                      ],
+                      selected: {billsProvider.sortField},
+                      onSelectionChanged: (selection) {
+                        billsProvider.setSort(
+                          selection.first,
+                          billsProvider.sortAscending,
+                          configProvider,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    SegmentedButton<bool>(
+                      segments: [
+                        ButtonSegment(
+                          value: false,
+                          label: Text(
+                              billsProvider.sortField == BillSortField.date
+                                  ? l10n.sortNewest
+                                  : l10n.sortHighest),
+                          icon: const Icon(Icons.arrow_downward),
+                        ),
+                        ButtonSegment(
+                          value: true,
+                          label: Text(
+                              billsProvider.sortField == BillSortField.date
+                                  ? l10n.sortOldest
+                                  : l10n.sortLowest),
+                          icon: const Icon(Icons.arrow_upward),
+                        ),
+                      ],
+                      selected: {billsProvider.sortAscending},
+                      onSelectionChanged: (selection) {
+                        billsProvider.setSort(
+                          billsProvider.sortField,
+                          selection.first,
+                          configProvider,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                 );
               },
             ),
@@ -312,6 +412,29 @@ class _BillsListScreenState extends State<BillsListScreen>
           ],
         ),
         actions: [
+          Consumer<BillsProvider>(
+            builder: (context, billsProvider, child) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: ActionChip(
+                avatar: Icon(
+                  billsProvider.sortAscending
+                      ? Icons.arrow_upward
+                      : Icons.arrow_downward,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.onSecondaryContainer,
+                ),
+                label: Text(_sortLabel(l10n, billsProvider)),
+                labelStyle: TextStyle(
+                  color: Theme.of(context).colorScheme.onSecondaryContainer,
+                ),
+                backgroundColor:
+                    Theme.of(context).colorScheme.secondaryContainer,
+                shape: const StadiumBorder(side: BorderSide.none),
+                onPressed: () => _showSortModal(context),
+                tooltip: l10n.sortByTooltip,
+              ),
+            ),
+          ),
           Consumer<BillsProvider>(
             builder: (context, billsProvider, child) => IconButton(
               icon: Badge(
@@ -480,8 +603,8 @@ class _BillsListScreenState extends State<BillsListScreen>
 
                 return ListView.builder(
                   controller: _scrollController,
-                  itemCount:
-                      visibleBills.length + (billsProvider.isLoadingMore ? 1 : 0),
+                  itemCount: visibleBills.length +
+                      (billsProvider.isLoadingMore ? 1 : 0),
                   padding: const EdgeInsets.all(8),
                   itemBuilder: (context, listIndex) {
                     if (listIndex >= visibleBills.length) {

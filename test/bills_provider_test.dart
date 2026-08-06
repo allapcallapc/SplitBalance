@@ -27,6 +27,40 @@ Map<String, dynamic> billRow(
 }
 
 void main() {
+  group('BillsProvider - sort', () {
+    test('defaults to newest-first by date', () {
+      final provider = BillsProvider();
+      expect(provider.sortField, BillSortField.date);
+      expect(provider.sortAscending, isFalse);
+    });
+
+    test(
+        'loadBillsForHousehold passes the active sort through to '
+        'fetchBillsPage', () async {
+      BillSortField? capturedField;
+      bool? capturedAscending;
+      final provider = BillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async {
+          capturedField = sortField;
+          capturedAscending = sortAscending;
+          return [billRow('b1', '2026-01-01')];
+        },
+      );
+
+      await provider.loadBillsForHousehold('household-1');
+      expect(capturedField, BillSortField.date);
+      expect(capturedAscending, isFalse);
+    });
+  });
+
   group('BillsProvider - request id guard', () {
     test('a stale loadBillsForHousehold response is dropped', () async {
       final completers = <Completer<List<Map<String, dynamic>>>>[];
@@ -35,6 +69,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
           required int offset,
           required int limit,
         }) {
@@ -67,7 +103,8 @@ void main() {
       expect(provider.error, isNull);
     });
 
-    test('loadMoreBillsForHousehold ignores a response invalidated by a '
+    test(
+        'loadMoreBillsForHousehold ignores a response invalidated by a '
         'concurrent loadBillsForHousehold reset', () async {
       final pageCompleter = Completer<List<Map<String, dynamic>>>();
       var moreRequested = false;
@@ -76,6 +113,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
           required int offset,
           required int limit,
         }) {
@@ -84,7 +123,8 @@ void main() {
             // hasMore is true and loadMoreBillsForHousehold is eligible.
             return Future.value(List.generate(
               BillsProvider.pageSize,
-              (i) => billRow('p1-$i', '2026-01-${(i + 1).toString().padLeft(2, '0')}'),
+              (i) => billRow(
+                  'p1-$i', '2026-01-${(i + 1).toString().padLeft(2, '0')}'),
             ));
           }
           moreRequested = true;
@@ -117,7 +157,8 @@ void main() {
   });
 
   group('BillsProvider - refetch after mutation', () {
-    test('addBillForHousehold refreshes _bills from the server instead of '
+    test(
+        'addBillForHousehold refreshes _bills from the server instead of '
         'guessing the new row\'s position locally', () async {
       var fetchCallCount = 0;
       final provider = BillsProvider(
@@ -133,6 +174,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
           required int offset,
           required int limit,
         }) async {
@@ -167,7 +210,8 @@ void main() {
       expect(provider.error, isNull);
     });
 
-    test('addBillForHousehold surfaces an insert failure without touching '
+    test(
+        'addBillForHousehold surfaces an insert failure without touching '
         'the bill lists', () async {
       final provider = BillsProvider(
         insertBillRow: (data) async => throw Exception('network error'),
@@ -175,6 +219,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
           required int offset,
           required int limit,
         }) async {
@@ -207,7 +253,8 @@ void main() {
           'details': data['details'],
         };
 
-    test('updateBillById refreshes _bills via a refetch and updates '
+    test(
+        'updateBillById refreshes _bills via a refetch and updates '
         '_allBills in place', () async {
       var fetchCallCount = 0;
       var page = [billRow('bill-1', '2026-01-01', category: 'Groceries')];
@@ -219,6 +266,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
           required int offset,
           required int limit,
         }) async {
@@ -259,7 +308,8 @@ void main() {
       expect(provider.error, isNull);
     });
 
-    test('updateBillById with no household id skips the refetch but still '
+    test(
+        'updateBillById with no household id skips the refetch but still '
         'updates _allBills', () async {
       var fetchCallCount = 0;
       final provider = BillsProvider(
@@ -268,6 +318,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
           required int offset,
           required int limit,
         }) async {
@@ -291,7 +343,8 @@ void main() {
       expect(provider.allBills.single.category, 'Rent');
     });
 
-    test('updateBillById surfaces a failure without touching the bill '
+    test(
+        'updateBillById surfaces a failure without touching the bill '
         'lists', () async {
       final provider = BillsProvider(
         updateBillRow: (id, data) async => throw Exception('network error'),
@@ -322,6 +375,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
           required int offset,
           required int limit,
         }) async =>
@@ -347,7 +402,8 @@ void main() {
       expect(provider.error, isNull);
     });
 
-    test('deleteBillById surfaces a failure and leaves the bill lists '
+    test(
+        'deleteBillById surfaces a failure and leaves the bill lists '
         'untouched', () async {
       final provider = BillsProvider(
         insertBillRow: (data) async => echoUpdate('bill-1', data),
@@ -356,6 +412,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
           required int offset,
           required int limit,
         }) async =>
