@@ -584,9 +584,14 @@
   "@expensesAdded": {
     "description": "Header for the per-person expense count section in Statistics"
   },
-  "expenses": "expenses",
+  "expenses": "{count, plural, =1{expense} other{expenses}}",
   "@expenses": {
-    "description": "Caption under each person's expense count in the Statistics card"
+    "description": "Caption under each person's expense count in the Statistics card",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "totals": "Totals",
   "@totals": {
