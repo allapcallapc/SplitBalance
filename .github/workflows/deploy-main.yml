@@ -35,7 +35,7 @@ jobs:
       - name: Determine preview version
         id: version
         run: |
-          BASE_VERSION=$(sed -n 's/^version: //p' pubspec.yaml | cut -d'+' -f1)
+          BASE_VERSION=$(jq -r '.["."]' .release-please-manifest.json)
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           echo "name=${BASE_VERSION}-main-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
