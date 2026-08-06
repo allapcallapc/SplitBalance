@@ -42,8 +42,16 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Determine preview version
+        id: version
+        run: |
+          BASE_VERSION=$(sed -n 's/^version: //p' pubspec.yaml | cut -d'+' -f1)
+          echo "name=${BASE_VERSION}-pr${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+
       - name: Build web app
-        run: flutter build web --base-href "/${{ github.event.repository.name }}/pr-${{ github.event.pull_request.number }}/"
+        run: |
+          flutter build web --base-href "/${{ github.event.repository.name }}/pr-${{ github.event.pull_request.number }}/" \
+            --build-name=${{ steps.version.outputs.name }}
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
