@@ -249,8 +249,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         1: IntrinsicColumnWidth(),
                         2: IntrinsicColumnWidth(),
                         3: IntrinsicColumnWidth(),
-                        4: IntrinsicColumnWidth(),
-                        5: IntrinsicColumnWidth(),
                       },
                       children: [
                         // Header row
@@ -267,17 +265,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             _buildTableHeaderCell(l10n.category),
                             _buildTableHeaderCell('Total',
                                 isRightAligned: true),
-                            _buildTableHeaderCell(
-                                '${result.person1Name} ${l10n.paid}',
+                            _buildTableHeaderCell(result.person1Name,
                                 isRightAligned: true),
-                            _buildTableHeaderCell(
-                                '${result.person1Name} ${l10n.expected}',
-                                isRightAligned: true),
-                            _buildTableHeaderCell(
-                                '${result.person2Name} ${l10n.paid}',
-                                isRightAligned: true),
-                            _buildTableHeaderCell(
-                                '${result.person2Name} ${l10n.expected}',
+                            _buildTableHeaderCell(result.person2Name,
                                 isRightAligned: true),
                           ],
                         ),
@@ -296,25 +286,17 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               ),
                               _buildTableCell(currencyFormat.format(total),
                                   isRightAligned: true),
-                              _buildTableCell(
-                                currencyFormat.format(catBalance.person1Paid),
-                                isRightAligned: true,
-                                color: Colors.blue[700],
-                              ),
-                              _buildTableExpectedCell(
+                              _buildPaidExpectedCell(
                                 catBalance.person1Paid,
                                 catBalance.person1Expected,
                                 currencyFormat,
+                                l10n,
                               ),
-                              _buildTableCell(
-                                currencyFormat.format(catBalance.person2Paid),
-                                isRightAligned: true,
-                                color: Colors.blue[700],
-                              ),
-                              _buildTableExpectedCell(
+                              _buildPaidExpectedCell(
                                 catBalance.person2Paid,
                                 catBalance.person2Expected,
                                 currencyFormat,
+                                l10n,
                               ),
                             ],
                           );
@@ -335,28 +317,18 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               isRightAligned: true,
                               isBold: true,
                             ),
-                            _buildTableCell(
-                              currencyFormat.format(result.person1Paid),
-                              isRightAligned: true,
-                              color: Colors.blue[700],
-                              isBold: true,
-                            ),
-                            _buildTableExpectedCell(
+                            _buildPaidExpectedCell(
                               result.person1Paid,
                               result.person1Expected,
                               currencyFormat,
+                              l10n,
                               isTotalRow: true,
                             ),
-                            _buildTableCell(
-                              currencyFormat.format(result.person2Paid),
-                              isRightAligned: true,
-                              color: Colors.blue[700],
-                              isBold: true,
-                            ),
-                            _buildTableExpectedCell(
+                            _buildPaidExpectedCell(
                               result.person2Paid,
                               result.person2Expected,
                               currencyFormat,
+                              l10n,
                               isTotalRow: true,
                             ),
                           ],
@@ -515,52 +487,87 @@ class _SummaryScreenState extends State<SummaryScreen> {
     );
   }
 
-  Widget _buildTableExpectedCell(
+  // Combines what a person paid with their expected share into a single
+  // cell: the paid amount, a muted caption with the expected share, and a
+  // pill that states the direction in words (not just color) so the
+  // meaning doesn't depend on distinguishing red from green.
+  Widget _buildPaidExpectedCell(
     double paid,
     double expected,
-    NumberFormat currencyFormat, {
+    NumberFormat currencyFormat,
+    AppLocalizations l10n, {
     bool isTotalRow = false,
   }) {
     final difference = paid - expected;
     final isBalanced = difference.abs() < 0.01;
     final isOverpaid = difference > 0.01;
 
-    Color textColor;
-    IconData? icon;
-    Color iconColor;
+    final Color pillColor;
+    final Color pillBackground;
+    final IconData pillIcon;
+    final String pillLabel;
 
     if (isBalanced) {
-      textColor = Colors.grey[700]!;
-      icon = Icons.check;
-      iconColor = Colors.green[600]!;
+      pillColor = Colors.grey[700]!;
+      pillBackground = Colors.grey.withValues(alpha: 0.15);
+      pillIcon = Icons.check;
+      pillLabel = l10n.settled;
     } else if (isOverpaid) {
-      textColor = Colors.green[700]!;
-      icon = Icons.arrow_upward;
-      iconColor = Colors.green[600]!;
+      pillColor = Colors.green[700]!;
+      pillBackground = Colors.green.withValues(alpha: 0.15);
+      pillIcon = Icons.arrow_upward;
+      pillLabel = '+${currencyFormat.format(difference)} ${l10n.overpaid}';
     } else {
-      textColor = Colors.red[700]!;
-      icon = Icons.arrow_downward;
-      iconColor = Colors.red[600]!;
+      pillColor = Colors.red[700]!;
+      pillBackground = Colors.red.withValues(alpha: 0.15);
+      pillIcon = Icons.arrow_downward;
+      pillLabel =
+          '${currencyFormat.format(difference.abs())} ${l10n.owes}';
     }
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            currencyFormat.format(expected),
+            currencyFormat.format(paid),
             style: TextStyle(
-              color: textColor,
-              fontWeight: isTotalRow ? FontWeight.bold : FontWeight.w500,
+              fontWeight: FontWeight.bold,
               fontSize: isTotalRow ? 16 : 14,
             ),
           ),
-          const SizedBox(width: 6),
-          Icon(
-            icon,
-            size: isTotalRow ? 18 : 16,
-            color: iconColor,
+          const SizedBox(height: 2),
+          Text(
+            l10n.ofAmountExpected(currencyFormat.format(expected)),
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: pillBackground,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(pillIcon, size: 12, color: pillColor),
+                const SizedBox(width: 4),
+                Text(
+                  pillLabel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: pillColor,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
