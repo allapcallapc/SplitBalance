@@ -74,7 +74,6 @@ class SplitBalanceApp extends StatelessWidget {
       cardTheme: CardThemeData(
         color: const Color(0xFF2D2D2D), // Lighter than scaffold for contrast
         elevation: 6, // Higher elevation for better separation
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
