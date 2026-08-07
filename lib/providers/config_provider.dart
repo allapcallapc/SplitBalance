@@ -2,10 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:convert';
+import '../config/supabase_config.dart';
 import '../models/app_config.dart';
 
 class ConfigProvider with ChangeNotifier {
   SupabaseClient get _supabase => Supabase.instance.client;
+
+  // Namespaced by the active Supabase project so this cache never leaks
+  // across environments - e.g. testing a PR preview (staging project)
+  // right after using the production site, both served from the same
+  // GitHub Pages origin, would otherwise read back a householdId that
+  // only exists in the other project's database. See the stale-household
+  // check in _loadHousehold for the other half of this.
+  String get _configStorageKey => 'app_config:${SupabaseConfig.url}';
 
   AppConfig _config = AppConfig(person1Name: '', person2Name: '');
   bool _isLoading = false;
@@ -55,7 +64,7 @@ class ConfigProvider with ChangeNotifier {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final configJson = prefs.getString('app_config');
+      final configJson = prefs.getString(_configStorageKey);
 
       if (configJson != null && configJson.isNotEmpty) {
         try {
@@ -91,7 +100,7 @@ class ConfigProvider with ChangeNotifier {
   // household membership from the server if signed in.
   Future<void> reloadConfig() async {
     final prefs = await SharedPreferences.getInstance();
-    final configJson = prefs.getString('app_config');
+    final configJson = prefs.getString(_configStorageKey);
 
     if (configJson != null && configJson.isNotEmpty) {
       try {
@@ -380,6 +389,24 @@ class ConfigProvider with ChangeNotifier {
           .eq('household_id', id)
           .order('joined_at', ascending: true);
 
+      if (members.isEmpty) {
+        // RLS only returns rows for households the caller is actually a
+        // member of, so an empty result here means the cached id doesn't
+        // correspond to a real membership for this user/environment (e.g.
+        // a leftover id from a different Supabase project - see
+        // _configStorageKey above). Reset instead of getting stuck
+        // treating a bogus id as a real household.
+        _config = AppConfig(
+          person1Name: '',
+          person2Name: '',
+          themeMode: _config.themeMode,
+          language: _config.language,
+          mePersonName: _config.mePersonName,
+        );
+        await _saveConfig();
+        return;
+      }
+
       final names =
           members.map((m) => m['person_name'] as String).toList();
       _memberNamesByUserId = {
@@ -402,14 +429,14 @@ class ConfigProvider with ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final configJson = jsonEncode(_config.toJson());
-      final success = await prefs.setString('app_config', configJson);
+      final success = await prefs.setString(_configStorageKey, configJson);
 
       if (!success) {
         throw Exception('Failed to write to SharedPreferences');
       }
 
       // Verify it was saved by reading it back
-      final saved = prefs.getString('app_config');
+      final saved = prefs.getString(_configStorageKey);
       if (saved == null || saved != configJson) {
         throw Exception('Config was not saved correctly');
       }
