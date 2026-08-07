@@ -19,3 +19,31 @@ values
   ('00000000-0000-0000-0000-000000000001', 'Utilities'),
   ('00000000-0000-0000-0000-000000000001', 'Entertainment')
 on conflict do nothing;
+
+-- Demo household has no real household_members (that requires an actual
+-- auth.users row - see above), so "Alex"/"Sam" below are just free-text
+-- names, same as paid_by/person1/person2 always are in this schema.
+
+-- Fixed ids so re-running this file (e.g. after a migration reset) doesn't
+-- keep piling up duplicate splits/bills - neither table has a natural
+-- unique constraint to key an ON CONFLICT off of otherwise.
+insert into payment_splits (id, household_id, category, person1, person1_percentage, person2, person2_percentage, end_date)
+values
+  ('00000000-0000-0000-0002-000000000001', '00000000-0000-0000-0000-000000000001', 'Groceries', 'Alex', 50, 'Sam', 50, null),
+  ('00000000-0000-0000-0002-000000000002', '00000000-0000-0000-0000-000000000001', 'Rent', 'Alex', 60, 'Sam', 40, null),
+  ('00000000-0000-0000-0002-000000000003', '00000000-0000-0000-0000-000000000001', 'Utilities', 'Alex', 50, 'Sam', 50, null),
+  ('00000000-0000-0000-0002-000000000004', '00000000-0000-0000-0000-000000000001', 'Entertainment', 'Alex', 50, 'Sam', 50, null)
+on conflict (id) do nothing;
+
+insert into bills (id, household_id, date, amount, paid_by, category, details)
+values
+  ('00000000-0000-0000-0003-000000000001', '00000000-0000-0000-0000-000000000001', '2026-06-05', 42.50, 'Alex', 'Groceries', 'Weekly grocery run'),
+  ('00000000-0000-0000-0003-000000000002', '00000000-0000-0000-0000-000000000001', '2026-06-15', 1200.00, 'Sam', 'Rent', 'June rent'),
+  ('00000000-0000-0000-0003-000000000003', '00000000-0000-0000-0000-000000000001', '2026-06-20', 85.30, 'Alex', 'Utilities', 'Electricity bill'),
+  ('00000000-0000-0000-0003-000000000004', '00000000-0000-0000-0000-000000000001', '2026-07-02', 38.90, 'Sam', 'Groceries', 'Grocery run'),
+  ('00000000-0000-0000-0003-000000000005', '00000000-0000-0000-0000-000000000001', '2026-07-15', 1200.00, 'Sam', 'Rent', 'July rent'),
+  ('00000000-0000-0000-0003-000000000006', '00000000-0000-0000-0000-000000000001', '2026-07-18', 60.00, 'Alex', 'Entertainment', 'Movie night'),
+  ('00000000-0000-0000-0003-000000000007', '00000000-0000-0000-0000-000000000001', '2026-07-22', 92.10, 'Alex', 'Utilities', 'Internet + water'),
+  ('00000000-0000-0000-0003-000000000008', '00000000-0000-0000-0000-000000000001', '2026-08-01', 45.75, 'Sam', 'Groceries', 'Grocery run'),
+  ('00000000-0000-0000-0003-000000000009', '00000000-0000-0000-0000-000000000001', '2026-08-05', 1200.00, 'Alex', 'Rent', 'August rent')
+on conflict (id) do nothing;
