@@ -421,31 +421,49 @@ class _BillsListScreenState extends State<BillsListScreen>
         ),
         actions: [
           Consumer<BillsProvider>(
-            builder: (context, billsProvider, child) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: ActionChip(
-                avatar: Icon(
-                  billsProvider.sortAscending
-                      ? Icons.arrow_upward
-                      : Icons.arrow_downward,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.onSecondaryContainer,
+            builder: (context, billsProvider, child) {
+              final scheme = Theme.of(context).colorScheme;
+              // Built by hand rather than with ActionChip: Chip's built-in
+              // avatar slot carries extra asymmetric internal spacing that
+              // padding/labelPadding can't fully override, which left the
+              // icon and label unevenly spaced from the pill's edges.
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Tooltip(
+                  message: l10n.sortByTooltip,
+                  child: Material(
+                    color: scheme.secondaryContainer,
+                    shape: const StadiumBorder(),
+                    child: InkWell(
+                      customBorder: const StadiumBorder(),
+                      onTap: () => _showSortModal(context),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              billsProvider.sortAscending
+                                  ? Icons.arrow_upward
+                                  : Icons.arrow_downward,
+                              size: 16,
+                              color: scheme.onSecondaryContainer,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _sortLabel(l10n, billsProvider),
+                              style:
+                                  TextStyle(color: scheme.onSecondaryContainer),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-                label: Text(_sortLabel(l10n, billsProvider)),
-                labelStyle: TextStyle(
-                  color: Theme.of(context).colorScheme.onSecondaryContainer,
-                ),
-                labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                visualDensity: VisualDensity.compact,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                backgroundColor:
-                    Theme.of(context).colorScheme.secondaryContainer,
-                shape: const StadiumBorder(side: BorderSide.none),
-                onPressed: () => _showSortModal(context),
-                tooltip: l10n.sortByTooltip,
-              ),
-            ),
+              );
+            },
           ),
           Consumer<BillsProvider>(
             builder: (context, billsProvider, child) => IconButton(
