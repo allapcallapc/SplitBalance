@@ -10,6 +10,7 @@ import '../providers/config_provider.dart';
 import '../providers/pending_payments_provider.dart';
 import '../models/bill.dart';
 import '../utils/category_icons.dart';
+import '../widgets/app_bar_action_icon_button.dart';
 import 'add_edit_bill_screen.dart';
 import 'pending_payments_screen.dart';
 
@@ -439,7 +440,7 @@ class _BillsListScreenState extends State<BillsListScreen>
                       onTap: () => _showSortModal(context),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 6),
+                            horizontal: 6, vertical: 6),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -466,7 +467,7 @@ class _BillsListScreenState extends State<BillsListScreen>
             },
           ),
           Consumer<BillsProvider>(
-            builder: (context, billsProvider, child) => IconButton(
+            builder: (context, billsProvider, child) => AppBarActionIconButton(
               icon: Badge(
                 isLabelVisible: billsProvider.hasActiveFilters,
                 smallSize: 8,
@@ -476,7 +477,7 @@ class _BillsListScreenState extends State<BillsListScreen>
               tooltip: l10n.filters,
             ),
           ),
-          IconButton(
+          AppBarActionIconButton(
             icon: const Icon(Icons.add),
             onPressed: () async {
               final result = await Navigator.push(
@@ -491,7 +492,7 @@ class _BillsListScreenState extends State<BillsListScreen>
             },
             tooltip: l10n.addBillTooltip,
           ),
-          IconButton(
+          AppBarActionIconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
             tooltip: l10n.refreshTooltip,
