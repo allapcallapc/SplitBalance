@@ -502,7 +502,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
         '${person1Overpaid ? person1Name : person2Name} '
             '${l10n.overpaid} '
             '${currencyFormat.format(difference.abs())}',
-        Colors.green[700]!,
+        person1Overpaid ? _person1Color : _person2Color,
       );
     }
 
