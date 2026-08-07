@@ -466,17 +466,21 @@ class _BillsListScreenState extends State<BillsListScreen>
               );
             },
           ),
+          const SizedBox(width: 8),
           Consumer<BillsProvider>(
             builder: (context, billsProvider, child) => AppBarActionIconButton(
               icon: Badge(
                 isLabelVisible: billsProvider.hasActiveFilters,
                 smallSize: 8,
+                alignment: AlignmentDirectional.topEnd,
+                offset: const Offset(2, -2),
                 child: const Icon(Icons.filter_list),
               ),
               onPressed: () => _showFilterModal(context),
               tooltip: l10n.filters,
             ),
           ),
+          const SizedBox(width: 4),
           AppBarActionIconButton(
             icon: const Icon(Icons.add),
             onPressed: () async {
@@ -492,6 +496,7 @@ class _BillsListScreenState extends State<BillsListScreen>
             },
             tooltip: l10n.addBillTooltip,
           ),
+          const SizedBox(width: 4),
           AppBarActionIconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
