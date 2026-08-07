@@ -242,69 +242,76 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 ),
                 const SizedBox(height: 16),
                 Card(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 16),
-                        _buildPersonLegend(
-                            result.person1Name, result.person2Name),
-                        ...(result.categoryBalances.values.toList()
-                              ..sort(
-                                  (a, b) => a.category.compareTo(b.category)))
-                            .map((catBalance) {
-                          return Column(
-                            children: [
-                              const Divider(height: 1),
-                              _buildLedgerRow(
-                                context: context,
-                                label: catBalance.category,
-                                icon: _lookupCategoryIcon(
-                                    catBalance.category, categoriesProvider),
-                                total: catBalance.person1Paid +
-                                    catBalance.person2Paid,
-                                person1Paid: catBalance.person1Paid,
-                                person1Expected: catBalance.person1Expected,
-                                person2Paid: catBalance.person2Paid,
-                                person2Expected: catBalance.person2Expected,
-                                currencyFormat: currencyFormat,
-                                l10n: l10n,
-                                person1Name: result.person1Name,
-                                person2Name: result.person2Name,
-                              ),
-                            ],
-                          );
-                        }),
-                        const Divider(height: 1),
-                        Container(
-                          margin: const EdgeInsets.symmetric(horizontal: -16),
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          decoration: BoxDecoration(
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.grey[850]
-                                    : Colors.grey[50],
-                            borderRadius: const BorderRadius.vertical(
-                                bottom: Radius.circular(12)),
-                          ),
-                          child: _buildLedgerRow(
-                            context: context,
-                            label: 'Total',
-                            total: result.person1Paid + result.person2Paid,
-                            person1Paid: result.person1Paid,
-                            person1Expected: result.person1Expected,
-                            person2Paid: result.person2Paid,
-                            person2Expected: result.person2Expected,
-                            currencyFormat: currencyFormat,
-                            l10n: l10n,
-                            person1Name: result.person1Name,
-                            person2Name: result.person2Name,
-                            isTotalRow: true,
-                          ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildPersonLegend(
+                                result.person1Name, result.person2Name),
+                            ...(result.categoryBalances.values.toList()
+                                  ..sort((a, b) =>
+                                      a.category.compareTo(b.category)))
+                                .map((catBalance) {
+                              return Column(
+                                children: [
+                                  const Divider(height: 1),
+                                  _buildLedgerRow(
+                                    context: context,
+                                    label: catBalance.category,
+                                    icon: _lookupCategoryIcon(
+                                        catBalance.category,
+                                        categoriesProvider),
+                                    total: catBalance.person1Paid +
+                                        catBalance.person2Paid,
+                                    person1Paid: catBalance.person1Paid,
+                                    person1Expected:
+                                        catBalance.person1Expected,
+                                    person2Paid: catBalance.person2Paid,
+                                    person2Expected:
+                                        catBalance.person2Expected,
+                                    currencyFormat: currencyFormat,
+                                    l10n: l10n,
+                                    person1Name: result.person1Name,
+                                    person2Name: result.person2Name,
+                                  ),
+                                ],
+                              );
+                            }),
+                            const Divider(height: 1),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).brightness ==
+                                  Brightness.dark
+                              ? Colors.grey[850]
+                              : Colors.grey[50],
+                          borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(12)),
+                        ),
+                        child: _buildLedgerRow(
+                          context: context,
+                          label: 'Total',
+                          total: result.person1Paid + result.person2Paid,
+                          person1Paid: result.person1Paid,
+                          person1Expected: result.person1Expected,
+                          person2Paid: result.person2Paid,
+                          person2Expected: result.person2Expected,
+                          currencyFormat: currencyFormat,
+                          l10n: l10n,
+                          person1Name: result.person1Name,
+                          person2Name: result.person2Name,
+                          isTotalRow: true,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
