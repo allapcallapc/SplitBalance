@@ -474,6 +474,7 @@ class _BillsListScreenState extends State<BillsListScreen>
               ),
               onPressed: () => _showFilterModal(context),
               tooltip: l10n.filters,
+              visualDensity: VisualDensity.compact,
             ),
           ),
           IconButton(
@@ -490,11 +491,13 @@ class _BillsListScreenState extends State<BillsListScreen>
               }
             },
             tooltip: l10n.addBillTooltip,
+            visualDensity: VisualDensity.compact,
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
             tooltip: l10n.refreshTooltip,
+            visualDensity: VisualDensity.compact,
           ),
         ],
       ),
