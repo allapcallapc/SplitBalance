@@ -439,7 +439,7 @@ class _BillsListScreenState extends State<BillsListScreen>
                       onTap: () => _showSortModal(context),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
+                            horizontal: 8, vertical: 6),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
