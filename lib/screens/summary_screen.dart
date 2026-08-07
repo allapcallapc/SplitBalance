@@ -490,8 +490,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
         : 0.5;
     // Shares the same denominator (total paid) as person1Fraction above, so
     // the fill boundary and the tick are on the same scale and the gap
-    // between them reads as a real dollar imbalance.
-    final double tickFraction = total > 0.01
+    // between them reads as a real dollar imbalance. Centered when there's
+    // no expected share at all, matching the "No split set" verdict below -
+    // otherwise person1Expected being 0 would pin the tick to the far-left
+    // edge as if a $0 fair share were a known fact.
+    final double tickFraction = hasExpectedShare && total > 0.01
         ? math.min(1.0, math.max(0.0, person1Expected / total))
         : 0.5;
 
