@@ -408,7 +408,15 @@ class _BillsListScreenState extends State<BillsListScreen>
               width: 32,
             ),
             const SizedBox(width: 12),
-            Text(l10n.bills),
+            // Flexible so a long sort label doesn't push the title into
+            // overflowing behind the actions on narrow screens/locales; it
+            // truncates with an ellipsis instead.
+            Flexible(
+              child: Text(
+                l10n.bills,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         actions: [
@@ -420,13 +428,17 @@ class _BillsListScreenState extends State<BillsListScreen>
                   billsProvider.sortAscending
                       ? Icons.arrow_upward
                       : Icons.arrow_downward,
-                  size: 18,
+                  size: 16,
                   color: Theme.of(context).colorScheme.onSecondaryContainer,
                 ),
                 label: Text(_sortLabel(l10n, billsProvider)),
                 labelStyle: TextStyle(
                   color: Theme.of(context).colorScheme.onSecondaryContainer,
                 ),
+                labelPadding: const EdgeInsets.only(left: 2, right: 4),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 backgroundColor:
                     Theme.of(context).colorScheme.secondaryContainer,
                 shape: const StadiumBorder(side: BorderSide.none),

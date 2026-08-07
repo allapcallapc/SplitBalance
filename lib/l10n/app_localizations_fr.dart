@@ -114,16 +114,16 @@ class AppLocalizationsFr extends AppLocalizations {
   String get sortByTooltip => 'Trier';
 
   @override
-  String get sortNewest => 'Plus récent';
+  String get sortNewest => 'Récent';
 
   @override
-  String get sortOldest => 'Plus ancien';
+  String get sortOldest => 'Ancien';
 
   @override
-  String get sortHighest => 'Plus élevé';
+  String get sortHighest => 'Élevé';
 
   @override
-  String get sortLowest => 'Plus bas';
+  String get sortLowest => 'Bas';
 
   @override
   String get selectWhoPaid => 'Veuillez sélectionner qui a payé';
