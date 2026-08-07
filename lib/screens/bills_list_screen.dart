@@ -465,6 +465,12 @@ class _BillsListScreenState extends State<BillsListScreen>
               );
             },
           ),
+          // filter_list's glyph sits almost flush against its icon box
+          // (unlike add/refresh, which have a visible margin baked into the
+          // glyph itself), so without this the gap before it reads tighter
+          // than the other gaps in this row even though the tap targets are
+          // evenly spaced.
+          const SizedBox(width: 12),
           Consumer<BillsProvider>(
             builder: (context, billsProvider, child) => IconButton(
               icon: Badge(
