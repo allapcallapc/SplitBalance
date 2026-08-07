@@ -5,9 +5,13 @@
 /// secret. Find them in the Supabase dashboard under
 /// Project Settings > API.
 ///
-/// Defaults to the production project. The main-branch and PR preview
-/// deploy workflows override these via --dart-define to point at a
-/// separate staging project instead, so previews never touch prod data.
+/// No default project here on purpose - every build (local, PR/main
+/// preview, and production release) must pass these explicitly via
+/// --dart-define, so which project you're pointed at is always a
+/// deliberate choice rather than an easy-to-miss fallback. Local runs get
+/// this from .vscode/launch.json (staging); the deploy workflows pass it
+/// from repo secrets (staging for previews, production for releases).
+/// main.dart fails fast at startup if either value is missing.
 ///
 /// The URL must be the bare project root with no path or trailing slash
 /// (e.g. https://xxxx.supabase.co) - this client appends /auth/v1,
@@ -15,12 +19,6 @@
 /// already includes one of those suffixes produces malformed doubled
 /// paths (.../rest/v1//auth/v1/signup) and every request 404s.
 class SupabaseConfig {
-  static const String url = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: 'https://mzmefjrykettcyttbwjp.supabase.co',
-  );
-  static const String anonKey = String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: 'sb_publishable_Mo36d1snz6IuyDHjsVMXtA__jBWfH0M',
-  );
+  static const String url = String.fromEnvironment('SUPABASE_URL');
+  static const String anonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 }

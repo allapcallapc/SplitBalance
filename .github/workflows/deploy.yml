@@ -51,9 +51,13 @@ jobs:
           tag: ${{ github.event.release.tag_name }}
 
       - name: Build web app
+        # SupabaseConfig has no built-in default (see its doc comment) -
+        # every build, including this one, must pass these explicitly.
         run: |
           flutter build web --base-href "/${{ github.event.repository.name }}/" \
-            --build-name=${{ steps.version.outputs.name }}
+            --build-name=${{ steps.version.outputs.name }} \
+            --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
+            --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
 
       - name: List build output
         run: ls -la build/web/

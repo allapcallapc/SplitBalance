@@ -74,10 +74,14 @@ jobs:
           EOF
 
       - name: Build release APK
+        # SupabaseConfig has no built-in default (see its doc comment) -
+        # every build, including this one, must pass these explicitly.
         run: |
           flutter build apk --release \
             --build-name=${{ steps.version.outputs.name }} \
-            --build-number=${{ github.run_number }}
+            --build-number=${{ github.run_number }} \
+            --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
+            --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
 
       - name: Attach APK and publish release
         uses: softprops/action-gh-release@v2
