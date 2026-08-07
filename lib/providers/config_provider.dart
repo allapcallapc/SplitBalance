@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -389,40 +390,52 @@ class ConfigProvider with ChangeNotifier {
           .eq('household_id', id)
           .order('joined_at', ascending: true);
 
+      _config = applyHouseholdMembers(_config, id, members);
       if (members.isEmpty) {
-        // RLS only returns rows for households the caller is actually a
-        // member of, so an empty result here means the cached id doesn't
-        // correspond to a real membership for this user/environment (e.g.
-        // a leftover id from a different Supabase project - see
-        // _configStorageKey above). Reset instead of getting stuck
-        // treating a bogus id as a real household.
-        _config = AppConfig(
-          person1Name: '',
-          person2Name: '',
-          themeMode: _config.themeMode,
-          language: _config.language,
-          mePersonName: _config.mePersonName,
-        );
         await _saveConfig();
         return;
       }
 
-      final names =
-          members.map((m) => m['person_name'] as String).toList();
       _memberNamesByUserId = {
         for (final m in members)
           m['user_id'] as String: m['person_name'] as String,
       };
-
-      _config = _config.copyWith(
-        householdId: id,
-        person1Name: names.isNotEmpty ? names[0] : '',
-        person2Name: names.length > 1 ? names[1] : '',
-      );
       await _saveConfig();
     } catch (e) {
       print('Error loading household: $e');
     }
+  }
+
+  // RLS only returns household_members rows for households the caller is
+  // actually a member of, so an empty result here means the id passed in
+  // doesn't correspond to a real membership for this user/environment
+  // (e.g. a leftover id from a different Supabase project - see
+  // _configStorageKey above). Resets instead of getting stuck treating a
+  // bogus id as a real household. Extracted as a pure function (no
+  // Supabase/auth dependency) so this branching is directly unit
+  // testable - see _loadHousehold above for the query that feeds it.
+  @visibleForTesting
+  static AppConfig applyHouseholdMembers(
+    AppConfig current,
+    String householdId,
+    List<Map<String, dynamic>> members,
+  ) {
+    if (members.isEmpty) {
+      return AppConfig(
+        person1Name: '',
+        person2Name: '',
+        themeMode: current.themeMode,
+        language: current.language,
+        mePersonName: current.mePersonName,
+      );
+    }
+
+    final names = members.map((m) => m['person_name'] as String).toList();
+    return current.copyWith(
+      householdId: householdId,
+      person1Name: names.isNotEmpty ? names[0] : '',
+      person2Name: names.length > 1 ? names[1] : '',
+    );
   }
 
   Future<void> _saveConfig() async {
