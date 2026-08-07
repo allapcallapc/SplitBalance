@@ -413,18 +413,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get difference => 'Différence';
 
   @override
-  String ofAmountExpected(String amount) {
-    return 'sur $amount attendu';
-  }
-
-  @override
   String get overpaid => 'payé en trop';
 
   @override
-  String get owes => 'doit';
+  String get settled => 'Réglé';
 
   @override
-  String get settled => 'Réglé';
+  String get noSplitSet => 'Aucune répartition définie';
 
   @override
   String get categoryBreakdown => 'Répartition par catégorie';

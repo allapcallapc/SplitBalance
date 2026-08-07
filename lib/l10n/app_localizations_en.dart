@@ -410,18 +410,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get difference => 'Difference';
 
   @override
-  String ofAmountExpected(String amount) {
-    return 'of $amount expected';
-  }
-
-  @override
   String get overpaid => 'overpaid';
 
   @override
-  String get owes => 'owes';
+  String get settled => 'Settled';
 
   @override
-  String get settled => 'Settled';
+  String get noSplitSet => 'No split set';
 
   @override
   String get categoryBreakdown => 'Category Breakdown';

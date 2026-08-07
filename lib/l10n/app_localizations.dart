@@ -836,29 +836,23 @@ abstract class AppLocalizations {
   /// **'Difference'**
   String get difference;
 
-  /// Caption stating a person's expected share, shown under the amount they paid
-  ///
-  /// In en, this message translates to:
-  /// **'of {amount} expected'**
-  String ofAmountExpected(String amount);
-
-  /// Label on the balance pill when a person paid more than their expected share
+  /// Label on the balance verdict when a person paid more than their expected share
   ///
   /// In en, this message translates to:
   /// **'overpaid'**
   String get overpaid;
 
-  /// Label on the balance pill when a person paid less than their expected share
-  ///
-  /// In en, this message translates to:
-  /// **'owes'**
-  String get owes;
-
-  /// Label on the balance pill when a person paid exactly their expected share
+  /// Label on the balance verdict when a person paid exactly their expected share
   ///
   /// In en, this message translates to:
   /// **'Settled'**
   String get settled;
+
+  /// Label on the balance verdict when no payment split applies to a category, so there's no fair-share basis to compare paid amounts against
+  ///
+  /// In en, this message translates to:
+  /// **'No split set'**
+  String get noSplitSet;
 
   /// Label for category breakdown section
   ///

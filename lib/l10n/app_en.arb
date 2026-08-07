@@ -552,26 +552,17 @@
   "@difference": {
     "description": "Label for difference amount"
   },
-  "ofAmountExpected": "of {amount} expected",
-  "@ofAmountExpected": {
-    "description": "Caption stating a person's expected share, shown under the amount they paid",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
   "overpaid": "overpaid",
   "@overpaid": {
-    "description": "Label on the balance pill when a person paid more than their expected share"
-  },
-  "owes": "owes",
-  "@owes": {
-    "description": "Label on the balance pill when a person paid less than their expected share"
+    "description": "Label on the balance verdict when a person paid more than their expected share"
   },
   "settled": "Settled",
   "@settled": {
-    "description": "Label on the balance pill when a person paid exactly their expected share"
+    "description": "Label on the balance verdict when a person paid exactly their expected share"
+  },
+  "noSplitSet": "No split set",
+  "@noSplitSet": {
+    "description": "Label on the balance verdict when no payment split applies to a category, so there's no fair-share basis to compare paid amounts against"
   },
   "categoryBreakdown": "Category Breakdown",
   "@categoryBreakdown": {

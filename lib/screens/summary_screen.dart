@@ -473,27 +473,43 @@ class _SummaryScreenState extends State<SummaryScreen> {
     required String person2Name,
     bool isTotalRow = false,
   }) {
+    // A category can have paid amounts with no matching payment split (see
+    // CalculationService), in which case expected stays 0 for both people -
+    // there's no fair-share basis to compare against, so no verdict should
+    // be declared.
+    final expectedTotal = person1Expected + person2Expected;
+    final hasExpectedShare = expectedTotal > 0.01;
+
+    const epsilon = 0.01;
     final difference = person1Paid - person1Expected;
-    final isBalanced = difference.abs() < 0.01;
-    final person1Overpaid = difference > 0.01;
+    final isBalanced = difference.abs() < epsilon;
+    final person1Overpaid = difference >= epsilon;
 
     final double person1Fraction = total > 0.01
         ? math.min(1.0, math.max(0.0, person1Paid / total))
         : 0.5;
-    final expectedTotal = person1Expected + person2Expected;
-    final double tickFraction = expectedTotal > 0.01
-        ? math.min(1.0, math.max(0.0, person1Expected / expectedTotal))
+    // Shares the same denominator (total paid) as person1Fraction above, so
+    // the fill boundary and the tick are on the same scale and the gap
+    // between them reads as a real dollar imbalance.
+    final double tickFraction = total > 0.01
+        ? math.min(1.0, math.max(0.0, person1Expected / total))
         : 0.5;
 
-    final Widget verdict = isBalanced
-        ? _buildVerdict(Icons.check, l10n.settled, Colors.grey[600]!)
-        : _buildVerdict(
-            Icons.arrow_upward,
-            '${person1Overpaid ? person1Name : person2Name} '
-                '${l10n.overpaid} '
-                '${currencyFormat.format(difference.abs())}',
-            Colors.green[700]!,
-          );
+    final Widget verdict;
+    if (!hasExpectedShare) {
+      verdict = _buildVerdict(
+          Icons.remove, l10n.noSplitSet, Colors.grey[500]!);
+    } else if (isBalanced) {
+      verdict = _buildVerdict(Icons.check, l10n.settled, Colors.grey[600]!);
+    } else {
+      verdict = _buildVerdict(
+        Icons.arrow_upward,
+        '${person1Overpaid ? person1Name : person2Name} '
+            '${l10n.overpaid} '
+            '${currencyFormat.format(difference.abs())}',
+        Colors.green[700]!,
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12.0),
