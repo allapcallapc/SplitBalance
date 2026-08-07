@@ -32153,7 +32153,7 @@ var $async$aSO=A.t(function(a,b){if(a===1)return A.o(b,r)
 for(;;)switch(s){case 0:if($.X==null)A.aBC()
 $.X.toString
 s=2
-return A.m(A.azz("sb_publishable_A9E_auuOpd9NO2RmYWne9Q_xAta6T-w","https://ebohvmrafcescsrytcfv.supabase.co/rest/v1/"),$async$aSO)
+return A.m(A.azz("sb_publishable_A9E_auuOpd9NO2RmYWne9Q_xAta6T-w","https://ebohvmrafcescsrytcfv.supabase.co"),$async$aSO)
 case 2:if($.X==null)A.aBC()
 q=$.X
 q.toString
