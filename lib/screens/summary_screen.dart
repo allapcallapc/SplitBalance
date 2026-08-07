@@ -431,24 +431,16 @@ class _SummaryScreenState extends State<SummaryScreen> {
   }
 
   Widget _buildLegendItem(Color color, String name) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          name,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey[700],
-          ),
-        ),
-      ],
+    return _buildDotLabel(
+      color,
+      name,
+      dotSize: 8,
+      gap: 6,
+      textStyle: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: Colors.grey[700],
+      ),
     );
   }
 
@@ -632,19 +624,35 @@ class _SummaryScreenState extends State<SummaryScreen> {
   }
 
   Widget _buildAmountDot(Color color, String amountText) {
+    return _buildDotLabel(
+      color,
+      amountText,
+      dotSize: 6,
+      gap: 5,
+      textStyle: TextStyle(fontSize: 12, color: Colors.grey[600]),
+    );
+  }
+
+  // Shared by the person legend and the per-row paid amounts: a colored
+  // dot followed by a label, at whatever size/spacing/style the caller
+  // needs.
+  Widget _buildDotLabel(
+    Color color,
+    String text, {
+    required double dotSize,
+    required double gap,
+    required TextStyle textStyle,
+  }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 6,
-          height: 6,
+          width: dotSize,
+          height: dotSize,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 5),
-        Text(
-          amountText,
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-        ),
+        SizedBox(width: gap),
+        Text(text, style: textStyle),
       ],
     );
   }
