@@ -56,8 +56,7 @@ jobs:
         run: |
           flutter build web --base-href "/${{ github.event.repository.name }}/" \
             --build-name=${{ steps.version.outputs.name }} \
-            --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
-            --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+            --dart-define-from-file=env/prod.json
 
       - name: List build output
         run: ls -la build/web/

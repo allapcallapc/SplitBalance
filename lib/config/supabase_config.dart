@@ -7,12 +7,11 @@
 ///
 /// No default project here on purpose - every build (local, PR/main
 /// preview, and production release) must pass these explicitly via
-/// --dart-define, so which project you're pointed at is always a
-/// deliberate choice rather than an easy-to-miss fallback. Local runs
-/// pass --dart-define-from-file=env/staging.json or env/prod.json (see
-/// .vscode/launch.json / .claude/launch.json); the deploy workflows pass
-/// the values from repo secrets instead. main.dart fails fast at startup
-/// if either value is missing.
+/// --dart-define-from-file=env/staging.json or env/prod.json (see
+/// .vscode/launch.json / .claude/launch.json for local runs, and the
+/// deploy workflows for CI), so which project you're pointed at is always
+/// a deliberate choice rather than an easy-to-miss fallback. main.dart
+/// fails fast at startup if either value is missing.
 ///
 /// The URL must be the bare project root with no path or trailing slash
 /// (e.g. https://xxxx.supabase.co) - this client appends /auth/v1,
