@@ -413,6 +413,15 @@ class AppLocalizationsFr extends AppLocalizations {
   String get difference => 'Différence';
 
   @override
+  String get overpaid => 'payé en trop';
+
+  @override
+  String get settled => 'Réglé';
+
+  @override
+  String get noSplitSet => 'Aucune répartition définie';
+
+  @override
   String get categoryBreakdown => 'Répartition par catégorie';
 
   @override

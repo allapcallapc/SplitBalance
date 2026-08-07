@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -241,128 +242,76 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 ),
                 const SizedBox(height: 16),
                 Card(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Table(
-                      columnWidths: const {
-                        0: IntrinsicColumnWidth(),
-                        1: IntrinsicColumnWidth(),
-                        2: IntrinsicColumnWidth(),
-                        3: IntrinsicColumnWidth(),
-                        4: IntrinsicColumnWidth(),
-                        5: IntrinsicColumnWidth(),
-                      },
-                      children: [
-                        // Header row
-                        TableRow(
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                color: Theme.of(context).dividerColor,
-                                width: 1,
-                              ),
-                            ),
-                          ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildTableHeaderCell(l10n.category),
-                            _buildTableHeaderCell('Total',
-                                isRightAligned: true),
-                            _buildTableHeaderCell(
-                                '${result.person1Name} ${l10n.paid}',
-                                isRightAligned: true),
-                            _buildTableHeaderCell(
-                                '${result.person1Name} ${l10n.expected}',
-                                isRightAligned: true),
-                            _buildTableHeaderCell(
-                                '${result.person2Name} ${l10n.paid}',
-                                isRightAligned: true),
-                            _buildTableHeaderCell(
-                                '${result.person2Name} ${l10n.expected}',
-                                isRightAligned: true),
+                            _buildPersonLegend(
+                                result.person1Name, result.person2Name),
+                            ...(result.categoryBalances.values.toList()
+                                  ..sort((a, b) =>
+                                      a.category.compareTo(b.category)))
+                                .map((catBalance) {
+                              return Column(
+                                children: [
+                                  const Divider(height: 1),
+                                  _buildLedgerRow(
+                                    context: context,
+                                    label: catBalance.category,
+                                    icon: _lookupCategoryIcon(
+                                        catBalance.category,
+                                        categoriesProvider),
+                                    total: catBalance.person1Paid +
+                                        catBalance.person2Paid,
+                                    person1Paid: catBalance.person1Paid,
+                                    person1Expected:
+                                        catBalance.person1Expected,
+                                    person2Paid: catBalance.person2Paid,
+                                    person2Expected:
+                                        catBalance.person2Expected,
+                                    currencyFormat: currencyFormat,
+                                    l10n: l10n,
+                                    person1Name: result.person1Name,
+                                    person2Name: result.person2Name,
+                                  ),
+                                ],
+                              );
+                            }),
+                            const Divider(height: 1),
                           ],
                         ),
-                        // Category rows
-                        ...(result.categoryBalances.values.toList()
-                              ..sort(
-                                  (a, b) => a.category.compareTo(b.category)))
-                            .map((catBalance) {
-                          final total =
-                              catBalance.person1Paid + catBalance.person2Paid;
-                          return TableRow(
-                            children: [
-                              _buildCategoryCell(
-                                catBalance.category,
-                                categoriesProvider,
-                              ),
-                              _buildTableCell(currencyFormat.format(total),
-                                  isRightAligned: true),
-                              _buildTableCell(
-                                currencyFormat.format(catBalance.person1Paid),
-                                isRightAligned: true,
-                                color: Colors.blue[700],
-                              ),
-                              _buildTableExpectedCell(
-                                catBalance.person1Paid,
-                                catBalance.person1Expected,
-                                currencyFormat,
-                              ),
-                              _buildTableCell(
-                                currencyFormat.format(catBalance.person2Paid),
-                                isRightAligned: true,
-                                color: Colors.blue[700],
-                              ),
-                              _buildTableExpectedCell(
-                                catBalance.person2Paid,
-                                catBalance.person2Expected,
-                                currencyFormat,
-                              ),
-                            ],
-                          );
-                        }),
-                        // Total row
-                        TableRow(
-                          decoration: BoxDecoration(
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.grey[800]
-                                    : Colors.grey[100],
-                          ),
-                          children: [
-                            _buildTableCell('Total', isBold: true),
-                            _buildTableCell(
-                              currencyFormat.format(
-                                  result.person1Paid + result.person2Paid),
-                              isRightAligned: true,
-                              isBold: true,
-                            ),
-                            _buildTableCell(
-                              currencyFormat.format(result.person1Paid),
-                              isRightAligned: true,
-                              color: Colors.blue[700],
-                              isBold: true,
-                            ),
-                            _buildTableExpectedCell(
-                              result.person1Paid,
-                              result.person1Expected,
-                              currencyFormat,
-                              isTotalRow: true,
-                            ),
-                            _buildTableCell(
-                              currencyFormat.format(result.person2Paid),
-                              isRightAligned: true,
-                              color: Colors.blue[700],
-                              isBold: true,
-                            ),
-                            _buildTableExpectedCell(
-                              result.person2Paid,
-                              result.person2Expected,
-                              currencyFormat,
-                              isTotalRow: true,
-                            ),
-                          ],
+                      ),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).brightness ==
+                                  Brightness.dark
+                              ? Colors.grey[850]
+                              : Colors.grey[50],
+                          borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(12)),
                         ),
-                      ],
-                    ),
+                        child: _buildLedgerRow(
+                          context: context,
+                          label: 'Total',
+                          total: result.person1Paid + result.person2Paid,
+                          person1Paid: result.person1Paid,
+                          person1Expected: result.person1Expected,
+                          person2Paid: result.person2Paid,
+                          person2Expected: result.person2Expected,
+                          currencyFormat: currencyFormat,
+                          l10n: l10n,
+                          person1Name: result.person1Name,
+                          person2Name: result.person2Name,
+                          isTotalRow: true,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
@@ -450,120 +399,261 @@ class _SummaryScreenState extends State<SummaryScreen> {
     );
   }
 
-  Widget _buildTableHeaderCell(String text, {bool isRightAligned = false}) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Text(
-        text,
-        textAlign: isRightAligned ? TextAlign.right : TextAlign.left,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
-        ),
-      ),
-    );
-  }
+  static final Color _person1Color = Colors.teal[600]!;
+  static final Color _person2Color = Colors.orange[700]!;
 
   // Category balances only carry the category name, so look up the matching
   // Category to render its icon (falling back to the default icon if it was
   // since renamed/deleted or has no icon set).
-  Widget _buildCategoryCell(
+  IconData _lookupCategoryIcon(
     String categoryName,
     CategoriesProvider categoriesProvider,
   ) {
-    IconData iconData = defaultCategoryIcon;
     for (final category in categoriesProvider.categories) {
       if (category.name == categoryName) {
-        iconData = category.iconData;
-        break;
+        return category.iconData;
       }
     }
+    return defaultCategoryIcon;
+  }
 
+  Widget _buildPersonLegend(String person1Name, String person2Name) {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(iconData, size: 18),
-          const SizedBox(width: 8),
-          Text(
-            categoryName,
-            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
-          ),
+          _buildLegendItem(_person1Color, person1Name),
+          const SizedBox(width: 16),
+          _buildLegendItem(_person2Color, person2Name),
         ],
       ),
     );
   }
 
-  Widget _buildTableCell(
-    String text, {
-    bool isRightAligned = false,
-    Color? color,
-    bool isBold = false,
+  Widget _buildLegendItem(Color color, String name) {
+    return _buildDotLabel(
+      color,
+      name,
+      dotSize: 8,
+      gap: 6,
+      textStyle: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: Colors.grey[700],
+      ),
+    );
+  }
+
+  // A single ledger row: category name + total, a bar showing each
+  // person's paid amount as a proportion of the total with a tick at
+  // where their fair share would land, the raw paid amounts, and a
+  // one-line verdict naming whoever overpaid (with 2 people splitting a
+  // fixed total, that single fact also tells you what the other person
+  // owes, so there's no need to spell out both sides).
+  Widget _buildLedgerRow({
+    required BuildContext context,
+    required String label,
+    IconData? icon,
+    required double total,
+    required double person1Paid,
+    required double person1Expected,
+    required double person2Paid,
+    required double person2Expected,
+    required NumberFormat currencyFormat,
+    required AppLocalizations l10n,
+    required String person1Name,
+    required String person2Name,
+    bool isTotalRow = false,
   }) {
+    // A category can have paid amounts with no matching payment split (see
+    // CalculationService), in which case expected stays 0 for both people -
+    // there's no fair-share basis to compare against, so no verdict should
+    // be declared.
+    final expectedTotal = person1Expected + person2Expected;
+    final hasExpectedShare = expectedTotal > 0.01;
+
+    const epsilon = 0.01;
+    final difference = person1Paid - person1Expected;
+    final isBalanced = difference.abs() < epsilon;
+    final person1Overpaid = difference >= epsilon;
+
+    final double person1Fraction = total > 0.01
+        ? math.min(1.0, math.max(0.0, person1Paid / total))
+        : 0.5;
+    // Shares the same denominator (total paid) as person1Fraction above, so
+    // the fill boundary and the tick are on the same scale and the gap
+    // between them reads as a real dollar imbalance. Centered when there's
+    // no expected share at all, matching the "No split set" verdict below -
+    // otherwise person1Expected being 0 would pin the tick to the far-left
+    // edge as if a $0 fair share were a known fact.
+    final double tickFraction = hasExpectedShare && total > 0.01
+        ? math.min(1.0, math.max(0.0, person1Expected / total))
+        : 0.5;
+
+    final Widget verdict;
+    if (!hasExpectedShare) {
+      verdict = _buildVerdict(
+          Icons.remove, l10n.noSplitSet, Colors.grey[500]!);
+    } else if (isBalanced) {
+      verdict = _buildVerdict(Icons.check, l10n.settled, Colors.grey[600]!);
+    } else {
+      verdict = _buildVerdict(
+        Icons.arrow_upward,
+        '${person1Overpaid ? person1Name : person2Name} '
+            '${l10n.overpaid} '
+            '${currencyFormat.format(difference.abs())}',
+        person1Overpaid ? _person1Color : _person2Color,
+      );
+    }
+
     return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Text(
-        text,
-        textAlign: isRightAligned ? TextAlign.right : TextAlign.left,
-        style: TextStyle(
-          fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-          fontSize: isBold ? 16 : 14,
-          color: color,
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 6),
+              ],
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontWeight: isTotalRow ? FontWeight.bold : FontWeight.w600,
+                    fontSize: isTotalRow ? 15 : 14,
+                  ),
+                ),
+              ),
+              Text(
+                currencyFormat.format(total),
+                style: TextStyle(
+                  fontWeight: isTotalRow ? FontWeight.bold : FontWeight.w500,
+                  fontSize: isTotalRow ? 15 : 13,
+                  color: Colors.grey[700],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _buildProportionalBar(context, person1Fraction, tickFraction),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _buildAmountDot(
+                  _person1Color, currencyFormat.format(person1Paid)),
+              const Spacer(),
+              _buildAmountDot(
+                  _person2Color, currencyFormat.format(person2Paid)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          verdict,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProportionalBar(
+    BuildContext context,
+    double person1Fraction,
+    double tickFraction,
+  ) {
+    const double barHeight = 14.0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final trackColor = isDark ? Colors.grey[800]! : Colors.grey[300]!;
+    final tickColor = isDark
+        ? Colors.white.withValues(alpha: 0.5)
+        : Colors.black.withValues(alpha: 0.35);
+
+    // Flex must be a positive integer, so express the split in thousandths
+    // and keep both sides >= 1 even when one person paid nothing.
+    final int rawFlex = (person1Fraction * 1000).round();
+    final int person1Flex = math.min(999, math.max(1, rawFlex));
+    final int person2Flex = 1000 - person1Flex;
+
+    return SizedBox(
+      height: barHeight,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(barHeight / 2),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Container(color: trackColor),
+            Row(
+              children: [
+                Expanded(
+                    flex: person1Flex,
+                    child: Container(color: _person1Color)),
+                Expanded(
+                    flex: person2Flex,
+                    child: Container(color: _person2Color)),
+              ],
+            ),
+            Align(
+              alignment: Alignment(tickFraction * 2 - 1, 0),
+              child: Container(
+                width: 2,
+                height: barHeight,
+                color: tickColor,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildTableExpectedCell(
-    double paid,
-    double expected,
-    NumberFormat currencyFormat, {
-    bool isTotalRow = false,
+  Widget _buildVerdict(IconData icon, String text, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAmountDot(Color color, String amountText) {
+    return _buildDotLabel(
+      color,
+      amountText,
+      dotSize: 6,
+      gap: 5,
+      textStyle: TextStyle(fontSize: 12, color: Colors.grey[600]),
+    );
+  }
+
+  // Shared by the person legend and the per-row paid amounts: a colored
+  // dot followed by a label, at whatever size/spacing/style the caller
+  // needs.
+  Widget _buildDotLabel(
+    Color color,
+    String text, {
+    required double dotSize,
+    required double gap,
+    required TextStyle textStyle,
   }) {
-    final difference = paid - expected;
-    final isBalanced = difference.abs() < 0.01;
-    final isOverpaid = difference > 0.01;
-
-    Color textColor;
-    IconData? icon;
-    Color iconColor;
-
-    if (isBalanced) {
-      textColor = Colors.grey[700]!;
-      icon = Icons.check;
-      iconColor = Colors.green[600]!;
-    } else if (isOverpaid) {
-      textColor = Colors.green[700]!;
-      icon = Icons.arrow_upward;
-      iconColor = Colors.green[600]!;
-    } else {
-      textColor = Colors.red[700]!;
-      icon = Icons.arrow_downward;
-      iconColor = Colors.red[600]!;
-    }
-
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Text(
-            currencyFormat.format(expected),
-            style: TextStyle(
-              color: textColor,
-              fontWeight: isTotalRow ? FontWeight.bold : FontWeight.w500,
-              fontSize: isTotalRow ? 16 : 14,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Icon(
-            icon,
-            size: isTotalRow ? 18 : 16,
-            color: iconColor,
-          ),
-        ],
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: dotSize,
+          height: dotSize,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        SizedBox(width: gap),
+        Text(text, style: textStyle),
+      ],
     );
   }
 }

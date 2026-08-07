@@ -836,6 +836,24 @@ abstract class AppLocalizations {
   /// **'Difference'**
   String get difference;
 
+  /// Label on the balance verdict when a person paid more than their expected share
+  ///
+  /// In en, this message translates to:
+  /// **'overpaid'**
+  String get overpaid;
+
+  /// Label on the balance verdict when a person paid exactly their expected share
+  ///
+  /// In en, this message translates to:
+  /// **'Settled'**
+  String get settled;
+
+  /// Label on the balance verdict when no payment split applies to a category, so there's no fair-share basis to compare paid amounts against
+  ///
+  /// In en, this message translates to:
+  /// **'No split set'**
+  String get noSplitSet;
+
   /// Label for category breakdown section
   ///
   /// In en, this message translates to:

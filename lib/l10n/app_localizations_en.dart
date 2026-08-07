@@ -410,6 +410,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get difference => 'Difference';
 
   @override
+  String get overpaid => 'overpaid';
+
+  @override
+  String get settled => 'Settled';
+
+  @override
+  String get noSplitSet => 'No split set';
+
+  @override
   String get categoryBreakdown => 'Category Breakdown';
 
   @override

@@ -552,6 +552,18 @@
   "@difference": {
     "description": "Label for difference amount"
   },
+  "overpaid": "overpaid",
+  "@overpaid": {
+    "description": "Label on the balance verdict when a person paid more than their expected share"
+  },
+  "settled": "Settled",
+  "@settled": {
+    "description": "Label on the balance verdict when a person paid exactly their expected share"
+  },
+  "noSplitSet": "No split set",
+  "@noSplitSet": {
+    "description": "Label on the balance verdict when no payment split applies to a category, so there's no fair-share basis to compare paid amounts against"
+  },
   "categoryBreakdown": "Category Breakdown",
   "@categoryBreakdown": {
     "description": "Label for category breakdown section"
