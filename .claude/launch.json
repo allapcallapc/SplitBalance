@@ -10,8 +10,7 @@
         "web-server",
         "--web-port",
         "8080",
-        "--dart-define=SUPABASE_URL=REPLACE_WITH_STAGING_SUPABASE_URL",
-        "--dart-define=SUPABASE_ANON_KEY=REPLACE_WITH_STAGING_SUPABASE_ANON_KEY"
+        "--dart-define-from-file=env/staging.json"
       ],
       "port": 8080
     }
