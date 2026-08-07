@@ -392,6 +392,7 @@ class ConfigProvider with ChangeNotifier {
 
       _config = applyHouseholdMembers(_config, id, members);
       if (members.isEmpty) {
+        _memberNamesByUserId = {};
         await _saveConfig();
         return;
       }
