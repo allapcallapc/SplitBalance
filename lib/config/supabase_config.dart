@@ -8,6 +8,12 @@
 /// Defaults to the production project. The main-branch and PR preview
 /// deploy workflows override these via --dart-define to point at a
 /// separate staging project instead, so previews never touch prod data.
+///
+/// The URL must be the bare project root with no path or trailing slash
+/// (e.g. https://xxxx.supabase.co) - this client appends /auth/v1,
+/// /rest/v1, etc. itself, so a URL copied from a dashboard field that
+/// already includes one of those suffixes produces malformed doubled
+/// paths (.../rest/v1//auth/v1/signup) and every request 404s.
 class SupabaseConfig {
   static const String url = String.fromEnvironment(
     'SUPABASE_URL',
