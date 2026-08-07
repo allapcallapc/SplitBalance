@@ -435,8 +435,8 @@ class _BillsListScreenState extends State<BillsListScreen>
                 labelStyle: TextStyle(
                   color: Theme.of(context).colorScheme.onSecondaryContainer,
                 ),
-                labelPadding: const EdgeInsets.only(left: 2, right: 4),
-                padding: EdgeInsets.zero,
+                labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 visualDensity: VisualDensity.compact,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 backgroundColor:
