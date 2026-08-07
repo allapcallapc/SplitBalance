@@ -24,6 +24,16 @@ import 'widgets/update_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // SupabaseConfig has no built-in default (see its doc comment) - catch a
+  // missing --dart-define here with a clear message instead of letting it
+  // silently try to connect to an empty URL.
+  if (SupabaseConfig.url.isEmpty || SupabaseConfig.anonKey.isEmpty) {
+    throw StateError(
+      'Missing Supabase config: pass --dart-define=SUPABASE_URL=... and '
+      '--dart-define=SUPABASE_ANON_KEY=... (see .vscode/launch.json for '
+      'local runs, or the deploy workflows for CI).',
+    );
+  }
   await Supabase.initialize(
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,

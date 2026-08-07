@@ -4,7 +4,14 @@
     {
       "name": "splitbalance-web",
       "runtimeExecutable": "flutter",
-      "runtimeArgs": ["run", "-d", "web-server", "--web-port", "8080"],
+      "runtimeArgs": [
+        "run",
+        "-d",
+        "web-server",
+        "--web-port",
+        "8080",
+        "--dart-define-from-file=env/staging.json"
+      ],
       "port": 8080
     }
   ]

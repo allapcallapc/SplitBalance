@@ -40,9 +40,13 @@ jobs:
           echo "name=${BASE_VERSION}-main-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Build web app
+        # --dart-define-from-file points this preview at the staging
+        # Supabase project (see env/staging.json and
+        # lib/config/supabase_config.dart) so it never touches prod data.
         run: |
           flutter build web --base-href "/${{ github.event.repository.name }}/main/" \
-            --build-name=${{ steps.version.outputs.name }} --build-number=0
+            --build-name=${{ steps.version.outputs.name }} --build-number=0 \
+            --dart-define-from-file=env/staging.json
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4

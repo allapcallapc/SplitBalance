@@ -1,11 +1,21 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:convert';
+import '../config/supabase_config.dart';
 import '../models/app_config.dart';
 
 class ConfigProvider with ChangeNotifier {
   SupabaseClient get _supabase => Supabase.instance.client;
+
+  // Namespaced by the active Supabase project so this cache never leaks
+  // across environments - e.g. testing a PR preview (staging project)
+  // right after using the production site, both served from the same
+  // GitHub Pages origin, would otherwise read back a householdId that
+  // only exists in the other project's database. See the stale-household
+  // check in _loadHousehold for the other half of this.
+  String get _configStorageKey => 'app_config:${SupabaseConfig.url}';
 
   AppConfig _config = AppConfig(person1Name: '', person2Name: '');
   bool _isLoading = false;
@@ -55,7 +65,7 @@ class ConfigProvider with ChangeNotifier {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final configJson = prefs.getString('app_config');
+      final configJson = prefs.getString(_configStorageKey);
 
       if (configJson != null && configJson.isNotEmpty) {
         try {
@@ -91,7 +101,7 @@ class ConfigProvider with ChangeNotifier {
   // household membership from the server if signed in.
   Future<void> reloadConfig() async {
     final prefs = await SharedPreferences.getInstance();
-    final configJson = prefs.getString('app_config');
+    final configJson = prefs.getString(_configStorageKey);
 
     if (configJson != null && configJson.isNotEmpty) {
       try {
@@ -380,36 +390,67 @@ class ConfigProvider with ChangeNotifier {
           .eq('household_id', id)
           .order('joined_at', ascending: true);
 
-      final names =
-          members.map((m) => m['person_name'] as String).toList();
+      _config = applyHouseholdMembers(_config, id, members);
+      if (members.isEmpty) {
+        _memberNamesByUserId = {};
+        await _saveConfig();
+        return;
+      }
+
       _memberNamesByUserId = {
         for (final m in members)
           m['user_id'] as String: m['person_name'] as String,
       };
-
-      _config = _config.copyWith(
-        householdId: id,
-        person1Name: names.isNotEmpty ? names[0] : '',
-        person2Name: names.length > 1 ? names[1] : '',
-      );
       await _saveConfig();
     } catch (e) {
       print('Error loading household: $e');
     }
   }
 
+  // RLS only returns household_members rows for households the caller is
+  // actually a member of, so an empty result here means the id passed in
+  // doesn't correspond to a real membership for this user/environment
+  // (e.g. a leftover id from a different Supabase project - see
+  // _configStorageKey above). Resets instead of getting stuck treating a
+  // bogus id as a real household. Extracted as a pure function (no
+  // Supabase/auth dependency) so this branching is directly unit
+  // testable - see _loadHousehold above for the query that feeds it.
+  @visibleForTesting
+  static AppConfig applyHouseholdMembers(
+    AppConfig current,
+    String householdId,
+    List<Map<String, dynamic>> members,
+  ) {
+    if (members.isEmpty) {
+      return AppConfig(
+        person1Name: '',
+        person2Name: '',
+        themeMode: current.themeMode,
+        language: current.language,
+        mePersonName: current.mePersonName,
+      );
+    }
+
+    final names = members.map((m) => m['person_name'] as String).toList();
+    return current.copyWith(
+      householdId: householdId,
+      person1Name: names.isNotEmpty ? names[0] : '',
+      person2Name: names.length > 1 ? names[1] : '',
+    );
+  }
+
   Future<void> _saveConfig() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final configJson = jsonEncode(_config.toJson());
-      final success = await prefs.setString('app_config', configJson);
+      final success = await prefs.setString(_configStorageKey, configJson);
 
       if (!success) {
         throw Exception('Failed to write to SharedPreferences');
       }
 
       // Verify it was saved by reading it back
-      final saved = prefs.getString('app_config');
+      final saved = prefs.getString(_configStorageKey);
       if (saved == null || saved != configJson) {
         throw Exception('Config was not saved correctly');
       }

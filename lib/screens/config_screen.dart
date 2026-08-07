@@ -36,6 +36,8 @@ class _ConfigScreenState extends State<ConfigScreen> {
   String _appVersion = '';
   String? _inviteCode;
   bool _loadingInviteCode = false;
+  bool _inviteCodeLoadFailed = false;
+  String? _lastInviteCodeHouseholdId;
   String? _lastMyNameSyncedFrom;
   final _updateService = UpdateService();
   bool _checkingForUpdate = false;
@@ -101,6 +103,11 @@ class _ConfigScreenState extends State<ConfigScreen> {
       setState(() {
         _inviteCode = code;
         _loadingInviteCode = false;
+        // Stop auto-retrying on failure (code == null) - without this, a
+        // persistently failing fetch (e.g. a stale/invalid household id)
+        // gets rescheduled on every single frame forever. The user can
+        // still retry manually via the button shown below.
+        _inviteCodeLoadFailed = code == null;
       });
     }
   }
@@ -459,9 +466,19 @@ class _ConfigScreenState extends State<ConfigScreen> {
       _lastMyNameSyncedFrom = configProvider.householdId;
     }
 
+    // Reset per-household bookkeeping when the household changes, so a
+    // previous failure doesn't linger and block a legitimately different
+    // household from ever being tried.
+    if (configProvider.householdId != _lastInviteCodeHouseholdId) {
+      _lastInviteCodeHouseholdId = configProvider.householdId;
+      _inviteCode = null;
+      _inviteCodeLoadFailed = false;
+    }
+
     if (waitingForSecondPerson &&
         _inviteCode == null &&
-        !_loadingInviteCode) {
+        !_loadingInviteCode &&
+        !_inviteCodeLoadFailed) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _loadInviteCode(configProvider);
       });
@@ -547,6 +564,17 @@ class _ConfigScreenState extends State<ConfigScreen> {
                         letterSpacing: 2,
                       ),
                     ),
+                    if (_inviteCodeLoadFailed && !_loadingInviteCode) ...[
+                      const SizedBox(width: 12),
+                      IconButton(
+                        icon: const Icon(Icons.refresh),
+                        tooltip: 'Retry',
+                        onPressed: () {
+                          setState(() => _inviteCodeLoadFailed = false);
+                          _loadInviteCode(configProvider);
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),
