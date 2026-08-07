@@ -439,7 +439,7 @@ class _BillsListScreenState extends State<BillsListScreen>
                       onTap: () => _showSortModal(context),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 6),
+                            horizontal: 8, vertical: 6),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -465,12 +465,6 @@ class _BillsListScreenState extends State<BillsListScreen>
               );
             },
           ),
-          // filter_list's glyph sits almost flush against its icon box
-          // (unlike add/refresh, which have a visible margin baked into the
-          // glyph itself), so without this the gap before it reads tighter
-          // than the other gaps in this row even though the tap targets are
-          // evenly spaced.
-          const SizedBox(width: 8),
           Consumer<BillsProvider>(
             builder: (context, billsProvider, child) => IconButton(
               icon: Badge(
@@ -480,8 +474,6 @@ class _BillsListScreenState extends State<BillsListScreen>
               ),
               onPressed: () => _showFilterModal(context),
               tooltip: l10n.filters,
-              padding: const EdgeInsets.all(6),
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
             ),
           ),
           IconButton(
@@ -498,15 +490,11 @@ class _BillsListScreenState extends State<BillsListScreen>
               }
             },
             tooltip: l10n.addBillTooltip,
-            padding: const EdgeInsets.all(6),
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
             tooltip: l10n.refreshTooltip,
-            padding: const EdgeInsets.all(6),
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
         ],
       ),
