@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/supabase_config.dart';
 import 'l10n/app_localizations.dart';
@@ -226,6 +227,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   late final ValueNotifier<int> _navigationNotifier = ValueNotifier<int>(0);
   late final List<Widget> _screens;
 
+  // The tab selected before a refresh, so a reload can restore it instead of
+  // always landing on Bills (see GH issue #59). Cleared along with the rest
+  // of SharedPreferences on sign-out, so a fresh login still lands on Bills.
+  static const _selectedTabStorageKey = 'selected_tab_index';
+  int? _persistedTabIndex;
+  bool _tabIndexLoaded = false;
+
   // Tracks whether we're still waiting on the household/categories lookups
   // for the current (isSignedIn, householdId) combo - see the settleKey
   // computation in build(). Re-arms on every sign-in/sign-out/household
@@ -249,6 +257,24 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     WidgetsBinding.instance
         .addPostFrameCallback((_) => _checkPendingDeepLink());
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkForAppUpdate());
+    _loadPersistedTabIndex();
+  }
+
+  // Must resolve before the "first settle" auto-navigation below runs, so
+  // that decision can restore the previous tab instead of racing ahead and
+  // forcing Bills. Gated into `rawSettled` for that reason.
+  Future<void> _loadPersistedTabIndex() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _persistedTabIndex = prefs.getInt(_selectedTabStorageKey);
+      _tabIndexLoaded = true;
+    });
+  }
+
+  Future<void> _persistTabIndex(int index) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_selectedTabStorageKey, index);
   }
 
   // Runs once per app launch (unlike the deep-link check, this doesn't need
@@ -376,7 +402,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
         final categoriesSettled = !needsCategories ||
             categoriesProvider
                 .hasLoadedForHousehold(configProvider.householdId);
-        final rawSettled = configSettled && categoriesSettled;
+        final rawSettled =
+            configSettled && categoriesSettled && _tabIndexLoaded;
 
         if (rawSettled) {
           _settleTimeoutTimer?.cancel();
@@ -404,7 +431,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
           if (_wasSignedIn == null) {
             _wasSignedIn = isSignedIn;
             if (isSignedIn && isConfigComplete) {
-              _selectedIndex = 0; // Bills screen
+              // Restore the tab open before a refresh; a fresh login has no
+              // persisted value (cleared on sign-out) and lands on Bills.
+              _selectedIndex = _persistedTabIndex ?? 0; // Bills screen
               _hasAutoNavigatedToBills = true;
             } else {
               _selectedIndex = 3; // Config screen
@@ -414,6 +443,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
             if (!isSignedIn) {
               _selectedIndex = 3; // Config screen only on sign-out
               _hasAutoNavigatedToBills = false;
+              // Sign-out also clears all of SharedPreferences (including the
+              // persisted tab); mirror that here so a same-session re-login
+              // doesn't restore a tab from before the sign-out.
+              _persistedTabIndex = null;
             }
             // NO auto-navigation on sign-in
           }
@@ -426,7 +459,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
           // shown while things were still loading. Only happens once per
           // sign-in session so it never overrides manual navigation afterwards.
           if (!_hasAutoNavigatedToBills && isSignedIn && isConfigComplete) {
-            _selectedIndex = 0; // Bills screen
+            // Same restore-or-Bills logic as the fresh-login branch above -
+            // this is the path a restored session usually takes, since the
+            // session/household/categories lookups resolve after the first
+            // build.
+            _selectedIndex = _persistedTabIndex ?? 0; // Bills screen
             _hasAutoNavigatedToBills = true;
           }
         }
@@ -481,12 +518,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
                         setState(() {
                           _selectedIndex = index;
                         });
+                        _persistedTabIndex = index;
+                        _persistTabIndex(index);
                       }
                     } else {
                       // Full navigation: allow all screens
                       setState(() {
                         _selectedIndex = index;
                       });
+                      _persistedTabIndex = index;
+                      _persistTabIndex(index);
                     }
                   },
                   destinations: [
