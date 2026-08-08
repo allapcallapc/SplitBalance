@@ -484,10 +484,23 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
             ? safeIndex
             : 3; // Force ConfigScreen (index 3) when no nav bar
 
-        // Notify when navigation changes (for SummaryScreen to refresh)
+        // Notify when navigation changes (for SummaryScreen to refresh).
+        // Deferred to a post-frame callback rather than set inline here:
+        // this can now fire from an automatic index change during build()
+        // (restoring the previously-selected tab once settled, see GH issue
+        // #59), and SummaryScreen's listener kicks off a calculation that
+        // calls notifyListeners() on CalculationProvider - doing that
+        // synchronously while this widget's build() is still on the stack
+        // put it in the middle of another build pass, and the resulting
+        // calculation never ran to completion, leaving Summary's loading
+        // indicator spinning forever.
         if (settled && bodyIndex != _previousBodyIndex) {
-          _navigationNotifier.value = bodyIndex;
           _previousBodyIndex = bodyIndex;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _navigationNotifier.value = bodyIndex;
+            }
+          });
         }
 
         return Scaffold(
