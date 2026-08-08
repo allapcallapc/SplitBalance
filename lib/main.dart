@@ -517,8 +517,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
               ),
               // Covers the config/bills decision until it's fully resolved
               // (see the settling check above) so it never flashes on screen.
+              // Keyed so tests can find this overlay specifically - the
+              // screens underneath (e.g. SummaryScreen) have their own,
+              // unrelated CircularProgressIndicators mounted at the same
+              // time via the IndexedStack above.
               if (!settled)
                 Positioned.fill(
+                  key: const ValueKey('settleSplashOverlay'),
                   child: ColoredBox(
                     color: Theme.of(context).scaffoldBackgroundColor,
                     child: const Center(child: CircularProgressIndicator()),
