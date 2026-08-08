@@ -304,9 +304,10 @@ void main() {
         expect(totals.billCount, billCount);
         expect(totals.totalAmount, closeTo(billCount.toDouble(), 0.01));
 
-        // fetchPersonBillCount (person_bill_count RPC) at the same scale -
-        // the "Expenses Added" stat had the identical unpaginated-.select()
-        // bug until 20260808140000_add_person_bill_count_rpc.sql.
+        // fetchPersonBillCount at the same scale - the "Expenses Added" stat
+        // had the identical unpaginated-.select() bug until it switched to
+        // .count(CountOption.exact), a HEAD-request count max_rows can't
+        // truncate.
         final aliceBillCount = await service.fetchPersonBillCount(
           householdId: householdId,
           paidBy: 'Alice',
