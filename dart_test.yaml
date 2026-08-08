@@ -1,0 +1,9 @@
+# Skips the 'integration' tag by default so a plain `flutter test` (and the
+# fast job in .github/workflows/test.yml) stays hermetic and doesn't need
+# Docker/a local Supabase stack. Run those tests explicitly via
+# tool/run_integration_tests.ps1 (or `flutter test --tags integration
+# --run-skipped` once SUPABASE_TEST_URL/SUPABASE_TEST_SERVICE_ROLE_KEY are
+# set - see test/integration/aggregated_calculation_service_integration_test.dart).
+tags:
+  integration:
+    skip: "requires a local Supabase stack (supabase start) - run via tool/run_integration_tests.ps1"

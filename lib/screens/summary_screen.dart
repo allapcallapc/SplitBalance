@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/calculation_provider.dart';
-import '../providers/bills_provider.dart';
 import '../providers/payment_splits_provider.dart';
 import '../providers/categories_provider.dart';
 import '../providers/config_provider.dart';
@@ -50,7 +49,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
   Future<void> _calculateBalances() async {
     final configProvider = context.read<ConfigProvider>();
-    final billsProvider = context.read<BillsProvider>();
     final splitsProvider = context.read<PaymentSplitsProvider>();
     final categoriesProvider = context.read<CategoriesProvider>();
     final calculationProvider = context.read<CalculationProvider>();
@@ -58,17 +56,21 @@ class _SummaryScreenState extends State<SummaryScreen> {
     // Set calculating state immediately to show loading indicator
     calculationProvider.setCalculating(true);
 
-    // Ensure data is loaded
-    if (configProvider.isSignedIn && configProvider.householdId != null) {
-      await categoriesProvider.loadCategories(configProvider);
-      await billsProvider.loadAllBills(configProvider);
-      await splitsProvider.loadPaymentSplits(configProvider);
+    if (!configProvider.isSignedIn || configProvider.householdId == null) {
+      calculationProvider.reset();
+      return;
     }
 
-    // Calculate balances
-    await calculationProvider.calculateBalances(
-      bills: billsProvider.allBills,
-      splits: splitsProvider.splits,
+    // Categories (for ledger row icons) and splits (for the "Payment
+    // Splits" stat row) still need loading in full here - both are small,
+    // unpaginated tables. Bills are not: calculateAggregatedBalances below
+    // fetches only the narrow, filtered sums it actually needs instead of
+    // the household's entire bill history.
+    await categoriesProvider.loadCategories(configProvider);
+    await splitsProvider.loadPaymentSplits(configProvider);
+
+    await calculationProvider.calculateAggregatedBalances(
+      householdId: configProvider.householdId!,
       categories: categoriesProvider.categories,
       person1Name: configProvider.config.person1Name.isNotEmpty
           ? configProvider.config.person1Name
@@ -106,9 +108,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
           ),
         ],
       ),
-      body: Consumer4<CalculationProvider, BillsProvider, PaymentSplitsProvider,
+      body: Consumer3<CalculationProvider, PaymentSplitsProvider,
           CategoriesProvider>(
-        builder: (context, calculationProvider, billsProvider, splitsProvider,
+        builder: (context, calculationProvider, splitsProvider,
             categoriesProvider, child) {
           if (calculationProvider.isCalculating) {
             return const Center(
@@ -333,16 +335,14 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         const Divider(),
                         _buildSummaryRow(
                           l10n.totalBills,
-                          '${billsProvider.allBills.length}',
+                          '${calculationProvider.householdTotals?.billCount ?? 0}',
                           Colors.grey,
                         ),
                         _buildSummaryRow(
                           l10n.totalAmount,
                           currencyFormat.format(
-                            billsProvider.allBills.fold(
-                              0.0,
-                              (sum, bill) => sum + bill.amount,
-                            ),
+                            calculationProvider.householdTotals?.totalAmount ??
+                                0.0,
                           ),
                           Colors.blue,
                         ),

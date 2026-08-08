@@ -194,9 +194,15 @@ class PaymentSplit {
       }
 
       final isAfterStart = startOfRange == null || date.isAfter(startOfRange);
-      final isOnOrBeforeEnd =
-          date.isBefore(endDate!.add(const Duration(days: 1))) ||
-              date.isAtSameMomentAs(endDate!.add(const Duration(days: 1)));
+      // date <= endDate. isBefore(endDate + 1 day) alone already covers
+      // every such date; there used to also be an
+      // `|| date.isAtSameMomentAs(endDate + 1 day)` clause here, which
+      // incorrectly matched the single calendar day *after* endDate too -
+      // silently pulling one extra day's bills into the closing split
+      // (and, depending on splits list order, sometimes into the
+      // following split too - a genuine data-affecting bug, not just a
+      // theoretical edge case).
+      final isOnOrBeforeEnd = date.isBefore(endDate!.add(const Duration(days: 1)));
 
       return isAfterStart && isOnOrBeforeEnd;
     }
