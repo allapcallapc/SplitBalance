@@ -311,6 +311,14 @@ void main() {
           person2Name: 'Bob',
         );
         expect(result.person1Paid, closeTo(billCount.toDouble(), 0.01));
+
+        // Also exercises category_period_person_paid at the same scale
+        // (all 1200 bills fall into Food's single open-ended period, since
+        // no splits were seeded) - not just person_paid_total/
+        // household_totals above.
+        final foodBalance = result.categoryBalances['Food'];
+        expect(foodBalance, isNotNull);
+        expect(foodBalance!.person1Paid, closeTo(billCount.toDouble(), 0.01));
       },
       timeout: const Timeout(Duration(minutes: 3)),
     );
