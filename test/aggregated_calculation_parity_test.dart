@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:splitbalance/models/bill.dart';
 import 'package:splitbalance/models/category.dart';
 import 'package:splitbalance/models/payment_split.dart';
+import 'package:splitbalance/services/aggregated_calculation_service.dart';
 import 'package:splitbalance/services/calculation_service.dart';
 
 import 'helpers/in_memory_bill_source.dart';
@@ -29,9 +30,20 @@ void main() {
   }) async {
     final categories = categoriesFor(categoryNames);
 
+    // Real production splits lists are always canonically sorted before
+    // either calculator ever sees them (PaymentSplitsProvider sorts before
+    // handing off to CalculationService; AggregatedCalculationService now
+    // canonicalizes internally regardless of what fetchSplits returns - see
+    // compareSplitsNewestFirst). Matching that here, rather than passing
+    // [splits] through in whatever order a test happened to list them in,
+    // is what makes this a faithful parity check - list order itself is
+    // covered separately by the "split-list ordering independence" group
+    // below.
+    final canonicalSplits = splits.toList()..sort(compareSplitsNewestFirst);
+
     final expected = CalculationService.calculateBalances(
       bills: bills,
-      splits: splits,
+      splits: canonicalSplits,
       categories: categories,
       person1Name: person1,
       person2Name: person2,
@@ -444,5 +456,142 @@ void main() {
         );
       });
     }
+  });
+
+  group('Parity - split-list ordering independence', () {
+    // Regression coverage for a real production discrepancy: three
+    // category-specific splits for the same category, at different end
+    // dates (mirrors a real household's actual Groceries splits: two dated
+    // end points plus an open-ended default). findMatchingSplit's tie-break
+    // for same-specificity splits depends on list order, and
+    // AggregatedCalculationService's default fetchSplits doesn't come back
+    // in any particular DB order - if calculateBalances didn't canonicalize
+    // that order itself, this scenario would silently disagree with
+    // CalculationService (which always sees PaymentSplitsProvider's
+    // newest-first-nulls-last sorted list) depending on how the DB happened
+    // to return rows that day.
+    final julSplit = PaymentSplit(
+      endDate: DateTime(2026, 7, 17),
+      category: 'Groceries',
+      person1: 'Bobby',
+      person1Percentage: 21.0,
+      person2: 'Jane',
+      person2Percentage: 79.0,
+    );
+    final augSplit = PaymentSplit(
+      endDate: DateTime(2026, 8, 5),
+      category: 'Groceries',
+      person1: 'Bobby',
+      person1Percentage: 72.8,
+      person2: 'Jane',
+      person2Percentage: 27.2,
+    );
+    final openSplit = PaymentSplit(
+      category: 'Groceries',
+      person1: 'Bobby',
+      person1Percentage: 52.5,
+      person2: 'Jane',
+      person2Percentage: 47.5,
+    );
+    final bills = [
+      Bill(
+          date: DateTime(2026, 6, 5),
+          amount: 42.50,
+          paidBy: 'Bobby',
+          category: 'Groceries'),
+      // The day after julSplit.endDate - the ambiguous boundary day this
+      // bug hinged on.
+      Bill(
+          date: DateTime(2026, 7, 18),
+          amount: 38.90,
+          paidBy: 'Jane',
+          category: 'Groceries'),
+      Bill(
+          date: DateTime(2026, 8, 1),
+          amount: 45.75,
+          paidBy: 'Jane',
+          category: 'Groceries'),
+      // The day after augSplit.endDate.
+      Bill(
+          date: DateTime(2026, 8, 6),
+          amount: 20.00,
+          paidBy: 'Bobby',
+          category: 'Groceries'),
+    ];
+
+    Future<BalanceResult> aggregatedResultFor(List<PaymentSplit> splitsOrder) {
+      final source = InMemoryBillSource(bills: bills, splits: splitsOrder);
+      return AggregatedCalculationService(
+        fetchSplits: ({required householdId}) async => splitsOrder,
+        fetchPersonPaidTotal: source.fetchPersonPaidTotal,
+        fetchCategoryPeriodPersonPaid: source.fetchCategoryPeriodPersonPaid,
+        fetchHouseholdTotals: source.fetchHouseholdTotals,
+      ).calculateBalances(
+        householdId: 'household-1',
+        categories: categoriesFor(['Groceries']),
+        person1Name: 'Bobby',
+        person2Name: 'Jane',
+      );
+    }
+
+    test('canonical (newest-first) order matches CalculationService',
+        () async {
+      final canonical = [augSplit, julSplit, openSplit];
+      final expected = CalculationService.calculateBalances(
+        bills: bills,
+        splits: canonical,
+        categories: categoriesFor(['Groceries']),
+        person1Name: 'Bobby',
+        person2Name: 'Jane',
+      );
+
+      final actual = await aggregatedResultFor(canonical);
+
+      expect(actual.person1Expected, closeTo(expected.person1Expected, 0.01));
+      expect(actual.person2Expected, closeTo(expected.person2Expected, 0.01));
+      expect(actual.netBalance, closeTo(expected.netBalance, 0.01));
+    });
+
+    test('reversed (oldest-first) DB order still matches CalculationService '
+        "'s canonical-order result - this is the exact bug that shipped",
+        () async {
+      final canonical = [augSplit, julSplit, openSplit];
+      final scrambled = [openSplit, julSplit, augSplit]; // reversed
+
+      final expected = CalculationService.calculateBalances(
+        bills: bills,
+        splits: canonical, // PaymentSplitsProvider always sorts this way
+        categories: categoriesFor(['Groceries']),
+        person1Name: 'Bobby',
+        person2Name: 'Jane',
+      );
+
+      final actual = await aggregatedResultFor(scrambled);
+
+      expect(actual.person1Expected, closeTo(expected.person1Expected, 0.01),
+          reason: 'person1Expected diverged when fetchSplits returned '
+              'splits in non-canonical order');
+      expect(actual.person2Expected, closeTo(expected.person2Expected, 0.01));
+      expect(actual.netBalance, closeTo(expected.netBalance, 0.01));
+
+      final groceriesBalance = actual.categoryBalances['Groceries']!;
+      final expectedGroceries = expected.categoryBalances['Groceries']!;
+      expect(groceriesBalance.person1Expected,
+          closeTo(expectedGroceries.person1Expected, 0.01));
+      expect(groceriesBalance.person2Expected,
+          closeTo(expectedGroceries.person2Expected, 0.01));
+    });
+
+    test('insertion-order and reversed-order fetchSplits results agree with '
+        'each other too', () async {
+      final orderA = [julSplit, augSplit, openSplit];
+      final orderB = [openSplit, augSplit, julSplit];
+
+      final resultA = await aggregatedResultFor(orderA);
+      final resultB = await aggregatedResultFor(orderB);
+
+      expect(resultA.person1Expected, closeTo(resultB.person1Expected, 0.01));
+      expect(resultA.person2Expected, closeTo(resultB.person2Expected, 0.01));
+    });
   });
 }

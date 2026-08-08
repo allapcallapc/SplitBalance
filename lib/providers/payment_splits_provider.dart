@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/payment_split.dart';
 import '../models/category.dart' as models;
+import '../services/calculation_service.dart' show compareSplitsNewestFirst;
 import 'config_provider.dart';
 
 class PaymentSplitsProvider with ChangeNotifier {
@@ -16,13 +17,7 @@ class PaymentSplitsProvider with ChangeNotifier {
   SupabaseClient get _supabase => Supabase.instance.client;
 
   void _sortSplits() {
-    // Sort by end date (newest first, nulls last)
-    _splits.sort((a, b) {
-      if (a.endDate == null && b.endDate == null) return 0;
-      if (a.endDate == null) return 1; // nulls last
-      if (b.endDate == null) return -1; // nulls last
-      return b.endDate!.compareTo(a.endDate!);
-    });
+    _splits.sort(compareSplitsNewestFirst);
   }
 
   // Load payment splits for the current household from Supabase

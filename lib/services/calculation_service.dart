@@ -58,6 +58,21 @@ List<DateTime> collectEndDates(List<PaymentSplit> splits) {
   return splits.where((s) => s.endDate != null).map((s) => s.endDate!).toList();
 }
 
+// Canonical split ordering: newest endDate first, nulls (open-ended
+// splits) last. findMatchingSplit's tie-break for same-specificity splits
+// (below) is list-order dependent by design - whichever split appears
+// first in [splits] wins a tie - so every code path that independently
+// fetches a household's splits (PaymentSplitsProvider, and
+// AggregatedCalculationService's default fetchSplits) MUST sort with this
+// exact comparator, or the two calculators can silently disagree on
+// households with more than one same-category split.
+int compareSplitsNewestFirst(PaymentSplit a, PaymentSplit b) {
+  if (a.endDate == null && b.endDate == null) return 0;
+  if (a.endDate == null) return 1; // nulls last
+  if (b.endDate == null) return -1; // nulls last
+  return b.endDate!.compareTo(a.endDate!);
+}
+
 // Finds the split that governs [category] on [date], using the same
 // most-specific-wins matching as the per-bill loop this was extracted from:
 // a category-specific split beats an 'all' split regardless of list order,
@@ -88,15 +103,17 @@ PaymentSplit? findMatchingSplit(
 }
 
 // Partitions time into periods bounded by the global split end-date
-// boundaries, resolved for [category] specifically. This can't just slice
-// at the raw boundary values: PaymentSplit.containsDate treats a split's own
-// endDate as inclusive via an "endDate + 1 day" check, so the single day
-// right after a boundary is claimed by both the closing split and whatever
-// governs the following period, and which one actually wins depends on
-// [splits]' list order (see findMatchingSplit). Resolving that ambiguity per
-// boundary - by checking whether the closing split still matches the day
-// after it - keeps every period internally consistent: every date within a
-// period maps to the same findMatchingSplit result for [category].
+// boundaries, resolved for [category] specifically. PaymentSplit.containsDate
+// used to treat a split's own endDate as inclusive via a buggy "endDate + 1
+// day" check that made the single day right after a boundary ambiguously
+// match both the closing split and whatever governed the following period
+// (list-order dependent, and a real source of incorrect balances - see
+// containsDate's fix). Now that that's fixed, every date within a period
+// maps to exactly one findMatchingSplit result for [category] and the
+// atBoundary/atDayAfter check below always resolves to "no shift" - kept
+// rather than deleted so a period's boundary is still derived from
+// findMatchingSplit itself (the actual source of truth) instead of a
+// separately-maintained assumption about containsDate's semantics.
 List<SplitPeriod> computeSplitPeriodsForCategory(
   String category,
   List<PaymentSplit> splits,

@@ -81,6 +81,8 @@ class AggregatedCalculationService {
         .from('payment_splits')
         .select()
         .eq('household_id', householdId);
+    // Canonical ordering is enforced in calculateBalances itself (applies
+    // regardless of which fetchSplits is in use), not here.
     return rows.map((row) => PaymentSplit.fromMap(row)).toList();
   }
 
@@ -163,7 +165,13 @@ class AggregatedCalculationService {
       _fetchPersonPaidTotal(householdId: householdId, paidBy: person1Name),
       _fetchPersonPaidTotal(householdId: householdId, paidBy: person2Name),
     ]);
-    final splits = results[0] as List<PaymentSplit>;
+    // Canonical order enforced here, on whatever fetchSplits returned -
+    // not just in the default implementation - so findMatchingSplit's
+    // list-order-dependent tie-break can never silently diverge from the
+    // order PaymentSplitsProvider always sorts into for the still-live
+    // CalculationService path. See compareSplitsNewestFirst's doc comment.
+    final splits = (results[0] as List<PaymentSplit>).toList()
+      ..sort(compareSplitsNewestFirst);
     final person1Paid = results[1] as double;
     final person2Paid = results[2] as double;
 

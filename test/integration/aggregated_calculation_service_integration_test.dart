@@ -205,8 +205,12 @@ void main() {
           {'name': 'Food'},
         ],
         billRows: [
-          // splitA.endDate (2024-01-31) + 1 day - the ambiguous boundary
-          // day exercised in test/aggregated_calculation_parity_test.dart.
+          // The day after the first split's end_date (2024-01-31) - used
+          // to be an ambiguous boundary day under a now-fixed
+          // PaymentSplit.containsDate bug; see
+          // test/aggregated_calculation_parity_test.dart's "split-list
+          // ordering independence" group for the real-world case that
+          // caught it.
           {
             'date': '2024-02-01',
             'amount': 100.0,
@@ -246,14 +250,13 @@ void main() {
         person2Name: 'Bob',
       );
 
-      // The splits list comes back from the DB in whatever order
-      // PostgREST/Postgres happens to return unordered rows in, so this
-      // asserts the *pair* is internally consistent (sums to the bill
-      // amount) rather than pinning one specific split's percentage -
-      // list-order dependence for this exact ambiguous day is already
-      // covered deterministically by the in-memory parity suite.
-      expect(result.person1Expected + result.person2Expected,
-          closeTo(100.0, 0.01));
+      // The day after the first split's end_date belongs to the *second*
+      // split (50/50), unambiguously - not the closing 60/40 split. Also
+      // implicitly exercises calculateBalances' own canonicalization of
+      // whatever order the real DB happens to return splits in (see
+      // compareSplitsNewestFirst).
+      expect(result.person1Expected, closeTo(50.0, 0.01));
+      expect(result.person2Expected, closeTo(50.0, 0.01));
     });
   });
 }

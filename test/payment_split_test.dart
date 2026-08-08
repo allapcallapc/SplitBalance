@@ -94,16 +94,15 @@ void main() {
       expect(split.containsDate(DateTime(2024, 1, 15), allEndDates), true);
       expect(split.containsDate(DateTime(2024, 1, 31), allEndDates), true);
       
-      // Note: Due to the +1 day logic (checking date <= endDate + 1 day), Feb 1 also matches
-      // This is the current behavior of the implementation
-      expect(split.containsDate(DateTime(2024, 2, 1), allEndDates), true);
-      // Dates clearly after should not match
+      // Feb 1 (the day after this split's Jan 31 endDate) belongs to
+      // whatever split governs after Jan 31, not this one.
+      expect(split.containsDate(DateTime(2024, 2, 1), allEndDates), false);
       expect(split.containsDate(DateTime(2024, 2, 2), allEndDates), false);
     });
 
     test('containsDate handles single endDate correctly', () {
       final allEndDates = [DateTime(2024, 1, 31)];
-      
+
       final split = PaymentSplit(
         endDate: DateTime(2024, 1, 31),
         category: 'all',
@@ -112,12 +111,11 @@ void main() {
         person2: 'Bob',
         person2Percentage: 50.0,
       );
-      
+
       expect(split.containsDate(DateTime(2024, 1, 15), allEndDates), true);
       expect(split.containsDate(DateTime(2024, 1, 31), allEndDates), true);
-      // Note: Due to the +1 day logic, Feb 1 also matches (Jan 31 + 1 day = Feb 1)
-      expect(split.containsDate(DateTime(2024, 2, 1), allEndDates), true);
-      // Dates clearly after should not match
+      // Feb 1 (Jan 31 + 1 day) is past this split's range, not part of it.
+      expect(split.containsDate(DateTime(2024, 2, 1), allEndDates), false);
       expect(split.containsDate(DateTime(2024, 2, 2), allEndDates), false);
     });
   });
