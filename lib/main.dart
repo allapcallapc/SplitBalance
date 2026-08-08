@@ -212,7 +212,12 @@ class SplitBalanceApp extends StatelessWidget {
 }
 
 class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({super.key});
+  const MainNavigationScreen({super.key, this.tabIndexStore});
+
+  // Injectable so tests can supply a fake instead of the real
+  // SharedPreferences-backed store; defaults to a real TabIndexStore in
+  // _MainNavigationScreenState when null.
+  final TabIndexStore? tabIndexStore;
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
@@ -233,7 +238,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   // ConfigProvider.signOut() only resets in-memory config, it doesn't touch
   // SharedPreferences keys it doesn't own), so a fresh login still lands on
   // Bills.
-  final _tabIndexStore = TabIndexStore();
+  late final TabIndexStore _tabIndexStore =
+      widget.tabIndexStore ?? TabIndexStore();
   int? _persistedTabIndex;
   bool _tabIndexLoaded = false;
 
