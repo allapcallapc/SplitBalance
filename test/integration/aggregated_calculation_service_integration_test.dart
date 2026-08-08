@@ -214,9 +214,13 @@ void main() {
             'category': 'Food',
           },
         ],
+        // 'all'-category splits are UI-only (see PaymentSplit.toMap) and
+        // the database rejects them via payment_splits_category_check - use
+        // the real category directly, equivalent for a single-category
+        // scenario like this one.
         splitRows: [
           {
-            'category': 'all',
+            'category': 'Food',
             'end_date': '2024-01-31',
             'person1': 'Alice',
             'person1_percentage': 60.0,
@@ -224,7 +228,7 @@ void main() {
             'person2_percentage': 40.0,
           },
           {
-            'category': 'all',
+            'category': 'Food',
             'end_date': '2024-02-28',
             'person1': 'Alice',
             'person1_percentage': 50.0,
