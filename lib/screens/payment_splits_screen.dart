@@ -9,6 +9,7 @@ import '../providers/bills_provider.dart';
 import '../models/payment_split.dart';
 import '../models/category.dart';
 import '../utils/category_icons.dart';
+import '../widgets/app_bar_action_icon_button.dart';
 
 class PaymentSplitsScreen extends StatefulWidget {
   const PaymentSplitsScreen({super.key});
@@ -145,7 +146,7 @@ class _PaymentSplitsScreenState extends State<PaymentSplitsScreen>
           ],
         ),
         actions: [
-          IconButton(
+          AppBarActionIconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
             tooltip: l10n.refreshTooltip,

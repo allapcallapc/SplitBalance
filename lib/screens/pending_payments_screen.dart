@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../l10n/app_localizations.dart';
 import '../models/pending_payment.dart';
 import '../providers/pending_payments_provider.dart';
+import '../widgets/app_bar_action_icon_button.dart';
 import 'add_edit_bill_screen.dart';
 
 class PendingPaymentsScreen extends StatefulWidget {
@@ -83,7 +84,7 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
       appBar: AppBar(
         title: Text(l10n.pendingPayments),
         actions: [
-          IconButton(
+          AppBarActionIconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () =>
                 context.read<PendingPaymentsProvider>().loadPending(),

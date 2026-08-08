@@ -290,6 +290,42 @@ abstract class AppLocalizations {
   /// **'Filters'**
   String get filters;
 
+  /// Title of the bill list sort modal
+  ///
+  /// In en, this message translates to:
+  /// **'Sort by'**
+  String get sortBy;
+
+  /// Tooltip for the chip that opens the bill list sort modal
+  ///
+  /// In en, this message translates to:
+  /// **'Sort'**
+  String get sortByTooltip;
+
+  /// Sort chip/option label for bills ordered by date, newest first
+  ///
+  /// In en, this message translates to:
+  /// **'Newest'**
+  String get sortNewest;
+
+  /// Sort chip/option label for bills ordered by date, oldest first
+  ///
+  /// In en, this message translates to:
+  /// **'Oldest'**
+  String get sortOldest;
+
+  /// Sort chip/option label for bills ordered by amount, highest first
+  ///
+  /// In en, this message translates to:
+  /// **'Highest'**
+  String get sortHighest;
+
+  /// Sort chip/option label for bills ordered by amount, lowest first
+  ///
+  /// In en, this message translates to:
+  /// **'Lowest'**
+  String get sortLowest;
+
   /// Validation message for paid by selection
   ///
   /// In en, this message translates to:

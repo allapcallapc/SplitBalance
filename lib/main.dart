@@ -51,6 +51,9 @@ class SplitBalanceApp extends StatelessWidget {
         brightness: Brightness.light,
       ),
       useMaterial3: true,
+      appBarTheme: const AppBarTheme(
+        actionsPadding: EdgeInsets.only(right: 8),
+      ),
       cardTheme: CardThemeData(
         elevation: 2,
         shape: RoundedRectangleBorder(
@@ -79,6 +82,9 @@ class SplitBalanceApp extends StatelessWidget {
         onSurfaceVariant: Colors.white70,
       ),
       useMaterial3: true,
+      appBarTheme: const AppBarTheme(
+        actionsPadding: EdgeInsets.only(right: 8),
+      ),
       scaffoldBackgroundColor:
           const Color(0xFF121212), // Very dark but not pure black
       cardTheme: CardThemeData(
@@ -122,6 +128,9 @@ class SplitBalanceApp extends StatelessWidget {
         brightness: Brightness.light,
       ),
       useMaterial3: true,
+      appBarTheme: const AppBarTheme(
+        actionsPadding: EdgeInsets.only(right: 8),
+      ),
       cardTheme: CardThemeData(
         elevation: 2,
         shape: RoundedRectangleBorder(
@@ -139,6 +148,9 @@ class SplitBalanceApp extends StatelessWidget {
         brightness: Brightness.light,
       ),
       useMaterial3: true,
+      appBarTheme: const AppBarTheme(
+        actionsPadding: EdgeInsets.only(right: 8),
+      ),
       cardTheme: CardThemeData(
         elevation: 2,
         shape: RoundedRectangleBorder(

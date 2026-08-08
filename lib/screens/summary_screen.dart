@@ -8,6 +8,7 @@ import '../providers/payment_splits_provider.dart';
 import '../providers/categories_provider.dart';
 import '../providers/config_provider.dart';
 import '../utils/category_icons.dart';
+import '../widgets/app_bar_action_icon_button.dart';
 
 class SummaryScreen extends StatefulWidget {
   const SummaryScreen({super.key, this.navigationNotifier});
@@ -101,7 +102,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
           ],
         ),
         actions: [
-          IconButton(
+          AppBarActionIconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _calculateBalances,
             tooltip: l10n.recalculate,
@@ -270,11 +271,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                     total: catBalance.person1Paid +
                                         catBalance.person2Paid,
                                     person1Paid: catBalance.person1Paid,
-                                    person1Expected:
-                                        catBalance.person1Expected,
+                                    person1Expected: catBalance.person1Expected,
                                     person2Paid: catBalance.person2Paid,
-                                    person2Expected:
-                                        catBalance.person2Expected,
+                                    person2Expected: catBalance.person2Expected,
                                     currencyFormat: currencyFormat,
                                     l10n: l10n,
                                     person1Name: result.person1Name,
@@ -291,8 +290,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).brightness ==
-                                  Brightness.dark
+                          color: Theme.of(context).brightness == Brightness.dark
                               ? Colors.grey[850]
                               : Colors.grey[50],
                           borderRadius: const BorderRadius.vertical(
@@ -477,9 +475,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
     final isBalanced = difference.abs() < epsilon;
     final person1Overpaid = difference >= epsilon;
 
-    final double person1Fraction = total > 0.01
-        ? math.min(1.0, math.max(0.0, person1Paid / total))
-        : 0.5;
+    final double person1Fraction =
+        total > 0.01 ? math.min(1.0, math.max(0.0, person1Paid / total)) : 0.5;
     // Shares the same denominator (total paid) as person1Fraction above, so
     // the fill boundary and the tick are on the same scale and the gap
     // between them reads as a real dollar imbalance. Centered when there's
@@ -492,16 +489,15 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
     final Widget verdict;
     if (!hasExpectedShare) {
-      verdict = _buildVerdict(
-          Icons.remove, l10n.noSplitSet, Colors.grey[500]!);
+      verdict = _buildVerdict(Icons.remove, l10n.noSplitSet, Colors.grey[500]!);
     } else if (isBalanced) {
       verdict = _buildVerdict(Icons.check, l10n.settled, Colors.grey[600]!);
     } else {
       verdict = _buildVerdict(
         Icons.arrow_upward,
         '${person1Overpaid ? person1Name : person2Name} '
-            '${l10n.overpaid} '
-            '${currencyFormat.format(difference.abs())}',
+        '${l10n.overpaid} '
+        '${currencyFormat.format(difference.abs())}',
         person1Overpaid ? _person1Color : _person2Color,
       );
     }
@@ -584,11 +580,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
             Row(
               children: [
                 Expanded(
-                    flex: person1Flex,
-                    child: Container(color: _person1Color)),
+                    flex: person1Flex, child: Container(color: _person1Color)),
                 Expanded(
-                    flex: person2Flex,
-                    child: Container(color: _person2Color)),
+                    flex: person2Flex, child: Container(color: _person2Color)),
               ],
             ),
             Align(
