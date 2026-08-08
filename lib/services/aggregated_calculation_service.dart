@@ -98,32 +98,49 @@ class AggregatedCalculationService {
     return rows.map((row) => PaymentSplit.fromMap(row)).toList();
   }
 
-  // These three call Postgres RPCs (see
-  // supabase/migrations/20260808130000_add_bill_aggregation_rpcs.sql) that
-  // compute SUM()/COUNT() server-side, rather than pulling matching bill
-  // rows into Dart and folding them here. That used to be a real bug (see
-  // https://github.com/allapcallapc/SplitBalance/issues/57): PostgREST's
-  // max_rows (supabase/config.toml) silently truncates an unpaginated
-  // .select() result instead of erroring, so a household where one person
-  // had paid more rows than max_rows got a silently undercounted total.
-  // The RPCs are `stable` (not `security definer`), so the existing
-  // bills_select RLS policy still gates what a caller can see.
+  // None of these need a Postgres RPC/schema migration: PostgREST's
+  // max_rows (supabase/config.toml) silently caps an unpaginated .select()
+  // at 1000 rows instead of erroring, so a naive single .select() + fold
+  // would silently undercount once a household crossed that many matching
+  // bills (see https://github.com/allapcallapc/SplitBalance/issues/57).
+  // _sumAmounts works around that client-side instead, by paging through
+  // .range() in chunks of _pageSize and summing each chunk, rather than
+  // relying on a server-side SUM(). .count(CountOption.exact) (used below
+  // for bill counts) sidesteps the same limit differently: it's a HEAD
+  // request, so PostgREST never materializes a row body for max_rows to
+  // truncate - the exact count comes back via the Content-Range header.
+  static const _pageSize = 1000;
+
+  static Future<double> _sumAmounts(
+    PostgrestFilterBuilder<PostgrestList> Function() buildQuery,
+  ) async {
+    var total = 0.0;
+    var start = 0;
+    while (true) {
+      // Ordered by `id` so each page's boundary is stable across requests,
+      // even if bills are added/edited between pages.
+      final rows =
+          await buildQuery().order('id').range(start, start + _pageSize - 1);
+      for (final row in rows) {
+        total += (row['amount'] as num).toDouble();
+      }
+      if (rows.length < _pageSize) break;
+      start += _pageSize;
+    }
+    return total;
+  }
+
   static Future<double> _defaultFetchPersonPaidTotal({
     required String householdId,
     required String paidBy,
-  }) async {
-    final response = await Supabase.instance.client.rpc(
-      'person_paid_total',
-      params: {'p_household_id': householdId, 'p_paid_by': paidBy},
-    );
-    return (response as num).toDouble();
+  }) {
+    return _sumAmounts(() => Supabase.instance.client
+        .from('bills')
+        .select('amount')
+        .eq('household_id', householdId)
+        .eq('paid_by', paidBy));
   }
 
-  // Avoids the same max_rows truncation bug without an RPC/schema change:
-  // .count(CountOption.exact) issues a HEAD request (no row body at all),
-  // with the exact count computed server-side and returned via the
-  // Content-Range header - max_rows only caps rows in a GET response body,
-  // so it never applies here.
   static Future<int> _defaultFetchPersonBillCount({
     required String householdId,
     required String paidBy,
@@ -149,33 +166,43 @@ class AggregatedCalculationService {
     required DateTime? periodStart,
     required DateTime? periodEnd,
     required String paidBy,
-  }) async {
-    final response = await Supabase.instance.client.rpc(
-      'category_period_person_paid',
-      params: {
-        'p_household_id': householdId,
-        'p_category': category,
-        'p_period_start':
-            periodStart != null ? _dateFormat.format(periodStart) : null,
-        'p_period_end':
-            periodEnd != null ? _dateFormat.format(periodEnd) : null,
-        'p_paid_by': paidBy,
-      },
-    );
-    return (response as num).toDouble();
+  }) {
+    return _sumAmounts(() {
+      var query = Supabase.instance.client
+          .from('bills')
+          .select('amount')
+          .eq('household_id', householdId)
+          .eq('category', category)
+          .eq('paid_by', paidBy);
+      if (periodStart != null) {
+        query = query.gt('date', _dateFormat.format(periodStart));
+      }
+      if (periodEnd != null) {
+        query = query.lte('date', _dateFormat.format(periodEnd));
+      }
+      return query;
+    });
   }
 
   static Future<HouseholdTotals> _defaultFetchHouseholdTotals({
     required String householdId,
   }) async {
-    final response = await Supabase.instance.client.rpc(
-      'household_totals',
-      params: {'p_household_id': householdId},
-    );
-    final row = (response as List).first as Map<String, dynamic>;
+    // Future.wait<num> (not the usual Future<T>.wait) so the differently
+    // typed count (int) and sum (double) queries can run in parallel from
+    // one call, the same way the two-fetch shape below fires in parallel.
+    final results = await Future.wait<num>([
+      Supabase.instance.client
+          .from('bills')
+          .count(CountOption.exact)
+          .eq('household_id', householdId),
+      _sumAmounts(() => Supabase.instance.client
+          .from('bills')
+          .select('amount')
+          .eq('household_id', householdId)),
+    ]);
     return HouseholdTotals(
-      billCount: (row['bill_count'] as num).toInt(),
-      totalAmount: (row['total_amount'] as num).toDouble(),
+      billCount: results[0].toInt(),
+      totalAmount: results[1].toDouble(),
     );
   }
 

@@ -264,14 +264,14 @@ void main() {
       'truncated - the exact bug '
       'https://github.com/allapcallapc/SplitBalance/issues/57 describes',
       () async {
-        // supabase/config.toml sets max_rows = 1000. Before #57's fix, the
-        // default fetch functions did an unpaginated `.select('amount')`
-        // and summed the returned rows in Dart - PostgREST silently caps
-        // that at max_rows instead of erroring, so a payer with more bills
-        // than that would get a quietly undercounted total. The RPCs added
-        // in #57 (person_paid_total/household_totals/
-        // category_period_person_paid) compute SUM()/COUNT() in Postgres
-        // instead, so the row count never reaches PostgREST at all.
+        // supabase/config.toml sets max_rows = 1000. A naive single
+        // `.select('amount')` + fold-in-Dart would silently cap at
+        // max_rows instead of erroring, so a payer with more bills than
+        // that would get a quietly undercounted total (#57). The default
+        // fetch functions avoid this without a server-side RPC: sums page
+        // through .range() in chunks of _pageSize, and counts use
+        // .count(CountOption.exact) (a HEAD request PostgREST answers via
+        // Content-Range, without ever materializing/truncating a row body).
         const billCount = 1200;
         final householdId = await seedHousehold(
           categoryRows: [
@@ -322,10 +322,11 @@ void main() {
         );
         expect(result.person1Paid, closeTo(billCount.toDouble(), 0.01));
 
-        // Also exercises category_period_person_paid at the same scale
-        // (all 1200 bills fall into Food's single open-ended period, since
-        // no splits were seeded) - not just person_paid_total/
-        // household_totals above.
+        // Also exercises the category/period paid-total path at the same
+        // scale (all 1200 bills fall into Food's single open-ended period,
+        // since no splits were seeded) - not just the household/person
+        // totals above. 1200 > _pageSize (1000), so this exercises the
+        // multi-page branch of _sumAmounts, not just its single-page path.
         final foodBalance = result.categoryBalances['Food'];
         expect(foodBalance, isNotNull);
         expect(foodBalance!.person1Paid, closeTo(billCount.toDouble(), 0.01));
