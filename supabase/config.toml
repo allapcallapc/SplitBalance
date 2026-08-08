@@ -1,0 +1,45 @@
+# Supabase CLI local dev config. Used only for local `supabase start` (e.g.
+# by tool/run_integration_tests.ps1) - never points at the hosted project.
+#
+# NOTE: hand-written, then validated with `supabase status` against CLI
+# v2.112.0 (parses cleanly - no unknown/deprecated fields). Not yet verified
+# end-to-end against a real `supabase start`, since that also needs Docker,
+# which isn't available in the environment that authored this file.
+
+project_id = "splitbalance"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[local_smtp]
+enabled = false
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = []
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+
+[realtime]
+enabled = false
+
+[storage]
+enabled = false

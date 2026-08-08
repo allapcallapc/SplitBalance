@@ -1426,4 +1426,217 @@ void main() {
       expect(totalPaid, closeTo(150.0, 0.01)); // 100 + 50
     });
   });
+
+  group('computeSplitPeriodsForCategory / findMatchingSplit / collectEndDates', () {
+    const String person1 = 'Alice';
+    const String person2 = 'Bob';
+
+    test('No splits at all: single fully-open period', () {
+      final periods = computeSplitPeriodsForCategory('Food', []);
+      expect(periods.length, 1);
+      expect(periods.single.start, isNull);
+      expect(periods.single.end, isNull);
+    });
+
+    test('Only open-ended splits (no endDate on any of them): single fully-open period', () {
+      final splits = [
+        PaymentSplit(
+          category: 'all',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+      ];
+      final periods = computeSplitPeriodsForCategory('Food', splits);
+      expect(periods.length, 1);
+      expect(periods.single.start, isNull);
+      expect(periods.single.end, isNull);
+    });
+
+    test('collectEndDates dedupes the same endDate shared across categories', () {
+      // Mirrors the "Complex scenario" test: Rent and Food splits both end
+      // on 2024-02-29. Without dedupe this would produce a spurious
+      // zero-width period around that shared boundary.
+      final splits = [
+        PaymentSplit(
+          endDate: DateTime(2024, 2, 29),
+          category: 'Rent',
+          person1: person1,
+          person1Percentage: 60.0,
+          person2: person2,
+          person2Percentage: 40.0,
+        ),
+        PaymentSplit(
+          endDate: DateTime(2024, 2, 29),
+          category: 'Food',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+        PaymentSplit(
+          category: 'Rent',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+      ];
+
+      final endDates = collectEndDates(splits);
+      expect(endDates.toSet().length, 1);
+
+      // Two periods for Rent (before/after the boundary), not three, and no
+      // zero-width period sitting between duplicate boundary entries.
+      final periods = computeSplitPeriodsForCategory('Rent', splits);
+      expect(periods.length, 2);
+    });
+
+    test('Normal (non-ambiguous) boundary: category-specific splits on either '
+        'side of a shared boundary produce two clean periods', () {
+      final splits = [
+        PaymentSplit(
+          endDate: DateTime(2024, 1, 31),
+          category: 'Rent',
+          person1: person1,
+          person1Percentage: 60.0,
+          person2: person2,
+          person2Percentage: 40.0,
+        ),
+        PaymentSplit(
+          category: 'Rent',
+          person1: person1,
+          person1Percentage: 50.0,
+          person2: person2,
+          person2Percentage: 50.0,
+        ),
+      ];
+      final allEndDates = collectEndDates(splits);
+      final periods = computeSplitPeriodsForCategory('Rent', splits);
+
+      expect(periods.length, 2);
+      expect(periods[0].start, isNull);
+      expect(periods[1].end, isNull);
+
+      final firstMatch = findMatchingSplit(
+        representativeDateFor(periods[0]),
+        'Rent',
+        splits,
+        allEndDates,
+      );
+      final secondMatch = findMatchingSplit(
+        representativeDateFor(periods[1]),
+        'Rent',
+        splits,
+        allEndDates,
+      );
+      expect(firstMatch?.person1Percentage, 60.0);
+      expect(secondMatch?.person1Percentage, 50.0);
+    });
+
+    test('Open-tail representative date is one day past the period start', () {
+      const period = SplitPeriod(start: null, end: null);
+      expect(representativeDateFor(period), DateTime.utc(1970));
+
+      final bounded = SplitPeriod(start: DateTime(2024, 5, 1), end: null);
+      expect(
+        representativeDateFor(bounded),
+        DateTime(2024, 5, 1).add(const Duration(days: 1)),
+      );
+
+      final closed = SplitPeriod(start: null, end: DateTime(2024, 5, 1));
+      expect(representativeDateFor(closed), DateTime(2024, 5, 1));
+    });
+
+    // The single calendar day right after a split's endDate is ambiguous
+    // under PaymentSplit.containsDate (both the closing split and whatever
+    // follows it match that day), and which one wins depends on splits list
+    // order. computeSplitPeriodsForCategory must resolve this the same way
+    // findMatchingSplit would for a real bill dated exactly endDate + 1 day,
+    // regardless of which order the splits happen to be given in.
+    group('endDate+1 boundary-day tie resolution', () {
+      final splitA = PaymentSplit(
+        endDate: DateTime(2024, 1, 31),
+        category: 'all',
+        person1: person1,
+        person1Percentage: 60.0,
+        person2: person2,
+        person2Percentage: 40.0,
+      );
+      final splitB = PaymentSplit(
+        endDate: DateTime(2024, 2, 28),
+        category: 'all',
+        person1: person1,
+        person1Percentage: 50.0,
+        person2: person2,
+        person2Percentage: 50.0,
+      );
+      final ambiguousDay = DateTime(2024, 2, 1); // splitA.endDate + 1 day
+
+      test('ascending list order [A, B]', () {
+        final splits = [splitA, splitB];
+        final allEndDates = collectEndDates(splits);
+        final groundTruth =
+            findMatchingSplit(ambiguousDay, 'Food', splits, allEndDates);
+
+        final periods = computeSplitPeriodsForCategory('Food', splits);
+        final containing = periods.firstWhere(
+          (p) =>
+              (p.start == null || ambiguousDay.isAfter(p.start!)) &&
+              (p.end == null || !ambiguousDay.isAfter(p.end!)),
+        );
+        final periodMatch = findMatchingSplit(
+          representativeDateFor(containing),
+          'Food',
+          splits,
+          allEndDates,
+        );
+
+        expect(periodMatch?.person1Percentage, groundTruth?.person1Percentage);
+      });
+
+      test('descending list order [B, A]', () {
+        final splits = [splitB, splitA];
+        final allEndDates = collectEndDates(splits);
+        final groundTruth =
+            findMatchingSplit(ambiguousDay, 'Food', splits, allEndDates);
+
+        final periods = computeSplitPeriodsForCategory('Food', splits);
+        final containing = periods.firstWhere(
+          (p) =>
+              (p.start == null || ambiguousDay.isAfter(p.start!)) &&
+              (p.end == null || !ambiguousDay.isAfter(p.end!)),
+        );
+        final periodMatch = findMatchingSplit(
+          representativeDateFor(containing),
+          'Food',
+          splits,
+          allEndDates,
+        );
+
+        expect(periodMatch?.person1Percentage, groundTruth?.person1Percentage);
+      });
+
+      test('the two orderings actually disagree on who wins the ambiguous '
+          'day (sanity check that this test is exercising something real)', () {
+        final ascendingMatch = findMatchingSplit(
+          ambiguousDay,
+          'Food',
+          [splitA, splitB],
+          collectEndDates([splitA, splitB]),
+        );
+        final descendingMatch = findMatchingSplit(
+          ambiguousDay,
+          'Food',
+          [splitB, splitA],
+          collectEndDates([splitB, splitA]),
+        );
+        expect(
+          ascendingMatch?.person1Percentage,
+          isNot(descendingMatch?.person1Percentage),
+        );
+      });
+    });
+  });
 }

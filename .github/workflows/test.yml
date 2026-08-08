@@ -30,7 +30,7 @@ jobs:
         run: flutter pub get
 
       - name: Run tests
-        run: flutter test
+        run: flutter test --exclude-tags integration
 
       - name: Run analysis
         run: flutter analyze --no-fatal-infos
@@ -39,3 +39,49 @@ jobs:
         run: |
           flutter build apk --debug --target-platform android-arm64
           cd android && ./gradlew :app:testDebugUnitTest
+
+  integration-test:
+    # Separate job from `test` above: a flaky/slow Docker startup here should
+    # never block the main test signal. Runs the 'integration' tests skipped
+    # by the `test` job's --exclude-tags integration - see
+    # test/integration/aggregated_calculation_service_integration_test.dart -
+    # against a real local Supabase stack (Docker is preinstalled on
+    # ubuntu-latest runners, so this needs no extra setup beyond the CLI).
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase stack
+        run: supabase start
+
+      - name: Export local Supabase connection details
+        id: supabase
+        run: |
+          status=$(supabase status -o json)
+          echo "url=$(echo "$status" | jq -r '.API_URL // .api_url')" >> "$GITHUB_OUTPUT"
+          echo "service_role_key=$(echo "$status" | jq -r '.SERVICE_ROLE_KEY // .service_role_key')" >> "$GITHUB_OUTPUT"
+
+      - name: Run integration tests
+        env:
+          SUPABASE_TEST_URL: ${{ steps.supabase.outputs.url }}
+          SUPABASE_TEST_SERVICE_ROLE_KEY: ${{ steps.supabase.outputs.service_role_key }}
+        run: flutter test --tags integration --run-skipped
+
+      - name: Stop local Supabase stack
+        if: always()
+        run: supabase stop
