@@ -456,16 +456,41 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String expenses(int count) {
-    return intl.Intl.pluralLogic(
+    String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
       other: 'dépenses',
       one: 'dépense',
     );
+    return '$_temp0';
   }
 
   @override
   String get totals => 'Totaux';
+
+  @override
+  String get total => 'Total';
+
+  @override
+  String get tapForDetails => 'Tap for details';
+
+  @override
+  String get currentPeriod => 'Current Period';
+
+  @override
+  String get monthlySpend => 'Monthly Spend';
+
+  @override
+  String get cumulativeSpend => 'Cumulative Spend';
+
+  @override
+  String get categoriesByAmount => 'Categories by Amount';
+
+  @override
+  String get noBillsInCategory => 'No bills in this category yet';
+
+  @override
+  String get noBillsToChart => 'No bills to chart yet';
 
   @override
   String get saveBill => 'Enregistrer la facture';
