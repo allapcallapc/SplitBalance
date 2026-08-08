@@ -103,6 +103,8 @@ void main() {
         fetchSplits: ({required householdId}) async => [],
         fetchPersonPaidTotal: ({required householdId, required paidBy}) async =>
             paidBy == 'Alice' ? 120.0 : 80.0,
+        fetchPersonBillCount: ({required householdId, required paidBy}) async =>
+            paidBy == 'Alice' ? 3 : 1,
         fetchCategoryPeriodPersonPaid: ({
           required householdId,
           required category,
@@ -140,5 +142,8 @@ void main() {
     // not a BillsProvider that no longer exists on this screen.
     expect(find.text('5'), findsOneWidget);
     expect(find.text('\$999.99'), findsOneWidget);
+    // Expenses Added section reflects the aggregated per-person counts.
+    expect(find.text('3'), findsOneWidget);
+    expect(find.text('1'), findsOneWidget);
   });
 }

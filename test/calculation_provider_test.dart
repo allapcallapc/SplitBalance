@@ -23,6 +23,7 @@ void main() {
   AggregatedCalculationService serviceWith({
     FetchSplits? fetchSplits,
     FetchPersonPaidTotal? fetchPersonPaidTotal,
+    FetchPersonBillCount? fetchPersonBillCount,
     FetchCategoryPeriodPersonPaid? fetchCategoryPeriodPersonPaid,
     FetchHouseholdTotals? fetchHouseholdTotals,
   }) {
@@ -30,6 +31,8 @@ void main() {
       fetchSplits: fetchSplits ?? ({required householdId}) async => [],
       fetchPersonPaidTotal: fetchPersonPaidTotal ??
           ({required householdId, required paidBy}) async => 0.0,
+      fetchPersonBillCount: fetchPersonBillCount ??
+          ({required householdId, required paidBy}) async => 0,
       fetchCategoryPeriodPersonPaid: fetchCategoryPeriodPersonPaid ??
           ({
             required householdId,
@@ -65,12 +68,15 @@ void main() {
   }
 
   group('CalculationProvider.calculateAggregatedBalances', () {
-    testWidgets('populates balanceResult and householdTotals on success',
-        (tester) async {
+    testWidgets(
+        'populates balanceResult, householdTotals, and per-person expense '
+        'counts on success', (tester) async {
       final provider = CalculationProvider(
         aggregatedCalculationService: serviceWith(
           fetchPersonPaidTotal: ({required householdId, required paidBy}) async =>
               paidBy == person1 ? 120.0 : 80.0,
+          fetchPersonBillCount: ({required householdId, required paidBy}) async =>
+              paidBy == person1 ? 4 : 2,
           fetchHouseholdTotals: ({required householdId}) async =>
               const HouseholdTotals(billCount: 3, totalAmount: 200.0),
         ),
@@ -89,6 +95,8 @@ void main() {
       expect(provider.isCalculating, isTrue);
       expect(provider.balanceResult, isNull);
       expect(provider.householdTotals, isNull);
+      expect(provider.person1ExpenseCount, 0);
+      expect(provider.person2ExpenseCount, 0);
 
       await tester.pump();
       await future;
@@ -101,6 +109,26 @@ void main() {
       expect(provider.householdTotals, isNotNull);
       expect(provider.householdTotals!.billCount, 3);
       expect(provider.householdTotals!.totalAmount, 200.0);
+      expect(provider.person1ExpenseCount, 4);
+      expect(provider.person2ExpenseCount, 2);
+    });
+
+    testWidgets(
+        'a thrown error from fetchPersonBillCount is caught and clears the '
+        'expense counts', (tester) async {
+      final provider = CalculationProvider(
+        aggregatedCalculationService: serviceWith(
+          fetchPersonBillCount: ({required householdId, required paidBy}) async =>
+              throw Exception('network error'),
+        ),
+      );
+
+      await runToCompletion(tester, provider,
+          person1Name: person1, person2Name: person2);
+
+      expect(provider.error, contains('Calculation error'));
+      expect(provider.person1ExpenseCount, 0);
+      expect(provider.person2ExpenseCount, 0);
     });
 
     testWidgets(

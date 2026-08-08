@@ -331,6 +331,27 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           ),
                         ),
                         const Divider(),
+                        _buildExpensesAddedSection(
+                          context,
+                          l10n,
+                          result.person1Name,
+                          calculationProvider.person1ExpenseCount,
+                          result.person2Name,
+                          calculationProvider.person2ExpenseCount,
+                        ),
+                        const Divider(),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4.0),
+                          child: Text(
+                            l10n.totals,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color:
+                                  Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
                         _buildSummaryRow(
                           l10n.totalBills,
                           '${calculationProvider.householdTotals?.billCount ?? 0}',
@@ -399,6 +420,177 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
   static final Color _person1Color = Colors.teal[600]!;
   static final Color _person2Color = Colors.orange[700]!;
+
+  Widget _buildExpensesAddedSection(
+    BuildContext context,
+    AppLocalizations l10n,
+    String person1Name,
+    int person1Count,
+    String person2Name,
+    int person2Count,
+  ) {
+    // Reuse the same fixed per-person colors as the rest of this card (the
+    // "Who Paid What" legend/bars below) rather than a second palette, so a
+    // person's color means the same thing everywhere on the Statistics card.
+    final colorA = _person1Color;
+    final colorB = _person2Color;
+    final totalCount = person1Count + person2Count;
+    // person2's share is the remainder rather than independently rounded,
+    // so the two percentages always sum to 100.
+    final person1Percent =
+        totalCount > 0 ? ((person1Count / totalCount) * 100).round() : 0;
+    final person2Percent = 100 - person1Percent;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.expensesAdded,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _buildPersonCountTile(
+                    context, l10n, person1Name, person1Count, colorA),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: _buildPersonCountTile(
+                    context, l10n, person2Name, person2Count, colorB),
+              ),
+            ],
+          ),
+          if (totalCount > 0) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: SizedBox(
+                height: 8,
+                child: person1Count == 0
+                    ? Container(color: colorB)
+                    : person2Count == 0
+                        ? Container(color: colorA)
+                        : Row(
+                            children: [
+                              Expanded(
+                                flex: person1Count,
+                                child: Container(color: colorA),
+                              ),
+                              const SizedBox(width: 2),
+                              Expanded(
+                                flex: person2Count,
+                                child: Container(color: colorB),
+                              ),
+                            ],
+                          ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  l10n.paymentSplitPersonDisplay(
+                    person1Name,
+                    person1Percent.toString(),
+                  ),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                Text(
+                  l10n.paymentSplitPersonDisplay(
+                    person2Name,
+                    person2Percent.toString(),
+                  ),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPersonCountTile(
+    BuildContext context,
+    AppLocalizations l10n,
+    String name,
+    int count,
+    Color color,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+            border: Border.all(
+              color: color.withValues(alpha: isDark ? 0.5 : 0.35),
+              width: 2,
+            ),
+          ),
+          child: Text(
+            initial,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: color,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                name,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              Text(
+                '$count',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                l10n.expenses(count),
+                style: TextStyle(
+                  fontSize: 10.5,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
   // Category balances only carry the category name, so look up the matching
   // Category to render its icon (falling back to the default icon if it was

@@ -213,6 +213,16 @@
   "statistics": "Statistiques",
   "totalBills": "Total des factures",
   "totalAmount": "Montant total",
+  "expensesAdded": "Dépenses ajoutées",
+  "expenses": "{count, plural, =1{dépense} other{dépenses}}",
+  "@expenses": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "totals": "Totaux",
   "saveBill": "Enregistrer la facture",
   "enterAmount": "Veuillez entrer un montant",
   "detailsOptional": "Détails (optionnel)",

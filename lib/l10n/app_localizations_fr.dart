@@ -452,6 +452,22 @@ class AppLocalizationsFr extends AppLocalizations {
   String get totalAmount => 'Montant total';
 
   @override
+  String get expensesAdded => 'Dépenses ajoutées';
+
+  @override
+  String expenses(int count) {
+    return intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'dépenses',
+      one: 'dépense',
+    );
+  }
+
+  @override
+  String get totals => 'Totaux';
+
+  @override
   String get saveBill => 'Enregistrer la facture';
 
   @override
