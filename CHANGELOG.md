@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.1.0](https://github.com/allapcallapc/SplitBalance/compare/v3.0.0...v3.1.0) (2026-08-08)
+
+
+### Features
+
+* add sort control to the bills screen ([#48](https://github.com/allapcallapc/SplitBalance/issues/48)) ([ccebd2d](https://github.com/allapcallapc/SplitBalance/commit/ccebd2dd8eefca8fd3397dfa42f6e117bf2ee570))
+* move summary balance calculation to narrow aggregated queries ([#55](https://github.com/allapcallapc/SplitBalance/issues/55)) ([0204404](https://github.com/allapcallapc/SplitBalance/commit/0204404d54efdc0a436961b97370c3c8af030f9d))
+* show per-person expense counts in Summary Statistics card ([#45](https://github.com/allapcallapc/SplitBalance/issues/45)) ([4d5fc43](https://github.com/allapcallapc/SplitBalance/commit/4d5fc431d931242873d8a16344d0f745be6bf625))
+
+
+### Bug Fixes
+
+* aggregate person/household bill totals server-side via Postgres RPCs ([#58](https://github.com/allapcallapc/SplitBalance/issues/58)) ([1f1bc10](https://github.com/allapcallapc/SplitBalance/commit/1f1bc10c7cb172c83663eebc4a2cf57bcd9afebf))
+
 ## [3.0.0](https://github.com/allapcallapc/SplitBalance/compare/v2.1.1...v3.0.0) (2026-08-07)
 
 
