@@ -17,6 +17,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:splitbalance/models/category.dart';
@@ -39,6 +40,10 @@ void main() {
       );
     }
 
+    // Supabase.initialize() persists its session via SharedPreferences,
+    // which needs a mocked platform channel under `flutter test` - same
+    // setup as test/widget_test.dart and test/summary_screen_test.dart.
+    SharedPreferences.setMockInitialValues({});
     await Supabase.initialize(url: url, anonKey: serviceRoleKey);
     admin = Supabase.instance.client;
   });
