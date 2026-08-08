@@ -98,10 +98,11 @@ class AggregatedCalculationService {
     return rows.map((row) => PaymentSplit.fromMap(row)).toList();
   }
 
-  // These three call Postgres RPCs (see
-  // supabase/migrations/20260808130000_add_bill_aggregation_rpcs.sql) that
-  // compute SUM()/COUNT() server-side, rather than pulling matching bill
-  // rows into Dart and folding them here. That used to be a real bug (see
+  // These four call Postgres RPCs (see
+  // supabase/migrations/20260808130000_add_bill_aggregation_rpcs.sql and
+  // 20260808140000_add_person_bill_count_rpc.sql) that compute
+  // SUM()/COUNT() server-side, rather than pulling matching bill rows into
+  // Dart and folding them here. That used to be a real bug (see
   // https://github.com/allapcallapc/SplitBalance/issues/57): PostgREST's
   // max_rows (supabase/config.toml) silently truncates an unpaginated
   // .select() result instead of erroring, so a household where one person
@@ -123,12 +124,11 @@ class AggregatedCalculationService {
     required String householdId,
     required String paidBy,
   }) async {
-    final rows = await Supabase.instance.client
-        .from('bills')
-        .select('id')
-        .eq('household_id', householdId)
-        .eq('paid_by', paidBy);
-    return rows.length;
+    final response = await Supabase.instance.client.rpc(
+      'person_bill_count',
+      params: {'p_household_id': householdId, 'p_paid_by': paidBy},
+    );
+    return (response as num).toInt();
   }
 
   // Count of bills paid by [paidBy] - see FetchPersonBillCount.

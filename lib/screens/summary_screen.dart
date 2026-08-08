@@ -423,14 +423,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
   static final Color _person1Color = Colors.teal[600]!;
   static final Color _person2Color = Colors.orange[700]!;
 
-  // Fixed per-person accent colors, independent of the app's seed color, so
-  // the split stays legible and consistent across all four theme modes
-  // (light, dark, pink, teal) instead of shifting with the seed.
-  static const _personAColorLight = Color(0xFF2A78D6);
-  static const _personAColorDark = Color(0xFF3987E5);
-  static const _personBColorLight = Color(0xFFEB6834);
-  static const _personBColorDark = Color(0xFFD95926);
-
   Widget _buildExpensesAddedSection(
     BuildContext context,
     AppLocalizations l10n,
@@ -439,9 +431,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
     String person2Name,
     int person2Count,
   ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colorA = isDark ? _personAColorDark : _personAColorLight;
-    final colorB = isDark ? _personBColorDark : _personBColorLight;
+    // Reuse the same fixed per-person colors as the rest of this card (the
+    // "Who Paid What" legend/bars below) rather than a second palette, so a
+    // person's color means the same thing everywhere on the Statistics card.
+    final colorA = _person1Color;
+    final colorB = _person2Color;
     final totalCount = person1Count + person2Count;
     // person2's share is the remainder rather than independently rounded,
     // so the two percentages always sum to 100.
