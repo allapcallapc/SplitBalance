@@ -228,8 +228,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   late final List<Widget> _screens;
 
   // The tab selected before a refresh, so a reload can restore it instead of
-  // always landing on Bills (see GH issue #59). Cleared along with the rest
-  // of SharedPreferences on sign-out, so a fresh login still lands on Bills.
+  // always landing on Bills (see GH issue #59). Explicitly cleared on
+  // sign-out (both in-memory and on disk - see _clearPersistedTabIndex), so
+  // a fresh login still lands on Bills.
   static const _selectedTabStorageKey = 'selected_tab_index';
   int? _persistedTabIndex;
   bool _tabIndexLoaded = false;
@@ -266,8 +267,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   Future<void> _loadPersistedTabIndex() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
+    final stored = prefs.getInt(_selectedTabStorageKey);
     setState(() {
-      _persistedTabIndex = prefs.getInt(_selectedTabStorageKey);
+      // Guards against a stored index that's out of range for the current
+      // _screens list (e.g. a tab was removed/reordered in a later release)
+      // - falls back to the normal Bills default rather than crashing
+      // IndexedStack.
+      _persistedTabIndex =
+          (stored != null && stored >= 0 && stored < _screens.length)
+              ? stored
+              : null;
       _tabIndexLoaded = true;
     });
   }
@@ -275,6 +284,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   Future<void> _persistTabIndex(int index) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_selectedTabStorageKey, index);
+  }
+
+  // ConfigProvider.signOut() (the normal "Sign Out" button) only resets
+  // in-memory config and re-saves it - unlike clearAllConfig(), it never
+  // touches SharedPreferences keys it doesn't own, so the persisted tab
+  // must be removed explicitly here. Otherwise a sign-out/refresh/sign-in
+  // (no clean session in between) would read the stale value back and land
+  // on the old tab instead of Bills.
+  Future<void> _clearPersistedTabIndex() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_selectedTabStorageKey);
   }
 
   // Runs once per app launch (unlike the deep-link check, this doesn't need
@@ -443,10 +463,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
             if (!isSignedIn) {
               _selectedIndex = 3; // Config screen only on sign-out
               _hasAutoNavigatedToBills = false;
-              // Sign-out also clears all of SharedPreferences (including the
-              // persisted tab); mirror that here so a same-session re-login
-              // doesn't restore a tab from before the sign-out.
+              // Clear both the in-memory and persisted tab so a re-login
+              // (this session or a later one) doesn't restore a tab from
+              // before the sign-out - see _clearPersistedTabIndex.
               _persistedTabIndex = null;
+              _clearPersistedTabIndex();
             }
             // NO auto-navigation on sign-in
           }
