@@ -621,6 +621,34 @@
   "@totals": {
     "description": "Caption above the aggregate totals rows in the Statistics card"
   },
+  "total": "Total",
+  "@total": {
+    "description": "Label for the Total row/screen rolling up every category"
+  },
+  "currentPeriod": "Current Period",
+  "@currentPeriod": {
+    "description": "Heading for the current-period summary block on a detail screen"
+  },
+  "monthlySpend": "Monthly Spend",
+  "@monthlySpend": {
+    "description": "Title for the stacked bar chart of monthly spend on a detail screen"
+  },
+  "cumulativeSpend": "Cumulative Spend",
+  "@cumulativeSpend": {
+    "description": "Title for the running-total line chart on a detail screen"
+  },
+  "categoriesByAmount": "Categories by Amount",
+  "@categoriesByAmount": {
+    "description": "Heading for the ranked category breakdown on the Total detail screen"
+  },
+  "noBillsInCategory": "No bills in this category yet",
+  "@noBillsInCategory": {
+    "description": "Empty state shown on the category detail screen when the category has no bills"
+  },
+  "noBillsToChart": "No bills to chart yet",
+  "@noBillsToChart": {
+    "description": "Empty state shown on the total detail screen when there are no bills at all"
+  },
   "saveBill": "Save Bill",
   "@saveBill": {
     "description": "Button label to save bill"

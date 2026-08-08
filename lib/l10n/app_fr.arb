@@ -223,6 +223,13 @@
     }
   },
   "totals": "Totaux",
+  "total": "Total",
+  "currentPeriod": "Période actuelle",
+  "monthlySpend": "Dépenses mensuelles",
+  "cumulativeSpend": "Dépenses cumulées",
+  "categoriesByAmount": "Catégories par montant",
+  "noBillsInCategory": "Aucune facture dans cette catégorie pour le moment",
+  "noBillsToChart": "Aucune facture à représenter pour le moment",
   "saveBill": "Enregistrer la facture",
   "enterAmount": "Veuillez entrer un montant",
   "detailsOptional": "Détails (optionnel)",

@@ -17,12 +17,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:splitbalance/l10n/app_localizations.dart';
+import 'package:splitbalance/providers/bills_provider.dart';
 import 'package:splitbalance/providers/calculation_provider.dart';
 import 'package:splitbalance/providers/categories_provider.dart';
 import 'package:splitbalance/providers/config_provider.dart';
 import 'package:splitbalance/providers/payment_splits_provider.dart';
+import 'package:splitbalance/screens/category_detail_screen.dart';
 import 'package:splitbalance/screens/summary_screen.dart';
+import 'package:splitbalance/screens/total_detail_screen.dart';
 import 'package:splitbalance/services/aggregated_calculation_service.dart';
+import 'package:splitbalance/services/calculation_service.dart';
 
 Future<void> pumpSummaryScreen(
   WidgetTester tester, {
@@ -34,6 +38,7 @@ Future<void> pumpSummaryScreen(
         ChangeNotifierProvider(create: (_) => ConfigProvider()),
         ChangeNotifierProvider(create: (_) => PaymentSplitsProvider()),
         ChangeNotifierProvider(create: (_) => CategoriesProvider()),
+        ChangeNotifierProvider(create: (_) => BillsProvider()),
         ChangeNotifierProvider.value(value: calculationProvider),
       ],
       child: const MaterialApp(
@@ -145,5 +150,164 @@ void main() {
     // Expenses Added section reflects the aggregated per-person counts.
     expect(find.text('3'), findsOneWidget);
     expect(find.text('1'), findsOneWidget);
+  });
+
+  testWidgets(
+      'ledger rows show a trailing chevron and navigate without throwing '
+      'when BillsProvider has no data loaded', (tester) async {
+    final calculationProvider = CalculationProvider(
+      aggregatedCalculationService: AggregatedCalculationService(
+        fetchSplits: ({required householdId}) async => [],
+        fetchPersonPaidTotal: ({required householdId, required paidBy}) async =>
+            paidBy == 'Alice' ? 120.0 : 80.0,
+        fetchPersonBillCount: ({required householdId, required paidBy}) async =>
+            0,
+        fetchCategoryPeriodPersonPaid: ({
+          required householdId,
+          required category,
+          required periodStart,
+          required periodEnd,
+          required paidBy,
+        }) async =>
+            0.0,
+        fetchHouseholdTotals: ({required householdId}) async =>
+            const HouseholdTotals(billCount: 0, totalAmount: 0),
+      ),
+    );
+
+    final future = calculationProvider.calculateAggregatedBalances(
+      householdId: 'household-1',
+      categories: const [],
+      person1Name: 'Alice',
+      person2Name: 'Bob',
+    );
+    await pumpSummaryScreen(tester, calculationProvider: calculationProvider);
+    await tester.pump();
+    await future;
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.chevron_right), findsWidgets);
+
+    await tester.tap(find.text('Total').first);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(TotalDetailScreen), findsOneWidget);
+    // Not signed in, so BillsProvider.loadAllBills is a no-op and the charts
+    // fall back to their empty state instead of throwing.
+    expect(find.text('No bills to chart yet'), findsOneWidget);
+  });
+
+  testWidgets(
+      'tapping the Total row pushes TotalDetailScreen with a ranked category '
+      'breakdown', (tester) async {
+    final calculationProvider = CalculationProvider(
+      aggregatedCalculationService: AggregatedCalculationService(
+        fetchSplits: ({required householdId}) async => [],
+        fetchPersonPaidTotal: ({required householdId, required paidBy}) async =>
+            paidBy == 'Alice' ? 120.0 : 80.0,
+        fetchPersonBillCount: ({required householdId, required paidBy}) async =>
+            0,
+        fetchCategoryPeriodPersonPaid: ({
+          required householdId,
+          required category,
+          required periodStart,
+          required periodEnd,
+          required paidBy,
+        }) async =>
+            0.0,
+        fetchHouseholdTotals: ({required householdId}) async =>
+            const HouseholdTotals(billCount: 0, totalAmount: 0),
+      ),
+    );
+
+    final future = calculationProvider.calculateAggregatedBalances(
+      householdId: 'household-1',
+      categories: const [],
+      person1Name: 'Alice',
+      person2Name: 'Bob',
+    );
+    await pumpSummaryScreen(tester, calculationProvider: calculationProvider);
+    await tester.pump();
+    await future;
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Total').first);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(TotalDetailScreen), findsOneWidget);
+    expect(find.text('Current Period'), findsOneWidget);
+
+    // Navigate back and confirm SummaryScreen is still intact underneath.
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byType(SummaryScreen), findsOneWidget);
+  });
+
+  testWidgets(
+      'tapping a category ledger row (via ranked breakdown) pushes '
+      'CategoryDetailScreen for that category', (tester) async {
+    // categoryBalances isn't reachable from SummaryScreen's public API in
+    // this DI setup without real per-category fetch data, so this exercises
+    // the same InkWell/Navigator.push wiring one level down: from
+    // TotalDetailScreen's ranked breakdown into CategoryDetailScreen. Both
+    // ledger rows and ranked-breakdown rows share the identical
+    // Navigator.push(MaterialPageRoute(...)) pattern.
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ConfigProvider()),
+          ChangeNotifierProvider(create: (_) => CategoriesProvider()),
+          ChangeNotifierProvider(create: (_) => BillsProvider()),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [Locale('en')],
+          home: TotalDetailScreen(
+            person1Name: 'Alice',
+            person2Name: 'Bob',
+            person1Paid: 120.0,
+            person1Expected: 100.0,
+            person2Paid: 80.0,
+            person2Expected: 100.0,
+            categoryBalances: {
+              'Food': CategoryBalance(
+                category: 'Food',
+                person1Paid: 70.0,
+                person2Paid: 30.0,
+                person1Expected: 50.0,
+                person2Expected: 50.0,
+              ),
+              'Rent': CategoryBalance(
+                category: 'Rent',
+                person1Paid: 50.0,
+                person2Paid: 50.0,
+                person1Expected: 50.0,
+                person2Expected: 50.0,
+              ),
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Ranked by amount descending: Food ($100) before Rent ($100 too, but
+    // this just confirms both rows render) - assert both are present.
+    expect(find.text('Food'), findsOneWidget);
+    expect(find.text('Rent'), findsOneWidget);
+
+    await tester.tap(find.text('Food'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(CategoryDetailScreen), findsOneWidget);
+    expect(find.text('No bills in this category yet'), findsOneWidget);
   });
 }

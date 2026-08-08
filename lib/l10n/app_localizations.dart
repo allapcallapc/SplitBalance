@@ -932,6 +932,48 @@ abstract class AppLocalizations {
   /// **'Totals'**
   String get totals;
 
+  /// Label for the Total row/screen rolling up every category
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get total;
+
+  /// Heading for the current-period summary block on a detail screen
+  ///
+  /// In en, this message translates to:
+  /// **'Current Period'**
+  String get currentPeriod;
+
+  /// Title for the stacked bar chart of monthly spend on a detail screen
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly Spend'**
+  String get monthlySpend;
+
+  /// Title for the running-total line chart on a detail screen
+  ///
+  /// In en, this message translates to:
+  /// **'Cumulative Spend'**
+  String get cumulativeSpend;
+
+  /// Heading for the ranked category breakdown on the Total detail screen
+  ///
+  /// In en, this message translates to:
+  /// **'Categories by Amount'**
+  String get categoriesByAmount;
+
+  /// Empty state shown on the category detail screen when the category has no bills
+  ///
+  /// In en, this message translates to:
+  /// **'No bills in this category yet'**
+  String get noBillsInCategory;
+
+  /// Empty state shown on the total detail screen when there are no bills at all
+  ///
+  /// In en, this message translates to:
+  /// **'No bills to chart yet'**
+  String get noBillsToChart;
+
   /// Button label to save bill
   ///
   /// In en, this message translates to:

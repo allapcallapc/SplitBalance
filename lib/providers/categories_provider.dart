@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show IconData;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/category.dart' as models;
 import '../models/bill.dart';
 import '../models/payment_split.dart';
+import '../utils/category_icons.dart';
 import 'config_provider.dart';
 
 class CategoriesProvider with ChangeNotifier {
@@ -18,6 +20,18 @@ class CategoriesProvider with ChangeNotifier {
   // so callers can tell "no categories yet" apart from "haven't checked yet".
   bool hasLoadedForHousehold(String? householdId) =>
       householdId != null && _loadedForHouseholdId == householdId;
+
+  // Category balances/ledger rows only carry the category name, so this
+  // looks up the matching Category to render its icon - falling back to the
+  // default icon if it was since renamed/deleted or has no icon set.
+  IconData iconForCategory(String categoryName) {
+    for (final category in _categories) {
+      if (category.name == categoryName) {
+        return category.iconData;
+      }
+    }
+    return defaultCategoryIcon;
+  }
 
   SupabaseClient get _supabase => Supabase.instance.client;
 
