@@ -153,8 +153,8 @@ void main() {
   });
 
   testWidgets(
-      'ledger rows show a "Tap for details" hint and navigate without '
-      'throwing when BillsProvider has no data loaded', (tester) async {
+      'ledger rows show a trailing chevron and navigate without throwing '
+      'when BillsProvider has no data loaded', (tester) async {
     final calculationProvider = CalculationProvider(
       aggregatedCalculationService: AggregatedCalculationService(
         fetchSplits: ({required householdId}) async => [],
@@ -186,7 +186,7 @@ void main() {
     await future;
     await tester.pumpAndSettle();
 
-    expect(find.text('Tap for details'), findsWidgets);
+    expect(find.byIcon(Icons.chevron_right), findsWidgets);
 
     await tester.tap(find.text('Total').first);
     await tester.pumpAndSettle();

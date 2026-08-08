@@ -625,10 +625,6 @@
   "@total": {
     "description": "Label for the Total row/screen rolling up every category"
   },
-  "tapForDetails": "Tap for details",
-  "@tapForDetails": {
-    "description": "Hint under a ledger row indicating it can be tapped to open a detail screen"
-  },
   "currentPeriod": "Current Period",
   "@currentPeriod": {
     "description": "Heading for the current-period summary block on a detail screen"

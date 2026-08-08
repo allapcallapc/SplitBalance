@@ -938,12 +938,6 @@ abstract class AppLocalizations {
   /// **'Total'**
   String get total;
 
-  /// Hint under a ledger row indicating it can be tapped to open a detail screen
-  ///
-  /// In en, this message translates to:
-  /// **'Tap for details'**
-  String get tapForDetails;
-
   /// Heading for the current-period summary block on a detail screen
   ///
   /// In en, this message translates to:

@@ -472,9 +472,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get total => 'Total';
 
   @override
-  String get tapForDetails => 'Tap for details';
-
-  @override
   String get currentPeriod => 'Current Period';
 
   @override

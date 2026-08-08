@@ -129,30 +129,6 @@ class _TotalDetailScreenState extends State<TotalDetailScreen> {
                     ),
                   ),
                 ),
-                if (rankedCategories.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  Text(
-                    l10n.categoriesByAmount,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  Card(
-                    child: Column(
-                      children: [
-                        for (var i = 0; i < rankedCategories.length; i++) ...[
-                          if (i > 0) const Divider(height: 1),
-                          _buildRankedRow(
-                            context,
-                            rankedCategories[i],
-                            categoriesProvider,
-                            currencyFormat,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
                 const SizedBox(height: 24),
                 if (isInitialLoad)
                   const Padding(
@@ -196,6 +172,30 @@ class _TotalDetailScreenState extends State<TotalDetailScreen> {
                       padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
                       child: CumulativeSpendLineChart(
                           points: cumulative, currencyFormat: currencyFormat),
+                    ),
+                  ),
+                ],
+                if (rankedCategories.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  Text(
+                    l10n.categoriesByAmount,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  Card(
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < rankedCategories.length; i++) ...[
+                          if (i > 0) const Divider(height: 1),
+                          _buildRankedRow(
+                            context,
+                            rankedCategories[i],
+                            categoriesProvider,
+                            currencyFormat,
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ],

@@ -252,96 +252,100 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     children: [
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: _buildPersonLegend(
+                            result.person1Name, result.person2Name),
+                      ),
+                      // Rows themselves carry their own horizontal padding
+                      // (see _buildLedgerRow) instead of being inset by a
+                      // padding wrapper here, so each row's InkWell spans the
+                      // full card width and its hover/press highlight reaches
+                      // both edges rather than stopping short of them.
+                      ...(result.categoryBalances.values.toList()
+                            ..sort(
+                                (a, b) => a.category.compareTo(b.category)))
+                          .map((catBalance) {
+                        return Column(
                           children: [
-                            _buildPersonLegend(
-                                result.person1Name, result.person2Name),
-                            ...(result.categoryBalances.values.toList()
-                                  ..sort((a, b) =>
-                                      a.category.compareTo(b.category)))
-                                .map((catBalance) {
-                              return Column(
-                                children: [
-                                  const Divider(height: 1),
-                                  _buildLedgerRow(
-                                    label: catBalance.category,
+                            const Divider(height: 1),
+                            _buildLedgerRow(
+                              label: catBalance.category,
+                              icon: _lookupCategoryIcon(
+                                  catBalance.category, categoriesProvider),
+                              total: catBalance.person1Paid +
+                                  catBalance.person2Paid,
+                              person1Paid: catBalance.person1Paid,
+                              person1Expected: catBalance.person1Expected,
+                              person2Paid: catBalance.person2Paid,
+                              person2Expected: catBalance.person2Expected,
+                              currencyFormat: currencyFormat,
+                              person1Name: result.person1Name,
+                              person2Name: result.person2Name,
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => CategoryDetailScreen(
+                                    category: catBalance.category,
                                     icon: _lookupCategoryIcon(
                                         catBalance.category,
                                         categoriesProvider),
+                                    person1Name: result.person1Name,
+                                    person2Name: result.person2Name,
                                     total: catBalance.person1Paid +
                                         catBalance.person2Paid,
                                     person1Paid: catBalance.person1Paid,
-                                    person1Expected: catBalance.person1Expected,
+                                    person1Expected:
+                                        catBalance.person1Expected,
                                     person2Paid: catBalance.person2Paid,
-                                    person2Expected: catBalance.person2Expected,
-                                    currencyFormat: currencyFormat,
-                                    l10n: l10n,
-                                    person1Name: result.person1Name,
-                                    person2Name: result.person2Name,
-                                    onTap: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            CategoryDetailScreen(
-                                          category: catBalance.category,
-                                          icon: _lookupCategoryIcon(
-                                              catBalance.category,
-                                              categoriesProvider),
-                                          person1Name: result.person1Name,
-                                          person2Name: result.person2Name,
-                                          total: catBalance.person1Paid +
-                                              catBalance.person2Paid,
-                                          person1Paid: catBalance.person1Paid,
-                                          person1Expected:
-                                              catBalance.person1Expected,
-                                          person2Paid: catBalance.person2Paid,
-                                          person2Expected:
-                                              catBalance.person2Expected,
-                                        ),
-                                      ),
-                                    ),
+                                    person2Expected:
+                                        catBalance.person2Expected,
                                   ),
-                                ],
-                              );
-                            }),
-                            const Divider(height: 1),
+                                ),
+                              ),
+                            ),
                           ],
-                        ),
-                      ),
-                      Container(
+                        );
+                      }),
+                      const Divider(height: 1),
+                      SizedBox(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).brightness == Brightness.dark
+                        // A Material (rather than a plain Container) so the
+                        // InkWell inside _buildLedgerRow paints its splash/
+                        // hover on top of this row's background instead of
+                        // underneath it - a plain Container's decoration
+                        // would paint after (i.e. over) the ink features
+                        // layer from the Card's Material further up, masking
+                        // the effect the other (undecorated) ledger rows show.
+                        child: Material(
+                          color: Theme.of(context).brightness ==
+                                  Brightness.dark
                               ? Colors.grey[850]
                               : Colors.grey[50],
                           borderRadius: const BorderRadius.vertical(
                               bottom: Radius.circular(12)),
-                        ),
-                        child: _buildLedgerRow(
-                          label: 'Total',
-                          total: result.person1Paid + result.person2Paid,
-                          person1Paid: result.person1Paid,
-                          person1Expected: result.person1Expected,
-                          person2Paid: result.person2Paid,
-                          person2Expected: result.person2Expected,
-                          currencyFormat: currencyFormat,
-                          l10n: l10n,
-                          person1Name: result.person1Name,
-                          person2Name: result.person2Name,
-                          isTotalRow: true,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => TotalDetailScreen(
-                                person1Name: result.person1Name,
-                                person2Name: result.person2Name,
-                                person1Paid: result.person1Paid,
-                                person1Expected: result.person1Expected,
-                                person2Paid: result.person2Paid,
-                                person2Expected: result.person2Expected,
-                                categoryBalances: result.categoryBalances,
+                          clipBehavior: Clip.antiAlias,
+                          child: _buildLedgerRow(
+                            label: 'Total',
+                            total: result.person1Paid + result.person2Paid,
+                            person1Paid: result.person1Paid,
+                            person1Expected: result.person1Expected,
+                            person2Paid: result.person2Paid,
+                            person2Expected: result.person2Expected,
+                            currencyFormat: currencyFormat,
+                            person1Name: result.person1Name,
+                            person2Name: result.person2Name,
+                            isTotalRow: true,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => TotalDetailScreen(
+                                  person1Name: result.person1Name,
+                                  person2Name: result.person2Name,
+                                  person1Paid: result.person1Paid,
+                                  person1Expected: result.person1Expected,
+                                  person2Paid: result.person2Paid,
+                                  person2Expected: result.person2Expected,
+                                  categoryBalances: result.categoryBalances,
+                                ),
                               ),
                             ),
                           ),
@@ -669,8 +673,16 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
   // A single tappable ledger row: the shared current-period summary
   // (LedgerSummaryCard - category/total name, proportional bar, paid
-  // amounts, verdict), plus a chevron and hint indicating it can be tapped
-  // to drill into the category/Total detail screen.
+  // amounts, verdict), plus a trailing chevron indicating it can be tapped
+  // to drill into the category/Total detail screen. Matches the plain
+  // trailing-chevron affordance already used by TotalDetailScreen's ranked
+  // category rows, rather than a separate text hint.
+  //
+  // Carries its own horizontal inset (rather than relying on a padding
+  // wrapper around the InkWell) so the InkWell itself spans the full card
+  // width - its hover/press highlight then reaches both edges instead of
+  // stopping short of them the way it would if only the visible content
+  // were inset.
   Widget _buildLedgerRow({
     required String label,
     IconData? icon,
@@ -680,7 +692,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
     required double person2Paid,
     required double person2Expected,
     required NumberFormat currencyFormat,
-    required AppLocalizations l10n,
     required String person1Name,
     required String person2Name,
     required VoidCallback onTap,
@@ -689,9 +700,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12.0),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: LedgerSummaryCard(
@@ -708,19 +719,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 isTotalRow: isTotalRow,
               ),
             ),
-            const SizedBox(width: 8),
-            Padding(
-              padding: const EdgeInsets.only(top: 2.0),
-              child: Column(
-                children: [
-                  Icon(Icons.chevron_right, size: 20, color: Colors.grey[400]),
-                  Text(
-                    l10n.tapForDetails,
-                    style: TextStyle(fontSize: 9, color: Colors.grey[400]),
-                  ),
-                ],
-              ),
-            ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, size: 22, color: Colors.grey[400]),
           ],
         ),
       ),
