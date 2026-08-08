@@ -55,12 +55,15 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'supabase status failed.' }
     $status = $statusJson | ConvertFrom-Json
 
-    # Key names have shifted across CLI versions (API_URL vs api_url,
-    # SERVICE_ROLE_KEY vs service_role_key); try both.
+    # Key names have shifted across CLI versions (API_URL vs api_url;
+    # newer CLI versions also renamed the legacy service_role JWT to a
+    # "Secret" API key - SECRET_KEY/secret_key) - try all variants.
     $apiUrl = $status.API_URL
     if (-not $apiUrl) { $apiUrl = $status.api_url }
     $serviceRoleKey = $status.SERVICE_ROLE_KEY
     if (-not $serviceRoleKey) { $serviceRoleKey = $status.service_role_key }
+    if (-not $serviceRoleKey) { $serviceRoleKey = $status.SECRET_KEY }
+    if (-not $serviceRoleKey) { $serviceRoleKey = $status.secret_key }
 
     if (-not $apiUrl -or -not $serviceRoleKey) {
         Write-Host 'Raw `supabase status -o json` output for debugging:' -ForegroundColor Yellow

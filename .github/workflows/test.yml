@@ -73,8 +73,15 @@ jobs:
         id: supabase
         run: |
           status=$(supabase status -o json)
-          echo "url=$(echo "$status" | jq -r '.API_URL // .api_url')" >> "$GITHUB_OUTPUT"
-          echo "service_role_key=$(echo "$status" | jq -r '.SERVICE_ROLE_KEY // .service_role_key')" >> "$GITHUB_OUTPUT"
+          echo "Available \`supabase status -o json\` keys: $(echo "$status" | jq -r 'keys | join(", ")')"
+          url=$(echo "$status" | jq -r '.API_URL // .api_url // empty')
+          key=$(echo "$status" | jq -r '.SERVICE_ROLE_KEY // .service_role_key // .SECRET_KEY // .secret_key // empty')
+          if [ -z "$url" ] || [ -z "$key" ]; then
+            echo "::error::Could not find URL/admin key in \`supabase status -o json\` output - see the key list printed above and update the jq filters in this step."
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "service_role_key=$key" >> "$GITHUB_OUTPUT"
 
       - name: Run integration tests
         env:
