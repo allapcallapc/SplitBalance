@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/supabase_config.dart';
 import 'l10n/app_localizations.dart';
@@ -20,6 +19,7 @@ import 'screens/summary_screen.dart';
 import 'screens/pending_payments_screen.dart';
 import 'screens/add_edit_bill_screen.dart';
 import 'models/app_config.dart';
+import 'services/tab_index_store.dart';
 import 'services/update_service.dart';
 import 'widgets/update_dialog.dart';
 
@@ -229,9 +229,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
 
   // The tab selected before a refresh, so a reload can restore it instead of
   // always landing on Bills (see GH issue #59). Explicitly cleared on
-  // sign-out (both in-memory and on disk - see _clearPersistedTabIndex), so
-  // a fresh login still lands on Bills.
-  static const _selectedTabStorageKey = 'selected_tab_index';
+  // sign-out (both in-memory and on disk, via _tabIndexStore.clear() -
+  // ConfigProvider.signOut() only resets in-memory config, it doesn't touch
+  // SharedPreferences keys it doesn't own), so a fresh login still lands on
+  // Bills.
+  final _tabIndexStore = TabIndexStore();
   int? _persistedTabIndex;
   bool _tabIndexLoaded = false;
 
@@ -265,36 +267,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   // that decision can restore the previous tab instead of racing ahead and
   // forcing Bills. Gated into `rawSettled` for that reason.
   Future<void> _loadPersistedTabIndex() async {
-    final prefs = await SharedPreferences.getInstance();
+    final stored = await _tabIndexStore.load(screenCount: _screens.length);
     if (!mounted) return;
-    final stored = prefs.getInt(_selectedTabStorageKey);
     setState(() {
-      // Guards against a stored index that's out of range for the current
-      // _screens list (e.g. a tab was removed/reordered in a later release)
-      // - falls back to the normal Bills default rather than crashing
-      // IndexedStack.
-      _persistedTabIndex =
-          (stored != null && stored >= 0 && stored < _screens.length)
-              ? stored
-              : null;
+      _persistedTabIndex = stored;
       _tabIndexLoaded = true;
     });
-  }
-
-  Future<void> _persistTabIndex(int index) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_selectedTabStorageKey, index);
-  }
-
-  // ConfigProvider.signOut() (the normal "Sign Out" button) only resets
-  // in-memory config and re-saves it - unlike clearAllConfig(), it never
-  // touches SharedPreferences keys it doesn't own, so the persisted tab
-  // must be removed explicitly here. Otherwise a sign-out/refresh/sign-in
-  // (no clean session in between) would read the stale value back and land
-  // on the old tab instead of Bills.
-  Future<void> _clearPersistedTabIndex() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_selectedTabStorageKey);
   }
 
   // Runs once per app launch (unlike the deep-link check, this doesn't need
@@ -465,9 +443,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
               _hasAutoNavigatedToBills = false;
               // Clear both the in-memory and persisted tab so a re-login
               // (this session or a later one) doesn't restore a tab from
-              // before the sign-out - see _clearPersistedTabIndex.
+              // before the sign-out.
               _persistedTabIndex = null;
-              _clearPersistedTabIndex();
+              unawaited(_tabIndexStore.clear());
             }
             // NO auto-navigation on sign-in
           }
@@ -553,7 +531,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
                           _selectedIndex = index;
                         });
                         _persistedTabIndex = index;
-                        _persistTabIndex(index);
+                        // Best-effort: worst case a switch immediately
+                        // followed by killing the app loses this one write.
+                        unawaited(_tabIndexStore.save(index));
                       }
                     } else {
                       // Full navigation: allow all screens
@@ -561,7 +541,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
                         _selectedIndex = index;
                       });
                       _persistedTabIndex = index;
-                      _persistTabIndex(index);
+                      // Best-effort: worst case a switch immediately
+                      // followed by killing the app loses this one write.
+                      unawaited(_tabIndexStore.save(index));
                     }
                   },
                   destinations: [
