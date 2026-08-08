@@ -83,9 +83,18 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "service_role_key=$key" >> "$GITHUB_OUTPUT"
 
-      # TEMPORARY diagnostic: isolate whether a raw REST call with this key
-      # can bypass RLS/grants, independent of the Dart client - remove once
-      # the "permission denied for table households" failure is understood.
+      # TEMPORARY diagnostic: confirmed the raw REST call fails the same way
+      # (42501, independent of the Dart client), so check the actual DB-side
+      # grants/role attributes directly - remove once understood.
+      - name: Debug - inspect role grants directly in Postgres
+        run: |
+          docker exec supabase_db_splitbalance psql -U postgres -d postgres -c \
+            "SELECT rolname, rolbypassrls, rolsuper FROM pg_roles WHERE rolname IN ('anon','authenticated','service_role','postgres','authenticator');"
+          docker exec supabase_db_splitbalance psql -U postgres -d postgres -c \
+            "SELECT grantee, table_name, privilege_type FROM information_schema.role_table_grants WHERE table_name='households' ORDER BY grantee, privilege_type;"
+          docker exec supabase_db_splitbalance psql -U postgres -d postgres -c \
+            "SELECT current_setting('request.jwt.claims', true);" || true
+
       - name: Debug - raw REST insert with the extracted key
         run: |
           curl -sS -i -X POST "${{ steps.supabase.outputs.url }}/rest/v1/households" \
