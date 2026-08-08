@@ -19,6 +19,7 @@ import 'screens/summary_screen.dart';
 import 'screens/pending_payments_screen.dart';
 import 'screens/add_edit_bill_screen.dart';
 import 'models/app_config.dart';
+import 'services/tab_index_store.dart';
 import 'services/update_service.dart';
 import 'widgets/update_dialog.dart';
 
@@ -211,7 +212,12 @@ class SplitBalanceApp extends StatelessWidget {
 }
 
 class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({super.key});
+  const MainNavigationScreen({super.key, this.tabIndexStore});
+
+  // Injectable so tests can supply a fake instead of the real
+  // SharedPreferences-backed store; defaults to a real TabIndexStore in
+  // _MainNavigationScreenState when null.
+  final TabIndexStore? tabIndexStore;
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
@@ -225,6 +231,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   bool _hasAutoNavigatedToBills = false;
   late final ValueNotifier<int> _navigationNotifier = ValueNotifier<int>(0);
   late final List<Widget> _screens;
+
+  // The tab selected before a refresh, so a reload can restore it instead of
+  // always landing on Bills (see GH issue #59). Explicitly cleared on
+  // sign-out (both in-memory and on disk, via _tabIndexStore.clear() -
+  // ConfigProvider.signOut() only resets in-memory config, it doesn't touch
+  // SharedPreferences keys it doesn't own), so a fresh login still lands on
+  // Bills.
+  late final TabIndexStore _tabIndexStore =
+      widget.tabIndexStore ?? TabIndexStore();
+  int? _persistedTabIndex;
+  bool _tabIndexLoaded = false;
 
   // Tracks whether we're still waiting on the household/categories lookups
   // for the current (isSignedIn, householdId) combo - see the settleKey
@@ -249,6 +266,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     WidgetsBinding.instance
         .addPostFrameCallback((_) => _checkPendingDeepLink());
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkForAppUpdate());
+    _loadPersistedTabIndex();
+  }
+
+  // Must resolve before the "first settle" auto-navigation below runs, so
+  // that decision can restore the previous tab instead of racing ahead and
+  // forcing Bills. Gated into `rawSettled` for that reason.
+  Future<void> _loadPersistedTabIndex() async {
+    final stored = await _tabIndexStore.load(screenCount: _screens.length);
+    if (!mounted) return;
+    setState(() {
+      _persistedTabIndex = stored;
+      _tabIndexLoaded = true;
+    });
   }
 
   // Runs once per app launch (unlike the deep-link check, this doesn't need
@@ -376,7 +406,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
         final categoriesSettled = !needsCategories ||
             categoriesProvider
                 .hasLoadedForHousehold(configProvider.householdId);
-        final rawSettled = configSettled && categoriesSettled;
+        final rawSettled =
+            configSettled && categoriesSettled && _tabIndexLoaded;
 
         if (rawSettled) {
           _settleTimeoutTimer?.cancel();
@@ -404,7 +435,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
           if (_wasSignedIn == null) {
             _wasSignedIn = isSignedIn;
             if (isSignedIn && isConfigComplete) {
-              _selectedIndex = 0; // Bills screen
+              // Restore the tab open before a refresh; a fresh login has no
+              // persisted value (cleared on sign-out) and lands on Bills.
+              _selectedIndex = _persistedTabIndex ?? 0; // Bills screen
               _hasAutoNavigatedToBills = true;
             } else {
               _selectedIndex = 3; // Config screen
@@ -414,6 +447,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
             if (!isSignedIn) {
               _selectedIndex = 3; // Config screen only on sign-out
               _hasAutoNavigatedToBills = false;
+              // Clear both the in-memory and persisted tab so a re-login
+              // (this session or a later one) doesn't restore a tab from
+              // before the sign-out.
+              _persistedTabIndex = null;
+              unawaited(_tabIndexStore.clear());
             }
             // NO auto-navigation on sign-in
           }
@@ -426,7 +464,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
           // shown while things were still loading. Only happens once per
           // sign-in session so it never overrides manual navigation afterwards.
           if (!_hasAutoNavigatedToBills && isSignedIn && isConfigComplete) {
-            _selectedIndex = 0; // Bills screen
+            // Same restore-or-Bills logic as the fresh-login branch above -
+            // this is the path a restored session usually takes, since the
+            // session/household/categories lookups resolve after the first
+            // build.
+            _selectedIndex = _persistedTabIndex ?? 0; // Bills screen
             _hasAutoNavigatedToBills = true;
           }
         }
@@ -447,10 +489,23 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
             ? safeIndex
             : 3; // Force ConfigScreen (index 3) when no nav bar
 
-        // Notify when navigation changes (for SummaryScreen to refresh)
+        // Notify when navigation changes (for SummaryScreen to refresh).
+        // Deferred to a post-frame callback rather than set inline here:
+        // this can now fire from an automatic index change during build()
+        // (restoring the previously-selected tab once settled, see GH issue
+        // #59), and SummaryScreen's listener kicks off a calculation that
+        // calls notifyListeners() on CalculationProvider - doing that
+        // synchronously while this widget's build() is still on the stack
+        // put it in the middle of another build pass, and the resulting
+        // calculation never ran to completion, leaving Summary's loading
+        // indicator spinning forever.
         if (settled && bodyIndex != _previousBodyIndex) {
-          _navigationNotifier.value = bodyIndex;
           _previousBodyIndex = bodyIndex;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _navigationNotifier.value = bodyIndex;
+            }
+          });
         }
 
         return Scaffold(
@@ -462,8 +517,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
               ),
               // Covers the config/bills decision until it's fully resolved
               // (see the settling check above) so it never flashes on screen.
+              // Keyed so tests can find this overlay specifically - the
+              // screens underneath (e.g. SummaryScreen) have their own,
+              // unrelated CircularProgressIndicators mounted at the same
+              // time via the IndexedStack above.
               if (!settled)
                 Positioned.fill(
+                  key: const ValueKey('settleSplashOverlay'),
                   child: ColoredBox(
                     color: Theme.of(context).scaffoldBackgroundColor,
                     child: const Center(child: CircularProgressIndicator()),
@@ -481,12 +541,20 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
                         setState(() {
                           _selectedIndex = index;
                         });
+                        _persistedTabIndex = index;
+                        // Best-effort: worst case a switch immediately
+                        // followed by killing the app loses this one write.
+                        unawaited(_tabIndexStore.save(index));
                       }
                     } else {
                       // Full navigation: allow all screens
                       setState(() {
                         _selectedIndex = index;
                       });
+                      _persistedTabIndex = index;
+                      // Best-effort: worst case a switch immediately
+                      // followed by killing the app loses this one write.
+                      unawaited(_tabIndexStore.save(index));
                     }
                   },
                   destinations: [
