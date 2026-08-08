@@ -83,6 +83,18 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "service_role_key=$key" >> "$GITHUB_OUTPUT"
 
+      # TEMPORARY diagnostic: isolate whether a raw REST call with this key
+      # can bypass RLS/grants, independent of the Dart client - remove once
+      # the "permission denied for table households" failure is understood.
+      - name: Debug - raw REST insert with the extracted key
+        run: |
+          curl -sS -i -X POST "${{ steps.supabase.outputs.url }}/rest/v1/households" \
+            -H "apikey: ${{ steps.supabase.outputs.service_role_key }}" \
+            -H "Authorization: Bearer ${{ steps.supabase.outputs.service_role_key }}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=representation" \
+            -d '{}'
+
       - name: Run integration tests
         env:
           SUPABASE_TEST_URL: ${{ steps.supabase.outputs.url }}
