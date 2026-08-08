@@ -86,21 +86,25 @@ class AggregatedCalculationService {
     return rows.map((row) => PaymentSplit.fromMap(row)).toList();
   }
 
-  static double _sumAmount(List<Map<String, dynamic>> rows) {
-    return rows.fold<double>(
-        0.0, (sum, row) => sum + (row['amount'] as num).toDouble());
-  }
-
+  // These three call Postgres RPCs (see
+  // supabase/migrations/20260808130000_add_bill_aggregation_rpcs.sql) that
+  // compute SUM()/COUNT() server-side, rather than pulling matching bill
+  // rows into Dart and folding them here. That used to be a real bug (see
+  // https://github.com/allapcallapc/SplitBalance/issues/57): PostgREST's
+  // max_rows (supabase/config.toml) silently truncates an unpaginated
+  // .select() result instead of erroring, so a household where one person
+  // had paid more rows than max_rows got a silently undercounted total.
+  // The RPCs are `stable` (not `security definer`), so the existing
+  // bills_select RLS policy still gates what a caller can see.
   static Future<double> _defaultFetchPersonPaidTotal({
     required String householdId,
     required String paidBy,
   }) async {
-    final rows = await Supabase.instance.client
-        .from('bills')
-        .select('amount')
-        .eq('household_id', householdId)
-        .eq('paid_by', paidBy);
-    return _sumAmount(rows);
+    final response = await Supabase.instance.client.rpc(
+      'person_paid_total',
+      params: {'p_household_id': householdId, 'p_paid_by': paidBy},
+    );
+    return (response as num).toDouble();
   }
 
   static Future<double> _defaultFetchCategoryPeriodPersonPaid({
@@ -110,30 +114,33 @@ class AggregatedCalculationService {
     required DateTime? periodEnd,
     required String paidBy,
   }) async {
-    var query = Supabase.instance.client
-        .from('bills')
-        .select('amount')
-        .eq('household_id', householdId)
-        .eq('category', category)
-        .eq('paid_by', paidBy);
-    if (periodStart != null) {
-      query = query.gt('date', _dateFormat.format(periodStart));
-    }
-    if (periodEnd != null) {
-      query = query.lte('date', _dateFormat.format(periodEnd));
-    }
-    final rows = await query;
-    return _sumAmount(rows);
+    final response = await Supabase.instance.client.rpc(
+      'category_period_person_paid',
+      params: {
+        'p_household_id': householdId,
+        'p_category': category,
+        'p_period_start':
+            periodStart != null ? _dateFormat.format(periodStart) : null,
+        'p_period_end':
+            periodEnd != null ? _dateFormat.format(periodEnd) : null,
+        'p_paid_by': paidBy,
+      },
+    );
+    return (response as num).toDouble();
   }
 
   static Future<HouseholdTotals> _defaultFetchHouseholdTotals({
     required String householdId,
   }) async {
-    final rows = await Supabase.instance.client
-        .from('bills')
-        .select('amount')
-        .eq('household_id', householdId);
-    return HouseholdTotals(billCount: rows.length, totalAmount: _sumAmount(rows));
+    final response = await Supabase.instance.client.rpc(
+      'household_totals',
+      params: {'p_household_id': householdId},
+    );
+    final row = (response as List).first as Map<String, dynamic>;
+    return HouseholdTotals(
+      billCount: (row['bill_count'] as num).toInt(),
+      totalAmount: (row['total_amount'] as num).toDouble(),
+    );
   }
 
   // Unfiltered bill count/total for the household - see FetchHouseholdTotals.

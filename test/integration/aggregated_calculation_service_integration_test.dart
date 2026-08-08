@@ -258,5 +258,69 @@ void main() {
       expect(result.person1Expected, closeTo(50.0, 0.01));
       expect(result.person2Expected, closeTo(50.0, 0.01));
     });
+
+    test(
+      'a payer with more bills than PostgREST max_rows is not silently '
+      'truncated - the exact bug '
+      'https://github.com/allapcallapc/SplitBalance/issues/57 describes',
+      () async {
+        // supabase/config.toml sets max_rows = 1000. Before #57's fix, the
+        // default fetch functions did an unpaginated `.select('amount')`
+        // and summed the returned rows in Dart - PostgREST silently caps
+        // that at max_rows instead of erroring, so a payer with more bills
+        // than that would get a quietly undercounted total. The RPCs added
+        // in #57 (person_paid_total/household_totals/
+        // category_period_person_paid) compute SUM()/COUNT() in Postgres
+        // instead, so the row count never reaches PostgREST at all.
+        const billCount = 1200;
+        final householdId = await seedHousehold(
+          categoryRows: [
+            {'name': 'Food'},
+          ],
+          billRows: const [],
+          splitRows: const [],
+        );
+
+        const batchSize = 500;
+        for (var start = 0; start < billCount; start += batchSize) {
+          final end =
+              (start + batchSize < billCount) ? start + batchSize : billCount;
+          await admin.from('bills').insert(List.generate(
+                end - start,
+                (_) => {
+                  'household_id': householdId,
+                  'date': '2024-01-01',
+                  'amount': 1.0,
+                  'paid_by': 'Alice',
+                  'category': 'Food',
+                },
+              ));
+        }
+
+        final service = AggregatedCalculationService();
+
+        final totals =
+            await service.fetchHouseholdTotals(householdId: householdId);
+        expect(totals.billCount, billCount);
+        expect(totals.totalAmount, closeTo(billCount.toDouble(), 0.01));
+
+        final result = await service.calculateBalances(
+          householdId: householdId,
+          categories: [Category(name: 'Food')],
+          person1Name: 'Alice',
+          person2Name: 'Bob',
+        );
+        expect(result.person1Paid, closeTo(billCount.toDouble(), 0.01));
+
+        // Also exercises category_period_person_paid at the same scale
+        // (all 1200 bills fall into Food's single open-ended period, since
+        // no splits were seeded) - not just person_paid_total/
+        // household_totals above.
+        final foodBalance = result.categoryBalances['Food'];
+        expect(foodBalance, isNotNull);
+        expect(foodBalance!.person1Paid, closeTo(billCount.toDouble(), 0.01));
+      },
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
   });
 }
