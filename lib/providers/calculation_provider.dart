@@ -17,11 +17,15 @@ class CalculationProvider with ChangeNotifier {
 
   BalanceResult? _balanceResult;
   HouseholdTotals? _householdTotals;
+  int _person1ExpenseCount = 0;
+  int _person2ExpenseCount = 0;
   bool _isCalculating = false;
   String? _error;
 
   BalanceResult? get balanceResult => _balanceResult;
   HouseholdTotals? get householdTotals => _householdTotals;
+  int get person1ExpenseCount => _person1ExpenseCount;
+  int get person2ExpenseCount => _person2ExpenseCount;
   bool get isCalculating => _isCalculating;
   String? get error => _error;
 
@@ -31,6 +35,8 @@ class CalculationProvider with ChangeNotifier {
     if (value) {
       _balanceResult = null; // Clear old result when starting
       _householdTotals = null;
+      _person1ExpenseCount = 0;
+      _person2ExpenseCount = 0;
     }
     notifyListeners();
   }
@@ -84,6 +90,8 @@ class CalculationProvider with ChangeNotifier {
     _error = null;
     _balanceResult = null; // Clear old result to prevent showing stale data
     _householdTotals = null;
+    _person1ExpenseCount = 0;
+    _person2ExpenseCount = 0;
     notifyListeners();
 
     // Wait for the next frame to ensure UI has rendered the loading indicator
@@ -100,14 +108,26 @@ class CalculationProvider with ChangeNotifier {
         _aggregatedCalculationService.fetchHouseholdTotals(
           householdId: householdId,
         ),
+        _aggregatedCalculationService.fetchPersonBillCount(
+          householdId: householdId,
+          paidBy: person1Name,
+        ),
+        _aggregatedCalculationService.fetchPersonBillCount(
+          householdId: householdId,
+          paidBy: person2Name,
+        ),
       ]);
       _balanceResult = results[0] as BalanceResult;
       _householdTotals = results[1] as HouseholdTotals;
+      _person1ExpenseCount = results[2] as int;
+      _person2ExpenseCount = results[3] as int;
       _error = null;
     } catch (e) {
       _error = 'Calculation error: $e';
       _balanceResult = null;
       _householdTotals = null;
+      _person1ExpenseCount = 0;
+      _person2ExpenseCount = 0;
     } finally {
       _isCalculating = false;
       notifyListeners();

@@ -176,18 +176,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
             );
           }
 
-          // Mirrors CalculationService's mutually-exclusive person1-then-person2
-          // check, so a bill never double-counts if person1Name == person2Name.
-          var person1ExpenseCount = 0;
-          var person2ExpenseCount = 0;
-          for (final bill in billsProvider.allBills) {
-            if (bill.paidBy == result.person1Name) {
-              person1ExpenseCount++;
-            } else if (bill.paidBy == result.person2Name) {
-              person2ExpenseCount++;
-            }
-          }
-
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -349,9 +337,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           context,
                           l10n,
                           result.person1Name,
-                          person1ExpenseCount,
+                          calculationProvider.person1ExpenseCount,
                           result.person2Name,
-                          person2ExpenseCount,
+                          calculationProvider.person2ExpenseCount,
                         ),
                         const Divider(),
                         Padding(
@@ -609,20 +597,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildTableHeaderCell(String text, {bool isRightAligned = false}) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Text(
-        text,
-        textAlign: isRightAligned ? TextAlign.right : TextAlign.left,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
-        ),
-      ),
     );
   }
 

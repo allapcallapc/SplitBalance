@@ -20,6 +20,14 @@ typedef FetchPersonPaidTotal = Future<double> Function({
   required String paidBy,
 });
 
+// Count of bills in the household paid by [paidBy], across all
+// categories/dates - the "Expenses Added" stat on the summary screen's
+// Statistics card.
+typedef FetchPersonBillCount = Future<int> Function({
+  required String householdId,
+  required String paidBy,
+});
+
 // Sum of bill.amount for bills in [category] paid by [paidBy], with
 // date in (periodStart, periodEnd] (either bound may be null for
 // -/+infinity). This is the per-(category, period, person) slice the
@@ -57,11 +65,14 @@ class AggregatedCalculationService {
   AggregatedCalculationService({
     FetchSplits? fetchSplits,
     FetchPersonPaidTotal? fetchPersonPaidTotal,
+    FetchPersonBillCount? fetchPersonBillCount,
     FetchCategoryPeriodPersonPaid? fetchCategoryPeriodPersonPaid,
     FetchHouseholdTotals? fetchHouseholdTotals,
   })  : _fetchSplits = fetchSplits ?? _defaultFetchSplits,
         _fetchPersonPaidTotal =
             fetchPersonPaidTotal ?? _defaultFetchPersonPaidTotal,
+        _fetchPersonBillCount =
+            fetchPersonBillCount ?? _defaultFetchPersonBillCount,
         _fetchCategoryPeriodPersonPaid = fetchCategoryPeriodPersonPaid ??
             _defaultFetchCategoryPeriodPersonPaid,
         _fetchHouseholdTotals =
@@ -69,6 +80,7 @@ class AggregatedCalculationService {
 
   final FetchSplits _fetchSplits;
   final FetchPersonPaidTotal _fetchPersonPaidTotal;
+  final FetchPersonBillCount _fetchPersonBillCount;
   final FetchCategoryPeriodPersonPaid _fetchCategoryPeriodPersonPaid;
   final FetchHouseholdTotals _fetchHouseholdTotals;
 
@@ -105,6 +117,26 @@ class AggregatedCalculationService {
       params: {'p_household_id': householdId, 'p_paid_by': paidBy},
     );
     return (response as num).toDouble();
+  }
+
+  static Future<int> _defaultFetchPersonBillCount({
+    required String householdId,
+    required String paidBy,
+  }) async {
+    final rows = await Supabase.instance.client
+        .from('bills')
+        .select('id')
+        .eq('household_id', householdId)
+        .eq('paid_by', paidBy);
+    return rows.length;
+  }
+
+  // Count of bills paid by [paidBy] - see FetchPersonBillCount.
+  Future<int> fetchPersonBillCount({
+    required String householdId,
+    required String paidBy,
+  }) {
+    return _fetchPersonBillCount(householdId: householdId, paidBy: paidBy);
   }
 
   static Future<double> _defaultFetchCategoryPeriodPersonPaid({

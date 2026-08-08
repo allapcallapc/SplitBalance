@@ -278,5 +278,25 @@ void main() {
       expect(totals.billCount, 7);
       expect(totals.totalAmount, 543.21);
     });
+
+    test('fetchPersonBillCount passes through to the injected fetcher',
+        () async {
+      final service = AggregatedCalculationService(
+        fetchPersonBillCount: ({required householdId, required paidBy}) async =>
+            paidBy == person1 ? 4 : 2,
+      );
+
+      final person1Count = await service.fetchPersonBillCount(
+        householdId: householdId,
+        paidBy: person1,
+      );
+      final person2Count = await service.fetchPersonBillCount(
+        householdId: householdId,
+        paidBy: person2,
+      );
+
+      expect(person1Count, 4);
+      expect(person2Count, 2);
+    });
   });
 }
