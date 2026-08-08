@@ -65,6 +65,14 @@ class BillsProvider with ChangeNotifier {
   final List<Bill> _allBills = [];
   bool _isLoadingAll = false;
 
+  // Which household loadAllBills() last ran for (successfully or not), so
+  // repeat callers (e.g. drilling from TotalDetailScreen into
+  // CategoryDetailScreen) can skip an immediate redundant refetch of the
+  // household's entire bill history - mutations (add/update/delete) already
+  // keep _allBills in sync incrementally, so a cached list is never stale
+  // within a session. Same approach as CategoriesProvider.hasLoadedForHousehold.
+  String? _allBillsLoadedForHouseholdId;
+
   // Every distinct paid-by/category value ever used on a household bill,
   // for the filter dropdown options. Populated by loadFilterOptions(),
   // which projects just these two columns so it stays cheap even though it
@@ -98,6 +106,12 @@ class BillsProvider with ChangeNotifier {
   bool get isLoadingAll => _isLoadingAll;
   bool get hasMore => _hasMore;
   String? get error => _error;
+
+  // Whether loadAllBills has run (successfully or not) for this household,
+  // so callers can skip a redundant refetch instead of assuming a fresh
+  // fetch is always needed.
+  bool hasLoadedAllBillsForHousehold(String? householdId) =>
+      householdId != null && _allBillsLoadedForHouseholdId == householdId;
 
   String? get filterPaidBy => _filterPaidBy;
   String? get filterCategory => _filterCategory;
@@ -333,6 +347,7 @@ class BillsProvider with ChangeNotifier {
       _error = 'Failed to load bills: $e';
     } finally {
       _isLoadingAll = false;
+      _allBillsLoadedForHouseholdId = configProvider.householdId;
       notifyListeners();
     }
   }

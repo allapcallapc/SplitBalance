@@ -6,7 +6,6 @@ import '../providers/calculation_provider.dart';
 import '../providers/payment_splits_provider.dart';
 import '../providers/categories_provider.dart';
 import '../providers/config_provider.dart';
-import '../utils/category_icons.dart';
 import '../widgets/app_bar_action_icon_button.dart';
 import '../widgets/ledger_visuals.dart';
 import 'category_detail_screen.dart';
@@ -269,8 +268,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             const Divider(height: 1),
                             _buildLedgerRow(
                               label: catBalance.category,
-                              icon: _lookupCategoryIcon(
-                                  catBalance.category, categoriesProvider),
+                              icon: categoriesProvider
+                                  .iconForCategory(catBalance.category),
                               total: catBalance.person1Paid +
                                   catBalance.person2Paid,
                               person1Paid: catBalance.person1Paid,
@@ -285,9 +284,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 MaterialPageRoute(
                                   builder: (context) => CategoryDetailScreen(
                                     category: catBalance.category,
-                                    icon: _lookupCategoryIcon(
-                                        catBalance.category,
-                                        categoriesProvider),
+                                    icon: categoriesProvider.iconForCategory(
+                                        catBalance.category),
                                     person1Name: result.person1Name,
                                     person2Name: result.person2Name,
                                     total: catBalance.person1Paid +
@@ -627,21 +625,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
         ),
       ],
     );
-  }
-
-  // Category balances only carry the category name, so look up the matching
-  // Category to render its icon (falling back to the default icon if it was
-  // since renamed/deleted or has no icon set).
-  IconData _lookupCategoryIcon(
-    String categoryName,
-    CategoriesProvider categoriesProvider,
-  ) {
-    for (final category in categoriesProvider.categories) {
-      if (category.name == categoryName) {
-        return category.iconData;
-      }
-    }
-    return defaultCategoryIcon;
   }
 
   Widget _buildPersonLegend(String person1Name, String person2Name) {

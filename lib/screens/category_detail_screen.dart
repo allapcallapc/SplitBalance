@@ -53,6 +53,13 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   Future<void> _loadBills() async {
     final billsProvider = context.read<BillsProvider>();
     final configProvider = context.read<ConfigProvider>();
+    // Skip a redundant refetch if a previous screen (e.g. TotalDetailScreen,
+    // when this was reached via its ranked breakdown) already loaded the
+    // household's full bill history - add/update/delete keep it in sync
+    // incrementally, so the cached list is never stale within a session.
+    if (billsProvider.hasLoadedAllBillsForHousehold(configProvider.householdId)) {
+      return;
+    }
     await billsProvider.loadAllBills(configProvider);
   }
 

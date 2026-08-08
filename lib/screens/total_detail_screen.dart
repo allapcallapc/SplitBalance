@@ -6,7 +6,6 @@ import '../providers/bills_provider.dart';
 import '../providers/categories_provider.dart';
 import '../providers/config_provider.dart';
 import '../services/calculation_service.dart';
-import '../utils/category_icons.dart';
 import '../utils/spend_chart_data.dart';
 import '../widgets/ledger_visuals.dart';
 import '../widgets/spend_charts.dart';
@@ -52,26 +51,15 @@ class _TotalDetailScreenState extends State<TotalDetailScreen> {
     final billsProvider = context.read<BillsProvider>();
     final configProvider = context.read<ConfigProvider>();
     final categoriesProvider = context.read<CategoriesProvider>();
+    // Skip a redundant refetch of the household's full bill history if it's
+    // already loaded - add/update/delete keep it in sync incrementally, so
+    // the cached list is never stale within a session.
+    final householdId = configProvider.householdId;
     await Future.wait([
-      billsProvider.loadAllBills(configProvider),
+      if (!billsProvider.hasLoadedAllBillsForHousehold(householdId))
+        billsProvider.loadAllBills(configProvider),
       categoriesProvider.loadCategories(configProvider),
     ]);
-  }
-
-  // Category balances only carry the category name, so look up the matching
-  // Category to render its icon (falling back to the default icon if it was
-  // since renamed/deleted or has no icon set) - same approach as
-  // SummaryScreen's own lookup.
-  IconData _lookupCategoryIcon(
-    String categoryName,
-    CategoriesProvider categoriesProvider,
-  ) {
-    for (final category in categoriesProvider.categories) {
-      if (category.name == categoryName) {
-        return category.iconData;
-      }
-    }
-    return defaultCategoryIcon;
   }
 
   @override
@@ -214,8 +202,7 @@ class _TotalDetailScreenState extends State<TotalDetailScreen> {
     NumberFormat currencyFormat,
   ) {
     final amount = categoryBalance.person1Paid + categoryBalance.person2Paid;
-    final icon =
-        _lookupCategoryIcon(categoryBalance.category, categoriesProvider);
+    final icon = categoriesProvider.iconForCategory(categoryBalance.category);
 
     return InkWell(
       onTap: () {

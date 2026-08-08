@@ -472,22 +472,23 @@ class AppLocalizationsFr extends AppLocalizations {
   String get total => 'Total';
 
   @override
-  String get currentPeriod => 'Current Period';
+  String get currentPeriod => 'Période actuelle';
 
   @override
-  String get monthlySpend => 'Monthly Spend';
+  String get monthlySpend => 'Dépenses mensuelles';
 
   @override
-  String get cumulativeSpend => 'Cumulative Spend';
+  String get cumulativeSpend => 'Dépenses cumulées';
 
   @override
-  String get categoriesByAmount => 'Categories by Amount';
+  String get categoriesByAmount => 'Catégories par montant';
 
   @override
-  String get noBillsInCategory => 'No bills in this category yet';
+  String get noBillsInCategory =>
+      'Aucune facture dans cette catégorie pour le moment';
 
   @override
-  String get noBillsToChart => 'No bills to chart yet';
+  String get noBillsToChart => 'Aucune facture à représenter pour le moment';
 
   @override
   String get saveBill => 'Enregistrer la facture';
