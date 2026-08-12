@@ -70,4 +70,8 @@ flutter {
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
+    // Local unit tests run against a stub android.jar whose org.json classes throw
+    // "not mocked" - this pulls in the real upstream implementation so tests that
+    // exercise the queue file's JSON (de)serialization work without Robolectric.
+    testImplementation("org.json:json:20251224")
 }
