@@ -122,6 +122,12 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Checkout repository
+        # genhtml (invoked by the report action below) reads the actual
+        # source files the lcov.info paths point at, not just the lcov
+        # data - without a checkout it errors with "does not exist".
+        uses: actions/checkout@v4
+
       - name: Download unit test coverage
         uses: actions/download-artifact@v4
         continue-on-error: true
