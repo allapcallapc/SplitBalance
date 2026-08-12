@@ -150,8 +150,17 @@ jobs:
       - name: Install lcov
         # zgosalvez/github-actions-report-lcov shells out to genhtml, and
         # merging two lcov files needs the `lcov` CLI itself - neither is
-        # preinstalled on the ubuntu-latest runner image.
-        run: sudo apt-get update && sudo apt-get install -y lcov
+        # preinstalled on the ubuntu-latest runner image. apt only has
+        # lcov 2.0, which has a bug where `lcov --list` (used for the PR's
+        # per-file breakdown) reports a bogus 0.0% rate for every file
+        # despite correct hit counts (linux-test-project/lcov#335, fixed
+        # in 2.1+) - install a newer release on top, reusing the Perl
+        # dependencies apt just pulled in.
+        run: |
+          sudo apt-get update && sudo apt-get install -y lcov
+          curl -fsSL https://github.com/linux-test-project/lcov/releases/download/v2.5/lcov-2.5.tar.gz | tar -xz -C /tmp
+          sudo make -C /tmp/lcov-2.5 install
+          lcov --version
 
       - name: Merge coverage files
         run: |
