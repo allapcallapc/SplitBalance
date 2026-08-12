@@ -10,7 +10,12 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+      # Needed by the lcov-reporter step below to post/update the coverage
+      # comment on the PR.
+      pull-requests: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,7 +35,17 @@ jobs:
         run: flutter pub get
 
       - name: Run tests
-        run: flutter test --exclude-tags integration
+        run: flutter test --exclude-tags integration --coverage
+
+      - name: Report code coverage on PR
+        # Only meaningful with a pull_request event - a plain push or
+        # workflow_call run has no PR to comment on.
+        if: github.event_name == 'pull_request'
+        uses: zgosalvez/github-actions-report-lcov@v0
+        with:
+          coverage-files: coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          update-comment: true
 
       - name: Run analysis
         run: flutter analyze --no-fatal-infos
