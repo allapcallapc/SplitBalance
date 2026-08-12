@@ -189,6 +189,10 @@ class CalculationService {
 
     final Map<String, CategoryBalance> categoryBalancesMap = {};
 
+    // Collect all end dates once for containsDate logic - doesn't depend on
+    // the bill being processed, so it doesn't need to be recomputed per bill.
+    final allEndDates = collectEndDates(splits);
+
     // Process each bill
     for (final bill in bills) {
       // Only process bills paid by person1 or person2
@@ -207,9 +211,6 @@ class CalculationService {
       } else {
         person2Paid += bill.amount;
       }
-
-      // Collect all end dates for containsDate logic
-      final allEndDates = collectEndDates(splits);
 
       // Find matching payment split
       final matchingSplit =

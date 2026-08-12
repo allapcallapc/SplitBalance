@@ -10,7 +10,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,7 +30,14 @@ jobs:
         run: flutter pub get
 
       - name: Run tests
-        run: flutter test --exclude-tags integration
+        run: flutter test --exclude-tags integration --coverage
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-unit
+          path: coverage/lcov.info
+          if-no-files-found: ignore
 
       - name: Run analysis
         run: flutter analyze --no-fatal-infos
@@ -87,8 +94,60 @@ jobs:
         env:
           SUPABASE_TEST_URL: ${{ steps.supabase.outputs.url }}
           SUPABASE_TEST_SERVICE_ROLE_KEY: ${{ steps.supabase.outputs.service_role_key }}
-        run: flutter test --tags integration --run-skipped
+        run: flutter test --tags integration --run-skipped --coverage
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-integration
+          path: coverage/lcov.info
+          if-no-files-found: ignore
 
       - name: Stop local Supabase stack
         if: always()
         run: supabase stop
+
+  codecov:
+    # Uploads the lcov output from `test` (hermetic unit/widget tests) and
+    # `integration-test` (needs a live local Supabase stack) to Codecov,
+    # which merges multi-file reports and computes base-branch diffs
+    # server-side - unlike the old zgosalvez/github-actions-report-lcov
+    # setup, this needs no local lcov/genhtml install. `if: always()` so a
+    # red/skipped integration-test (eg. flaky Docker startup) still gets
+    # the unit-test coverage uploaded instead of the whole job being
+    # skipped. Runs on every push too (not just pull_request) so Codecov
+    # has a base-branch report to diff PRs against - see
+    # https://app.codecov.io/gh/allapcallapc/SplitBalance to finish
+    # connecting the repo (sign in with GitHub, enable the repo, and
+    # install the Codecov GitHub App so PR comments/diff annotations show
+    # up - a CODECOV_TOKEN repo secret is optional for public repos but
+    # recommended to avoid tokenless-upload rate limits).
+    needs: [test, integration-test]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download unit test coverage
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: coverage-unit
+          path: coverage-unit
+
+      - name: Download integration test coverage
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: coverage-integration
+          path: coverage-integration
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage-unit/lcov.info,coverage-integration/lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
