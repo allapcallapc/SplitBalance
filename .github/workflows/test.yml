@@ -37,6 +37,13 @@ jobs:
       - name: Run tests
         run: flutter test --exclude-tags integration --coverage
 
+      - name: Install lcov
+        # zgosalvez/github-actions-report-lcov shells out to genhtml
+        # (part of the lcov package), which isn't preinstalled on the
+        # ubuntu-latest runner image.
+        if: github.event_name == 'pull_request'
+        run: sudo apt-get update && sudo apt-get install -y lcov
+
       - name: Report code coverage on PR
         # Only meaningful with a pull_request event - a plain push or
         # workflow_call run has no PR to comment on.
