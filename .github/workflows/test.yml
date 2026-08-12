@@ -108,30 +108,28 @@ jobs:
         if: always()
         run: supabase stop
 
-  coverage-report:
-    # Combines the lcov output from `test` (hermetic unit/widget tests) and
-    # `integration-test` (needs a live local Supabase stack) into one number
-    # so the PR comment reflects the whole suite, not just the unit tests.
-    # `if: always()` so a red/skipped integration-test (eg. flaky Docker
-    # startup) still gets the unit-test coverage reported instead of the
-    # whole job being skipped.
+  codecov:
+    # Uploads the lcov output from `test` (hermetic unit/widget tests) and
+    # `integration-test` (needs a live local Supabase stack) to Codecov,
+    # which merges multi-file reports and computes base-branch diffs
+    # server-side - unlike the old zgosalvez/github-actions-report-lcov
+    # setup, this needs no local lcov/genhtml install. `if: always()` so a
+    # red/skipped integration-test (eg. flaky Docker startup) still gets
+    # the unit-test coverage uploaded instead of the whole job being
+    # skipped. Runs on every push too (not just pull_request) so Codecov
+    # has a base-branch report to diff PRs against - see
+    # https://app.codecov.io/gh/allapcallapc/SplitBalance to finish
+    # connecting the repo (sign in with GitHub, enable the repo, and
+    # install the Codecov GitHub App so PR comments/diff annotations show
+    # up - a CODECOV_TOKEN repo secret is optional for public repos but
+    # recommended to avoid tokenless-upload rate limits).
     needs: [test, integration-test]
-    if: always() && github.event_name == 'pull_request'
+    if: always()
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
 
     steps:
       - name: Checkout repository
-        # genhtml (invoked by the report action below) reads the actual
-        # source files the lcov.info paths point at, not just the lcov
-        # data - without a checkout it errors with "does not exist".
-        # fetch-depth: 0 (full history, not the default shallow depth-1)
-        # so the report action can diff against the PR's base branch to
-        # compute per-file "changed lines" coverage correctly.
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Download unit test coverage
         uses: actions/download-artifact@v4
@@ -147,54 +145,9 @@ jobs:
           name: coverage-integration
           path: coverage-integration
 
-      - name: Install lcov
-        # zgosalvez/github-actions-report-lcov shells out to genhtml, and
-        # merging two lcov files needs the `lcov` CLI itself - neither is
-        # preinstalled on the ubuntu-latest runner image. apt only has
-        # lcov 2.0, which has a bug where `lcov --list` (used for the PR's
-        # per-file breakdown) reports a bogus 0.0% rate for every file
-        # despite correct hit counts (linux-test-project/lcov#335, fixed
-        # in 2.1+) - install a newer release's scripts on top, reusing
-        # the Perl dependencies apt just pulled in. `make install` also
-        # builds man pages via Sphinx (not installed here), so skip it
-        # and just put the release's bin/ on PATH directly - lcov/genhtml
-        # locate their sibling lib/ via FindBin at runtime.
-        run: |
-          sudo apt-get update && sudo apt-get install -y lcov
-          curl -fsSL https://github.com/linux-test-project/lcov/releases/download/v2.5/lcov-2.5.tar.gz | tar -xz -C /opt
-          echo "/opt/lcov-2.5/bin" >> "$GITHUB_PATH"
-
-      - name: Merge coverage files
-        run: |
-          mkdir -p coverage
-          files=()
-          [ -f coverage-unit/lcov.info ] && files+=(coverage-unit/lcov.info)
-          [ -f coverage-integration/lcov.info ] && files+=(coverage-integration/lcov.info)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "::error::No coverage files were produced by the test or integration-test jobs."
-            exit 1
-          elif [ ${#files[@]} -eq 1 ]; then
-            cp "${files[0]}" coverage/lcov.info
-          else
-            args=()
-            for f in "${files[@]}"; do
-              args+=(-a "$f")
-            done
-            # --ignore-errors empty: flutter test --coverage only emits line
-            # data (no FN/FNDA entries), and lcov 2.1+ errors by default on
-            # "function coverage enabled but no corresponding coverpoints
-            # found" when merging such files.
-            lcov "${args[@]}" -o coverage/lcov.info --ignore-errors empty
-          fi
-
-      - name: Report code coverage on PR
-        uses: zgosalvez/github-actions-report-lcov@v7
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
         with:
-          coverage-files: coverage/lcov.info
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          update-comment: true
-          # Despite the name, this is passed to every internal lcov/genhtml
-          # invocation the action makes (merge, summary, list, and html),
-          # not just genhtml - needed for the same reason as the merge
-          # step above: flutter's coverage output has no function data.
-          genhtml-ignore-errors: empty
+          files: coverage-unit/lcov.info,coverage-integration/lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
