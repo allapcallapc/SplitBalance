@@ -4,11 +4,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-class MainActivityTest {
+class PendingDeepLinkTest {
 
     @Test
     fun `intent with no action is not a deep link`() {
-        val result = MainActivity.buildPendingDeepLink(
+        val result = buildPendingDeepLink(
             action = null,
             id = "abc",
             hasAmount = true,
@@ -21,7 +21,7 @@ class MainActivityTest {
 
     @Test
     fun `confirm action carries id, amount and details through`() {
-        val result = MainActivity.buildPendingDeepLink(
+        val result = buildPendingDeepLink(
             action = "confirm",
             id = "abc-123",
             hasAmount = true,
@@ -42,7 +42,7 @@ class MainActivityTest {
 
     @Test
     fun `missing amount extra is surfaced as a null amount, not 0-point-0`() {
-        val result = MainActivity.buildPendingDeepLink(
+        val result = buildPendingDeepLink(
             action = "confirm",
             id = "abc-123",
             hasAmount = false,
@@ -56,7 +56,7 @@ class MainActivityTest {
 
     @Test
     fun `dismiss action with no id or details still round-trips the action`() {
-        val result = MainActivity.buildPendingDeepLink(
+        val result = buildPendingDeepLink(
             action = "dismiss",
             id = null,
             hasAmount = false,
