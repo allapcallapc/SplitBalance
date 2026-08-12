@@ -126,7 +126,12 @@ jobs:
         # genhtml (invoked by the report action below) reads the actual
         # source files the lcov.info paths point at, not just the lcov
         # data - without a checkout it errors with "does not exist".
+        # fetch-depth: 0 (full history, not the default shallow depth-1)
+        # so the report action can diff against the PR's base branch to
+        # compute per-file "changed lines" coverage correctly.
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download unit test coverage
         uses: actions/download-artifact@v4
