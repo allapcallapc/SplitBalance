@@ -180,7 +180,11 @@ jobs:
             for f in "${files[@]}"; do
               args+=(-a "$f")
             done
-            lcov "${args[@]}" -o coverage/lcov.info
+            # --ignore-errors empty: flutter test --coverage only emits line
+            # data (no FN/FNDA entries), and lcov 2.1+ errors by default on
+            # "function coverage enabled but no corresponding coverpoints
+            # found" when merging such files.
+            lcov "${args[@]}" -o coverage/lcov.info --ignore-errors empty
           fi
 
       - name: Report code coverage on PR
@@ -189,3 +193,8 @@ jobs:
           coverage-files: coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           update-comment: true
+          # Despite the name, this is passed to every internal lcov/genhtml
+          # invocation the action makes (merge, summary, list, and html),
+          # not just genhtml - needed for the same reason as the merge
+          # step above: flutter's coverage output has no function data.
+          genhtml-ignore-errors: empty
