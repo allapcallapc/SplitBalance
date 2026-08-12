@@ -10,11 +10,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      # Needed by the lcov-reporter step below to post/update the coverage
-      # comment on the PR.
-      pull-requests: write
 
     steps:
       - name: Checkout repository
@@ -37,22 +32,12 @@ jobs:
       - name: Run tests
         run: flutter test --exclude-tags integration --coverage
 
-      - name: Install lcov
-        # zgosalvez/github-actions-report-lcov shells out to genhtml
-        # (part of the lcov package), which isn't preinstalled on the
-        # ubuntu-latest runner image.
-        if: github.event_name == 'pull_request'
-        run: sudo apt-get update && sudo apt-get install -y lcov
-
-      - name: Report code coverage on PR
-        # Only meaningful with a pull_request event - a plain push or
-        # workflow_call run has no PR to comment on.
-        if: github.event_name == 'pull_request'
-        uses: zgosalvez/github-actions-report-lcov@v7
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
         with:
-          coverage-files: coverage/lcov.info
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          update-comment: true
+          name: coverage-unit
+          path: coverage/lcov.info
+          if-no-files-found: ignore
 
       - name: Run analysis
         run: flutter analyze --no-fatal-infos
@@ -109,8 +94,76 @@ jobs:
         env:
           SUPABASE_TEST_URL: ${{ steps.supabase.outputs.url }}
           SUPABASE_TEST_SERVICE_ROLE_KEY: ${{ steps.supabase.outputs.service_role_key }}
-        run: flutter test --tags integration --run-skipped
+        run: flutter test --tags integration --run-skipped --coverage
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-integration
+          path: coverage/lcov.info
+          if-no-files-found: ignore
 
       - name: Stop local Supabase stack
         if: always()
         run: supabase stop
+
+  coverage-report:
+    # Combines the lcov output from `test` (hermetic unit/widget tests) and
+    # `integration-test` (needs a live local Supabase stack) into one number
+    # so the PR comment reflects the whole suite, not just the unit tests.
+    # `if: always()` so a red/skipped integration-test (eg. flaky Docker
+    # startup) still gets the unit-test coverage reported instead of the
+    # whole job being skipped.
+    needs: [test, integration-test]
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Download unit test coverage
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: coverage-unit
+          path: coverage-unit
+
+      - name: Download integration test coverage
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: coverage-integration
+          path: coverage-integration
+
+      - name: Install lcov
+        # zgosalvez/github-actions-report-lcov shells out to genhtml, and
+        # merging two lcov files needs the `lcov` CLI itself - neither is
+        # preinstalled on the ubuntu-latest runner image.
+        run: sudo apt-get update && sudo apt-get install -y lcov
+
+      - name: Merge coverage files
+        run: |
+          mkdir -p coverage
+          files=()
+          [ -f coverage-unit/lcov.info ] && files+=(coverage-unit/lcov.info)
+          [ -f coverage-integration/lcov.info ] && files+=(coverage-integration/lcov.info)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::No coverage files were produced by the test or integration-test jobs."
+            exit 1
+          elif [ ${#files[@]} -eq 1 ]; then
+            cp "${files[0]}" coverage/lcov.info
+          else
+            args=()
+            for f in "${files[@]}"; do
+              args+=(-a "$f")
+            done
+            lcov "${args[@]}" -o coverage/lcov.info
+          fi
+
+      - name: Report code coverage on PR
+        uses: zgosalvez/github-actions-report-lcov@v7
+        with:
+          coverage-files: coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          update-comment: true
