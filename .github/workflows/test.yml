@@ -41,7 +41,7 @@ jobs:
         # Only meaningful with a pull_request event - a plain push or
         # workflow_call run has no PR to comment on.
         if: github.event_name == 'pull_request'
-        uses: zgosalvez/github-actions-report-lcov@v0
+        uses: zgosalvez/github-actions-report-lcov@v7
         with:
           coverage-files: coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
