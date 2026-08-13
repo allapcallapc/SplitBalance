@@ -32,18 +32,21 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun extractDeepLink(intent: Intent?) {
-        val action = intent?.getStringExtra(GooglePayNotificationListenerService.EXTRA_DEEP_LINK_ACTION) ?: return
-        val amount = if (intent.hasExtra(GooglePayNotificationListenerService.EXTRA_DEEP_LINK_AMOUNT)) {
-            intent.getDoubleExtra(GooglePayNotificationListenerService.EXTRA_DEEP_LINK_AMOUNT, 0.0)
-        } else {
-            null
-        }
-        pendingDeepLink = mapOf(
-            "action" to action,
-            "id" to intent.getStringExtra(GooglePayNotificationListenerService.EXTRA_DEEP_LINK_ID),
-            "amount" to amount,
-            "details" to intent.getStringExtra(GooglePayNotificationListenerService.EXTRA_DEEP_LINK_DETAILS)
+        val hasAmount = intent?.hasExtra(GooglePayNotificationListenerService.EXTRA_DEEP_LINK_AMOUNT) == true
+        val deepLink = buildPendingDeepLink(
+            action = intent?.getStringExtra(GooglePayNotificationListenerService.EXTRA_DEEP_LINK_ACTION),
+            id = intent?.getStringExtra(GooglePayNotificationListenerService.EXTRA_DEEP_LINK_ID),
+            hasAmount = hasAmount,
+            amount = if (hasAmount) {
+                intent!!.getDoubleExtra(GooglePayNotificationListenerService.EXTRA_DEEP_LINK_AMOUNT, 0.0)
+            } else {
+                0.0
+            },
+            details = intent?.getStringExtra(GooglePayNotificationListenerService.EXTRA_DEEP_LINK_DETAILS)
         )
+        if (deepLink != null) {
+            pendingDeepLink = deepLink
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

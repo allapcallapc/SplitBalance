@@ -127,7 +127,14 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
         /** Removes the entry with the given [id] from the queue file, if present. */
         @Synchronized
         fun removeFromQueue(context: Context, id: String) {
-            val file = queueFile(context)
+            removeIdFromQueueFile(queueFile(context), id)
+        }
+
+        /**
+         * Pure file-based version of [removeFromQueue], split out so it's testable
+         * without a real Android [Context].
+         */
+        internal fun removeIdFromQueueFile(file: File, id: String) {
             if (!file.exists()) return
             try {
                 val array = JSONArray(file.readText())
