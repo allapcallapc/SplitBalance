@@ -63,6 +63,16 @@ android {
             }
         }
     }
+
+    testOptions {
+        unitTests {
+            // Needed for Robolectric to load the app's merged manifest/resources (it
+            // reads AndroidManifest.xml to know GooglePayNotificationListenerService is
+            // a real, declared Service) - see
+            // GooglePayNotificationListenerServiceRobolectricTest.
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 flutter {
@@ -75,6 +85,14 @@ dependencies {
     // "not mocked" - this pulls in the real upstream implementation so tests that
     // exercise the queue file's JSON (de)serialization work without Robolectric.
     testImplementation("org.json:json:20251224")
+    // Mockito's default inline mock maker (5.x+) can mock/spy final Android stub
+    // classes (StatusBarNotification, etc.) without Robolectric - used to exercise
+    // handleNotification()'s Context-dependent branches in isolation.
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+    // Only for the one path Mockito can't reach without a real Context:
+    // onNotificationPosted()'s applicationContext resolution. See
+    // GooglePayNotificationListenerServiceRobolectricTest.
+    testImplementation("org.robolectric:robolectric:4.14.1")
 }
 
 jacoco {

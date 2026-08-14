@@ -23,6 +23,9 @@ import java.util.Locale
 import java.util.TimeZone
 import java.util.regex.Pattern
 
+/** Amount + note text parsed from a candidate payment notification. */
+internal data class ParsedPayment(val amount: Double?, val rawText: String)
+
 /**
  * Watches for payment notifications from Google Pay / Google Wallet and queues
  * a best-effort parse of each one to [QUEUE_FILE_NAME] for the Flutter app to
@@ -109,6 +112,34 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
             return PAYMENT_KEYWORDS.any { lower.contains(it) }
         }
 
+        /**
+         * Builds the note text queued for a detection and shown in the alert
+         * preview: the notification's title plus body (preferring the expanded
+         * [bigText] over the collapsed [text] when both are present). Pure/static
+         * so it's unit testable without an Android runtime.
+         */
+        internal fun buildRawText(title: String, text: String, bigText: String): String {
+            val body = if (bigText.isNotBlank()) bigText else text
+            return listOf(title, body).filter { it.isNotBlank() }.joinToString(" — ")
+        }
+
+        /**
+         * Parses [ParsedPayment] out of a notification's title/text/bigText, or null
+         * if it doesn't look like a payment. Pure/static so the whole detection
+         * pipeline is unit testable without an Android runtime - [handleNotification]
+         * only adds the Context-dependent bits (watched-package check, queue
+         * persistence, alert notification) around this.
+         */
+        internal fun parseNotification(title: String, text: String, bigText: String): ParsedPayment? {
+            val combined = listOf(title, text, bigText).filter { it.isNotBlank() }.joinToString(" — ")
+            if (combined.isBlank()) return null
+
+            val amount = extractAmount(combined)
+            if (!looksLikePayment(combined, amount)) return null
+
+            return ParsedPayment(amount, buildRawText(title, text, bigText))
+        }
+
         fun getWatchedPackages(context: Context): Set<String> {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             return prefs.getStringSet(WATCHED_PACKAGES_KEY, null) ?: DEFAULT_WATCHED_PACKAGES
@@ -155,14 +186,15 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         super.onNotificationPosted(sbn)
         try {
-            handleNotification(sbn)
+            handleNotification(sbn, applicationContext)
         } catch (e: Exception) {
             // Never let a malformed notification crash the listener service.
         }
     }
 
-    private fun handleNotification(sbn: StatusBarNotification) {
-        val watched = getWatchedPackages(applicationContext)
+    /** Visible for testing - [context] is explicit so tests don't need to spy this Service. */
+    internal fun handleNotification(sbn: StatusBarNotification, context: Context) {
+        val watched = getWatchedPackages(context)
         if (!watched.contains(sbn.packageName)) return
 
         val extras = sbn.notification.extras ?: return
@@ -170,15 +202,9 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
         val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() ?: ""
 
-        val combined = listOf(title, text, bigText).filter { it.isNotBlank() }.joinToString(" — ")
-        if (combined.isBlank()) return
-
-        val amount = extractAmount(combined)
-        if (!looksLikePayment(combined, amount)) return
+        val (amount, rawText) = parseNotification(title, text, bigText) ?: return
 
         val id = "${sbn.key}_${sbn.postTime}"
-        val rawText = if (bigText.isNotBlank()) bigText else text
-
         val entry = JSONObject().apply {
             put("id", id)
             put("detectedAt", isoNow())
@@ -187,7 +213,7 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
             put("parsedAmount", amount)
         }
 
-        appendToQueue(entry)
+        appendToQueue(entry, context)
         showAlertNotification(id, amount, rawText)
     }
 
@@ -198,8 +224,8 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
     }
 
     @Synchronized
-    private fun appendToQueue(entry: JSONObject) {
-        val file = queueFile(applicationContext)
+    private fun appendToQueue(entry: JSONObject, context: Context) {
+        val file = queueFile(context)
         val array = if (file.exists()) {
             try {
                 JSONArray(file.readText())
