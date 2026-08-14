@@ -120,6 +120,25 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
             return listOf(title, body).filter { it.isNotBlank() }.joinToString(" — ")
         }
 
+        /**
+         * Amount + note text parsed from a notification's title/text/bigText, or null
+         * if it doesn't look like a payment. Pure/static so the whole detection
+         * pipeline is unit testable without an Android runtime - [handleNotification]
+         * only adds the Context-dependent bits (watched-package check, queue
+         * persistence, alert notification) around this.
+         */
+        internal data class ParsedPayment(val amount: Double?, val rawText: String)
+
+        internal fun parseNotification(title: String, text: String, bigText: String): ParsedPayment? {
+            val combined = listOf(title, text, bigText).filter { it.isNotBlank() }.joinToString(" — ")
+            if (combined.isBlank()) return null
+
+            val amount = extractAmount(combined)
+            if (!looksLikePayment(combined, amount)) return null
+
+            return ParsedPayment(amount, buildRawText(title, text, bigText))
+        }
+
         fun getWatchedPackages(context: Context): Set<String> {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             return prefs.getStringSet(WATCHED_PACKAGES_KEY, null) ?: DEFAULT_WATCHED_PACKAGES
@@ -181,15 +200,9 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
         val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() ?: ""
 
-        val combined = listOf(title, text, bigText).filter { it.isNotBlank() }.joinToString(" — ")
-        if (combined.isBlank()) return
-
-        val amount = extractAmount(combined)
-        if (!looksLikePayment(combined, amount)) return
+        val (amount, rawText) = parseNotification(title, text, bigText) ?: return
 
         val id = "${sbn.key}_${sbn.postTime}"
-        val rawText = buildRawText(title, text, bigText)
-
         val entry = JSONObject().apply {
             put("id", id)
             put("detectedAt", isoNow())

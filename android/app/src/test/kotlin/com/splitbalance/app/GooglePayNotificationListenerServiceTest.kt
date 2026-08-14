@@ -1,5 +1,6 @@
 package com.splitbalance.app
 
+import com.splitbalance.app.GooglePayNotificationListenerService.ParsedPayment
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -86,6 +87,41 @@ class GooglePayNotificationListenerServiceTest {
         )
 
         assertEquals("You sent \$5", rawText)
+    }
+
+    @Test
+    fun `parseNotification returns null when title, text and bigText are all blank`() {
+        assertNull(GooglePayNotificationListenerService.parseNotification("", "", ""))
+    }
+
+    @Test
+    fun `parseNotification returns null when the combined text doesn't look like a payment`() {
+        assertNull(
+            GooglePayNotificationListenerService.parseNotification(
+                "Google Wallet", "Your card was added", ""
+            )
+        )
+    }
+
+    @Test
+    fun `parseNotification detects a tap-to-pay amount and builds the note from title plus body`() {
+        val parsed = GooglePayNotificationListenerService.parseNotification(
+            "SAMPLE MERCHANT", "\$31.20 with SOME BANK CARD ••1234", ""
+        )
+
+        assertEquals(
+            ParsedPayment(31.20, "SAMPLE MERCHANT — \$31.20 with SOME BANK CARD ••1234"),
+            parsed
+        )
+    }
+
+    @Test
+    fun `parseNotification detects a keyword match with no amount`() {
+        val parsed = GooglePayNotificationListenerService.parseNotification(
+            "Google Wallet", "You sent a payment", ""
+        )
+
+        assertEquals(ParsedPayment(null, "Google Wallet — You sent a payment"), parsed)
     }
 
     @Test
