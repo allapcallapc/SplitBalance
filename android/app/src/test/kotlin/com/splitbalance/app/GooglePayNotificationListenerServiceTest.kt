@@ -1,6 +1,5 @@
 package com.splitbalance.app
 
-import com.splitbalance.app.GooglePayNotificationListenerService.ParsedPayment
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

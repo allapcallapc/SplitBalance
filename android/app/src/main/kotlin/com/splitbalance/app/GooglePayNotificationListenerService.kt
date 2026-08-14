@@ -23,6 +23,9 @@ import java.util.Locale
 import java.util.TimeZone
 import java.util.regex.Pattern
 
+/** Amount + note text parsed from a candidate payment notification. */
+internal data class ParsedPayment(val amount: Double?, val rawText: String)
+
 /**
  * Watches for payment notifications from Google Pay / Google Wallet and queues
  * a best-effort parse of each one to [QUEUE_FILE_NAME] for the Flutter app to
@@ -121,14 +124,12 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
         }
 
         /**
-         * Amount + note text parsed from a notification's title/text/bigText, or null
+         * Parses [ParsedPayment] out of a notification's title/text/bigText, or null
          * if it doesn't look like a payment. Pure/static so the whole detection
          * pipeline is unit testable without an Android runtime - [handleNotification]
          * only adds the Context-dependent bits (watched-package check, queue
          * persistence, alert notification) around this.
          */
-        internal data class ParsedPayment(val amount: Double?, val rawText: String)
-
         internal fun parseNotification(title: String, text: String, bigText: String): ParsedPayment? {
             val combined = listOf(title, text, bigText).filter { it.isNotBlank() }.joinToString(" — ")
             if (combined.isBlank()) return null
