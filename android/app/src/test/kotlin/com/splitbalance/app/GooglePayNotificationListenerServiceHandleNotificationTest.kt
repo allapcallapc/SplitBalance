@@ -11,8 +11,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import org.mockito.Mockito.doReturn
 import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.spy
@@ -72,7 +72,7 @@ class GooglePayNotificationListenerServiceHandleNotificationTest {
         whenever(context.filesDir).thenReturn(queueDir)
 
         val service = spy(GooglePayNotificationListenerService())
-        doReturn(context).`when`(service).applicationContext
+        doReturn(context).whenever(service).getApplicationContext()
         return service
     }
 
