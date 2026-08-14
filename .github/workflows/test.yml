@@ -45,7 +45,14 @@ jobs:
       - name: Run Android unit tests
         run: |
           flutter build apk --debug --target-platform android-arm64
-          cd android && ./gradlew :app:testDebugUnitTest
+          cd android && ./gradlew :app:jacocoTestReport
+
+      - name: Upload Android coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-android
+          path: build/app/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+          if-no-files-found: ignore
 
   integration-test:
     # Separate job from `test` above: a flaky/slow Docker startup here should
@@ -109,9 +116,11 @@ jobs:
         run: supabase stop
 
   codecov:
-    # Uploads the lcov output from `test` (hermetic unit/widget tests) and
-    # `integration-test` (needs a live local Supabase stack) to Codecov,
-    # which merges multi-file reports and computes base-branch diffs
+    # Uploads the lcov output from `test` (hermetic unit/widget tests), the
+    # JaCoCo XML report from `test`'s Android/Kotlin unit tests, and the lcov
+    # output from `integration-test` (needs a live local Supabase stack) to
+    # Codecov, which merges multi-file/multi-format reports and computes
+    # base-branch diffs
     # server-side - unlike the old zgosalvez/github-actions-report-lcov
     # setup, this needs no local lcov/genhtml install. `if: always()` so a
     # red/skipped integration-test (eg. flaky Docker startup) still gets
@@ -145,9 +154,16 @@ jobs:
           name: coverage-integration
           path: coverage-integration
 
+      - name: Download Android coverage
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: coverage-android
+          path: coverage-android
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
-          files: coverage-unit/lcov.info,coverage-integration/lcov.info
+          files: coverage-unit/lcov.info,coverage-integration/lcov.info,coverage-android/jacocoTestReport.xml
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false

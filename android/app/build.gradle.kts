@@ -6,6 +6,7 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    jacoco
 }
 
 val keystorePropertiesFile = rootProject.file("key.properties")
@@ -74,4 +75,40 @@ dependencies {
     // "not mocked" - this pulls in the real upstream implementation so tests that
     // exercise the queue file's JSON (de)serialization work without Robolectric.
     testImplementation("org.json:json:20251224")
+}
+
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+// Codecov only ever saw Flutter/Dart coverage (from `flutter test --coverage`) - this
+// module's Kotlin unit tests ran in CI but produced no coverage data anyone uploaded,
+// so PRs that only touched Kotlin showed "no coverage data" on Codecov even with new
+// tests. This generates an XML report from testDebugUnitTest's JaCoCo execution data
+// (auto-collected once the `jacoco` plugin is applied - see the Jacoco Gradle plugin
+// docs) that CI uploads to Codecov alongside the Dart lcov.info.
+tasks.register<JacocoReport>("jacocoTestReport") {
+    dependsOn("testDebugUnitTest")
+    group = "verification"
+    description = "Generates an XML coverage report for testDebugUnitTest, for Codecov."
+
+    reports {
+        xml.required.set(true)
+        html.required.set(false)
+        csv.required.set(false)
+    }
+
+    val excludes = listOf(
+        "**/R.class", "**/R\$*.class", "**/BuildConfig.*", "**/Manifest*.*"
+    )
+    classDirectories.setFrom(
+        files(
+            fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/debug")) { exclude(excludes) },
+            fileTree(layout.buildDirectory.dir("intermediates/javac/debug/classes")) { exclude(excludes) }
+        )
+    )
+    sourceDirectories.setFrom(files("src/main/kotlin", "src/main/java"))
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) { include("jacoco/testDebugUnitTest.exec") }
+    )
 }
