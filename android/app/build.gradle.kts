@@ -66,12 +66,11 @@ android {
 
     testOptions {
         unitTests {
-            // Without this, any unstubbed Android SDK call throws immediately (the
-            // default "not mocked" behavior for local unit tests without Robolectric),
-            // which can stop JaCoCo from ever registering the calling line as reached.
-            // Returning defaults (null/0/false) instead lets execution - and coverage -
-            // proceed further before the eventual (expected, caught) failure.
-            isReturnDefaultValues = true
+            // Needed for Robolectric to load the app's merged manifest/resources (it
+            // reads AndroidManifest.xml to know GooglePayNotificationListenerService is
+            // a real, declared Service) - see
+            // GooglePayNotificationListenerServiceRobolectricTest.
+            isIncludeAndroidResources = true
         }
     }
 }
@@ -90,6 +89,10 @@ dependencies {
     // classes (StatusBarNotification, etc.) without Robolectric - used to exercise
     // handleNotification()'s Context-dependent branches in isolation.
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+    // Only for the one path Mockito can't reach without a real Context:
+    // onNotificationPosted()'s applicationContext resolution. See
+    // GooglePayNotificationListenerServiceRobolectricTest.
+    testImplementation("org.robolectric:robolectric:4.14.1")
 }
 
 jacoco {

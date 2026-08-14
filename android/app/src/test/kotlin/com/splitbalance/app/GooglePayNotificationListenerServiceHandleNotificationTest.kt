@@ -20,12 +20,12 @@ import java.io.File
 /**
  * Exercises [GooglePayNotificationListenerService.handleNotification] via Mockito,
  * standing in for the [Context]/[StatusBarNotification] a real device would supply -
- * this repo otherwise avoids Robolectric (see build.gradle.kts), so this is the
- * lightest-weight way to cover the Context-dependent call site there that
+ * lighter-weight than Robolectric for the Context-dependent call site here that
  * [GooglePayNotificationListenerServiceTest]'s pure companion-function tests can't
- * reach. handleNotification()'s Context is passed explicitly (it defaults to
- * applicationContext for the real onNotificationPosted call site) precisely so this
- * doesn't need to spy the Service itself - only its plain-mockable arguments.
+ * reach. handleNotification()'s Context is passed explicitly precisely so this
+ * doesn't need to spy the Service itself - only its plain-mockable arguments. The one
+ * path this can't cover - onNotificationPosted()'s applicationContext resolution -
+ * is exercised separately in GooglePayNotificationListenerServiceRobolectricTest.
  * Only the queue-persistence path is verified; showAlertNotification()'s
  * PendingIntent/NotificationCompat calls need a real Android runtime and throw
  * against the stub android.jar used for local unit tests, so that expected failure
@@ -150,24 +150,4 @@ class GooglePayNotificationListenerServiceHandleNotificationTest {
         assertFalse(queueFile.exists())
     }
 
-    @Test
-    fun `onNotificationPosted exercises the real production entry point`() {
-        // applicationContext can't be resolved against the stub android.jar used for
-        // local unit tests (no Robolectric here - see the class doc). On a real
-        // device NotificationListenerService.onNotificationPosted()'s super call is a
-        // no-op, so this exception is a testing artifact, not a real behavior - it's
-        // swallowed here rather than chased into Robolectric.
-        val sbn = statusBarNotificationFor(
-            packageName = "com.example.unrelated",
-            title = null,
-            text = null,
-            bigText = null
-        )
-
-        try {
-            GooglePayNotificationListenerService().onNotificationPosted(sbn)
-        } catch (e: Exception) {
-            // Expected - see comment above.
-        }
-    }
 }
