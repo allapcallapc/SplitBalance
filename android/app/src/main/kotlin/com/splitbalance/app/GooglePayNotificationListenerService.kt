@@ -192,7 +192,8 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
         }
     }
 
-    private fun handleNotification(sbn: StatusBarNotification) {
+    /** Visible for testing - exercised directly to avoid needing a real [onNotificationPosted] call chain. */
+    internal fun handleNotification(sbn: StatusBarNotification) {
         val watched = getWatchedPackages(applicationContext)
         if (!watched.contains(sbn.packageName)) return
 
