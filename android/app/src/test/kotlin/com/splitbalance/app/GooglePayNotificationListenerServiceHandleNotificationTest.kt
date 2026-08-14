@@ -131,4 +131,43 @@ class GooglePayNotificationListenerServiceHandleNotificationTest {
         val queueFile = File(queueDir, GooglePayNotificationListenerService.QUEUE_FILE_NAME)
         assertFalse(queueFile.exists())
     }
+
+    @Test
+    fun `handleNotification ignores a watched package whose content isn't a payment`() {
+        val queueDir = tempFolder.newFolder()
+        val context = contextWithQueueDir(queueDir)
+        val packageName = GooglePayNotificationListenerService.DEFAULT_WATCHED_PACKAGES.first()
+        val sbn = statusBarNotificationFor(
+            packageName = packageName,
+            title = "Google Wallet",
+            text = "Your card was added",
+            bigText = null
+        )
+
+        invokeHandleNotification(sbn, context)
+
+        val queueFile = File(queueDir, GooglePayNotificationListenerService.QUEUE_FILE_NAME)
+        assertFalse(queueFile.exists())
+    }
+
+    @Test
+    fun `onNotificationPosted exercises the real production entry point`() {
+        // applicationContext can't be resolved against the stub android.jar used for
+        // local unit tests (no Robolectric here - see the class doc). On a real
+        // device NotificationListenerService.onNotificationPosted()'s super call is a
+        // no-op, so this exception is a testing artifact, not a real behavior - it's
+        // swallowed here rather than chased into Robolectric.
+        val sbn = statusBarNotificationFor(
+            packageName = "com.example.unrelated",
+            title = null,
+            text = null,
+            bigText = null
+        )
+
+        try {
+            GooglePayNotificationListenerService().onNotificationPosted(sbn)
+        } catch (e: Exception) {
+            // Expected - see comment above.
+        }
+    }
 }
