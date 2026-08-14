@@ -192,9 +192,13 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
         }
     }
 
-    /** Visible for testing - exercised directly to avoid needing a real [onNotificationPosted] call chain. */
-    internal fun handleNotification(sbn: StatusBarNotification) {
-        val watched = getWatchedPackages(applicationContext)
+    /**
+     * Visible for testing - [context] defaults to [applicationContext] for the real
+     * [onNotificationPosted] call site, but takes an explicit value in tests so they
+     * don't need to spy this Service to stub applicationContext.
+     */
+    internal fun handleNotification(sbn: StatusBarNotification, context: Context = applicationContext) {
+        val watched = getWatchedPackages(context)
         if (!watched.contains(sbn.packageName)) return
 
         val extras = sbn.notification.extras ?: return
@@ -213,7 +217,7 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
             put("parsedAmount", amount)
         }
 
-        appendToQueue(entry)
+        appendToQueue(entry, context)
         showAlertNotification(id, amount, rawText)
     }
 
@@ -224,8 +228,8 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
     }
 
     @Synchronized
-    private fun appendToQueue(entry: JSONObject) {
-        val file = queueFile(applicationContext)
+    private fun appendToQueue(entry: JSONObject, context: Context = applicationContext) {
+        val file = queueFile(context)
         val array = if (file.exists()) {
             try {
                 JSONArray(file.readText())

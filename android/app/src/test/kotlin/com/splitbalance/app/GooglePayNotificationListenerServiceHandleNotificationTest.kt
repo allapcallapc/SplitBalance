@@ -12,10 +12,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.mockito.kotlin.anyOrNull
-import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.spy
 import org.mockito.kotlin.whenever
 import java.io.File
 
@@ -25,7 +23,10 @@ import java.io.File
  * this repo otherwise avoids Robolectric (see build.gradle.kts), so this is the
  * lightest-weight way to cover the Context-dependent call site there that
  * [GooglePayNotificationListenerServiceTest]'s pure companion-function tests can't
- * reach. Only the queue-persistence path is verified; showAlertNotification()'s
+ * reach. handleNotification()'s Context is passed explicitly (it defaults to
+ * applicationContext for the real onNotificationPosted call site) precisely so this
+ * doesn't need to spy the Service itself - only its plain-mockable arguments.
+ * Only the queue-persistence path is verified; showAlertNotification()'s
  * PendingIntent/NotificationCompat calls need a real Android runtime and throw
  * against the stub android.jar used for local unit tests, so that expected failure
  * is caught after asserting the queue write already happened.
@@ -57,7 +58,7 @@ class GooglePayNotificationListenerServiceHandleNotificationTest {
         return sbn
     }
 
-    private fun serviceWithContext(queueDir: File): GooglePayNotificationListenerService {
+    private fun contextWithQueueDir(queueDir: File): Context {
         val prefs = mock<SharedPreferences>()
         whenever(prefs.getStringSet(eq(GooglePayNotificationListenerService.WATCHED_PACKAGES_KEY), anyOrNull()))
             .thenReturn(null)
@@ -70,10 +71,7 @@ class GooglePayNotificationListenerServiceHandleNotificationTest {
             )
         ).thenReturn(prefs)
         whenever(context.filesDir).thenReturn(queueDir)
-
-        val service = spy(GooglePayNotificationListenerService())
-        doReturn(context).whenever(service).getApplicationContext()
-        return service
+        return context
     }
 
     /**
@@ -83,9 +81,9 @@ class GooglePayNotificationListenerServiceHandleNotificationTest {
      * what this test cares about - the queue write above it already happened by then -
      * so the expected failure is swallowed here instead of chasing it into Robolectric.
      */
-    private fun invokeHandleNotification(service: GooglePayNotificationListenerService, sbn: StatusBarNotification) {
+    private fun invokeHandleNotification(sbn: StatusBarNotification, context: Context) {
         try {
-            service.handleNotification(sbn)
+            GooglePayNotificationListenerService().handleNotification(sbn, context)
         } catch (e: Exception) {
             // Expected past the queue write - see the function doc above.
         }
@@ -94,7 +92,7 @@ class GooglePayNotificationListenerServiceHandleNotificationTest {
     @Test
     fun `handleNotification queues a detected payment with the title included in the note`() {
         val queueDir = tempFolder.newFolder()
-        val service = serviceWithContext(queueDir)
+        val context = contextWithQueueDir(queueDir)
         val packageName = GooglePayNotificationListenerService.DEFAULT_WATCHED_PACKAGES.first()
         val sbn = statusBarNotificationFor(
             packageName = packageName,
@@ -103,7 +101,7 @@ class GooglePayNotificationListenerServiceHandleNotificationTest {
             bigText = null
         )
 
-        invokeHandleNotification(service, sbn)
+        invokeHandleNotification(sbn, context)
 
         val queueFile = File(queueDir, GooglePayNotificationListenerService.QUEUE_FILE_NAME)
         val queued = JSONArray(queueFile.readText())
@@ -116,7 +114,7 @@ class GooglePayNotificationListenerServiceHandleNotificationTest {
     @Test
     fun `handleNotification ignores a package that isn't watched`() {
         val queueDir = tempFolder.newFolder()
-        val service = serviceWithContext(queueDir)
+        val context = contextWithQueueDir(queueDir)
         val sbn = statusBarNotificationFor(
             packageName = "com.example.unwatched",
             title = "SAMPLE MERCHANT",
@@ -124,7 +122,7 @@ class GooglePayNotificationListenerServiceHandleNotificationTest {
             bigText = null
         )
 
-        invokeHandleNotification(service, sbn)
+        invokeHandleNotification(sbn, context)
 
         val queueFile = File(queueDir, GooglePayNotificationListenerService.QUEUE_FILE_NAME)
         assertFalse(queueFile.exists())
