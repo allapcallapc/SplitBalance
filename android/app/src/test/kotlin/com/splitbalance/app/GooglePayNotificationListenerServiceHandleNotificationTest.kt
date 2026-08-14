@@ -48,7 +48,11 @@ class GooglePayNotificationListenerServiceHandleNotificationTest {
         whenever(extras.getCharSequence(eq(Notification.EXTRA_BIG_TEXT))).thenReturn(bigText)
 
         val notification = mock<Notification>()
-        whenever(notification.extras).thenReturn(extras)
+        // Notification.extras is a plain public field with no matching getter, so
+        // Kotlin property syntax (notification.extras) reads it directly rather than
+        // calling a mockable method - Mockito never sees an invocation to stub in that
+        // case (MissingMethodInvocationException). Set the field via reflection instead.
+        Notification::class.java.getField("extras").set(notification, extras)
 
         val sbn = mock<StatusBarNotification>()
         whenever(sbn.packageName).thenReturn(packageName)
