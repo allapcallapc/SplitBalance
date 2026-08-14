@@ -7,6 +7,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * Covers the one path [GooglePayNotificationListenerServiceHandleNotificationTest]'s
@@ -16,8 +17,15 @@ import org.robolectric.RobolectricTestRunner
  * it), so Robolectric - which attaches the service to a real, working shadow
  * Context/Application - is used for just this one test rather than for the whole
  * suite, keeping the heavier Robolectric runtime scoped to where it's actually needed.
+ *
+ * sdk is pinned below the app's real compileSdk/targetSdk (whatever the installed
+ * Flutter version's Android embedding currently targets) since Robolectric only ships
+ * shadows up to whatever API level its own release supports - letting it auto-pick
+ * from the manifest fails with "Robolectric does not support API level X" the moment
+ * the app's target SDK gets ahead of Robolectric's latest supported one.
  */
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
 class GooglePayNotificationListenerServiceRobolectricTest {
 
     @Test
