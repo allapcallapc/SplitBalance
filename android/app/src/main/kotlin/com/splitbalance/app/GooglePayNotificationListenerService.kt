@@ -186,18 +186,14 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         super.onNotificationPosted(sbn)
         try {
-            handleNotification(sbn)
+            handleNotification(sbn, applicationContext)
         } catch (e: Exception) {
             // Never let a malformed notification crash the listener service.
         }
     }
 
-    /**
-     * Visible for testing - [context] defaults to [applicationContext] for the real
-     * [onNotificationPosted] call site, but takes an explicit value in tests so they
-     * don't need to spy this Service to stub applicationContext.
-     */
-    internal fun handleNotification(sbn: StatusBarNotification, context: Context = applicationContext) {
+    /** Visible for testing - [context] is explicit so tests don't need to spy this Service. */
+    internal fun handleNotification(sbn: StatusBarNotification, context: Context) {
         val watched = getWatchedPackages(context)
         if (!watched.contains(sbn.packageName)) return
 
@@ -228,7 +224,7 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
     }
 
     @Synchronized
-    private fun appendToQueue(entry: JSONObject, context: Context = applicationContext) {
+    private fun appendToQueue(entry: JSONObject, context: Context) {
         val file = queueFile(context)
         val array = if (file.exists()) {
             try {
