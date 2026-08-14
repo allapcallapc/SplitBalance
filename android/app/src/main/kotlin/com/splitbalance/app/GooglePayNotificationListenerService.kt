@@ -109,6 +109,17 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
             return PAYMENT_KEYWORDS.any { lower.contains(it) }
         }
 
+        /**
+         * Builds the note text queued for a detection and shown in the alert
+         * preview: the notification's title plus body (preferring the expanded
+         * [bigText] over the collapsed [text] when both are present). Pure/static
+         * so it's unit testable without an Android runtime.
+         */
+        internal fun buildRawText(title: String, text: String, bigText: String): String {
+            val body = if (bigText.isNotBlank()) bigText else text
+            return listOf(title, body).filter { it.isNotBlank() }.joinToString(" — ")
+        }
+
         fun getWatchedPackages(context: Context): Set<String> {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             return prefs.getStringSet(WATCHED_PACKAGES_KEY, null) ?: DEFAULT_WATCHED_PACKAGES
@@ -177,7 +188,7 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
         if (!looksLikePayment(combined, amount)) return
 
         val id = "${sbn.key}_${sbn.postTime}"
-        val rawText = if (bigText.isNotBlank()) bigText else text
+        val rawText = buildRawText(title, text, bigText)
 
         val entry = JSONObject().apply {
             put("id", id)

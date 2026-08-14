@@ -62,6 +62,33 @@ class GooglePayNotificationListenerServiceTest {
     }
 
     @Test
+    fun `buildRawText joins title and body with an em dash`() {
+        val rawText = GooglePayNotificationListenerService.buildRawText(
+            "SAMPLE MERCHANT", "\$31.20 with SOME BANK CARD ••1234", ""
+        )
+
+        assertEquals("SAMPLE MERCHANT — \$31.20 with SOME BANK CARD ••1234", rawText)
+    }
+
+    @Test
+    fun `buildRawText prefers big text over the collapsed text`() {
+        val rawText = GooglePayNotificationListenerService.buildRawText(
+            "Google Wallet", "You sent \$5", "You sent \$5.00 to Jane Doe"
+        )
+
+        assertEquals("Google Wallet — You sent \$5.00 to Jane Doe", rawText)
+    }
+
+    @Test
+    fun `buildRawText omits a blank title instead of leaving a dangling dash`() {
+        val rawText = GooglePayNotificationListenerService.buildRawText(
+            "", "You sent \$5", ""
+        )
+
+        assertEquals("You sent \$5", rawText)
+    }
+
+    @Test
     fun `accepted tradeoff - a non-payment notification with a dollar amount still matches`() {
         // Documents an intentional false-positive: since this is only reached for a
         // watched payment-app package, a balance/promo message with a dollar figure
