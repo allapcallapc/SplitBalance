@@ -63,6 +63,17 @@ android {
             }
         }
     }
+
+    testOptions {
+        unitTests {
+            // Without this, any unstubbed Android SDK call throws immediately (the
+            // default "not mocked" behavior for local unit tests without Robolectric),
+            // which can stop JaCoCo from ever registering the calling line as reached.
+            // Returning defaults (null/0/false) instead lets execution - and coverage -
+            // proceed further before the eventual (expected, caught) failure.
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 flutter {
