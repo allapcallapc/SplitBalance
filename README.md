@@ -16,13 +16,15 @@ SplitBalance is a Flutter web app for managing shared bills with Google Drive st
 - Dart SDK (version 3.0.0 or higher)
 - Google Cloud Console account (for Google Drive API setup)
 
-## Regenerating the app icon
+## App icon
 
-The app icon is generated from `assets/logo.png` using [flutter_launcher_icons](https://pub.dev/packages/flutter_launcher_icons). To update it, replace `assets/logo.png` with a new square image (1024x1024 recommended) and run:
+The app icon is generated from `assets/logo.png` using [flutter_launcher_icons](https://pub.dev/packages/flutter_launcher_icons), based on the `flutter_launcher_icons` config in `pubspec.yaml`. It regenerates the Android launcher icons under `android/app/src/main/res/mipmap-*` and the web icons/favicon under `web/icons` and `web/favicon.png`.
+
+CI runs `dart run flutter_launcher_icons` as part of every web/APK build (see `.github/workflows/deploy.yml`, `deploy-main.yml`, `deploy-pr-preview.yml`, and `release-apk.yml`), so shipped builds always reflect the current `assets/logo.png` - the generated files under `android/app/src/main/res/mipmap-*` and `web/icons`/`web/favicon.png` are build output, not a source of truth, and don't need to be committed.
+
+To update the icon, replace `assets/logo.png` with a new square image (1024x1024 recommended) and commit it - no other steps required. To preview the result locally:
 
 ```
 flutter pub get
 dart run flutter_launcher_icons
 ```
-
-This regenerates the Android launcher icons under `android/app/src/main/res/mipmap-*` and the web icons/favicon under `web/icons` and `web/favicon.png`, based on the `flutter_launcher_icons` config in `pubspec.yaml`.
