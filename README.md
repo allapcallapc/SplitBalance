@@ -15,3 +15,14 @@ SplitBalance is a Flutter web app for managing shared bills with Google Drive st
 - Flutter SDK (version 3.0.0 or higher)
 - Dart SDK (version 3.0.0 or higher)
 - Google Cloud Console account (for Google Drive API setup)
+
+## Regenerating the app icon
+
+The app icon is generated from `assets/logo.png` using [flutter_launcher_icons](https://pub.dev/packages/flutter_launcher_icons). To update it, replace `assets/logo.png` with a new square image (1024x1024 recommended) and run:
+
+```
+flutter pub get
+dart run flutter_launcher_icons
+```
+
+This regenerates the Android launcher icons under `android/app/src/main/res/mipmap-*` and the web icons/favicon under `web/icons` and `web/favicon.png`, based on the `flutter_launcher_icons` config in `pubspec.yaml`.
