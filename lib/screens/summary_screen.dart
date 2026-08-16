@@ -6,6 +6,7 @@ import '../providers/calculation_provider.dart';
 import '../providers/payment_splits_provider.dart';
 import '../providers/categories_provider.dart';
 import '../providers/config_provider.dart';
+import '../services/calculation_service.dart';
 import '../widgets/app_bar_action_icon_button.dart';
 import '../widgets/ledger_visuals.dart';
 import 'category_detail_screen.dart';
@@ -49,16 +50,77 @@ class _SummaryScreenState extends State<SummaryScreen> {
     }
   }
 
-  // Tints the current theme's own surface color with the accent instead of
-  // using a fixed Material [accent][50]/withValues(alpha: 0.3) swatch, so the
-  // card blends with non-blue-seeded themes (e.g. pink, teal) instead of
-  // clashing against their tinted scaffold/card backgrounds.
-  Color _netBalanceCardColor(BuildContext context, MaterialColor accent) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    return Color.alphaBlend(
-      accent.withValues(alpha: isDark ? 0.3 : 0.15),
-      theme.colorScheme.surface,
+  // Background/foreground for the Net Balance card. "Owed to you" and "you
+  // owe" lean on the theme's own primary/tertiary container colors instead
+  // of fixed Material blue/orange swatches, so the card is guaranteed to
+  // harmonize with whichever seed color is active (blue, pink, teal, ...)
+  // rather than clashing against it - a flat alpha tint over the theme's
+  // near-white surface wasn't enough to shed the "generic blue" look on a
+  // pink or teal background. Balanced keeps a literal green tint: a
+  // universal "all settled" signal that reads fine regardless of theme.
+  ({Color background, Color foreground}) _netBalanceCardStyle(
+    BuildContext context,
+    double netBalance,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    if (netBalance.abs() < 0.01) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      return (
+        background: Color.alphaBlend(
+          Colors.green.withValues(alpha: isDark ? 0.3 : 0.15),
+          scheme.surface,
+        ),
+        foreground: isDark ? Colors.green[300]! : Colors.green[900]!,
+      );
+    }
+    if (netBalance > 0) {
+      return (
+        background: scheme.primaryContainer,
+        foreground: scheme.onPrimaryContainer,
+      );
+    }
+    return (
+      background: scheme.tertiaryContainer,
+      foreground: scheme.onTertiaryContainer,
+    );
+  }
+
+  Widget _buildNetBalanceCard(
+    BuildContext context,
+    AppLocalizations l10n,
+    BalanceResult result,
+    CalculationProvider calculationProvider,
+  ) {
+    final cardStyle = _netBalanceCardStyle(context, result.netBalance);
+    return Card(
+      color: cardStyle.background,
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          children: [
+            Text(
+              result.netBalance.abs() < 0.01
+                  ? l10n.allBalanced
+                  : l10n.netBalance,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: cardStyle.foreground,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              calculationProvider.getBalanceMessage(l10n),
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: cardStyle.foreground,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -198,51 +260,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Net Balance Card
-                Card(
-                  color: result.netBalance.abs() < 0.01
-                      ? _netBalanceCardColor(context, Colors.green)
-                      : (result.netBalance > 0
-                          ? _netBalanceCardColor(context, Colors.blue)
-                          : _netBalanceCardColor(context, Colors.orange)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      children: [
-                        Text(
-                          result.netBalance.abs() < 0.01
-                              ? l10n.allBalanced
-                              : l10n.netBalance,
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: result.netBalance.abs() < 0.01
-                                ? (Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? Colors.green[300]
-                                    : Colors.green[900])
-                                : Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          calculationProvider.getBalanceMessage(l10n),
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: result.netBalance.abs() < 0.01
-                                ? (Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? Colors.green[300]
-                                    : Colors.green[900])
-                                : Theme.of(context).colorScheme.onSurface,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                _buildNetBalanceCard(
+                    context, l10n, result, calculationProvider),
                 const SizedBox(height: 24),
 
                 // Expense Summary
