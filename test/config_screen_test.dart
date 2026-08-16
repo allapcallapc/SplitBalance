@@ -173,6 +173,12 @@ void main() {
 
     expect(configProvider.language, AppLanguage.english);
 
+    // The language selector sits below the theme selector, past the
+    // default 800x600 test viewport while signed out - scroll it into view
+    // before tapping (unlike the theme selector's "Dark" segment, which is
+    // high enough up to already be on-screen).
+    await tester.ensureVisible(find.text('French'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('French'));
     await tester.pump();
 
