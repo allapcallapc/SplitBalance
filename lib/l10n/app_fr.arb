@@ -27,6 +27,7 @@
     }
   },
   "noBillsYet": "Aucune facture pour le moment",
+  "noBillsMatchFilters": "Aucune facture ne correspond à vos filtres",
   "addYourFirstBill": "Ajouter votre première facture",
   "bill": "Facture",
   "date": "Date",

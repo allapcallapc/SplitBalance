@@ -581,7 +581,7 @@ class _BillsListScreenState extends State<BillsListScreen>
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            l10n.noBillsYet,
+                            l10n.noBillsMatchFilters,
                             style: const TextStyle(
                               fontSize: 18,
                               color: Colors.grey,

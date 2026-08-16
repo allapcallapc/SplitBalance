@@ -218,6 +218,12 @@ abstract class AppLocalizations {
   /// **'No bills yet'**
   String get noBillsYet;
 
+  /// Message when there are bills but none match the active filters
+  ///
+  /// In en, this message translates to:
+  /// **'No bills match your filters'**
+  String get noBillsMatchFilters;
+
   /// Button to add first bill
   ///
   /// In en, this message translates to:

@@ -85,6 +85,10 @@
   "@noBillsYet": {
     "description": "Message when there are no bills"
   },
+  "noBillsMatchFilters": "No bills match your filters",
+  "@noBillsMatchFilters": {
+    "description": "Message when there are bills but none match the active filters"
+  },
   "addYourFirstBill": "Add Your First Bill",
   "@addYourFirstBill": {
     "description": "Button to add first bill"

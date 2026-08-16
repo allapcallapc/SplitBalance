@@ -72,6 +72,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get noBillsYet => 'Aucune facture pour le moment';
 
   @override
+  String get noBillsMatchFilters => 'Aucune facture ne correspond à vos filtres';
+
+  @override
   String get addYourFirstBill => 'Ajouter votre première facture';
 
   @override

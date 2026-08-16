@@ -72,6 +72,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noBillsYet => 'No bills yet';
 
   @override
+  String get noBillsMatchFilters => 'No bills match your filters';
+
+  @override
   String get addYourFirstBill => 'Add Your First Bill';
 
   @override
