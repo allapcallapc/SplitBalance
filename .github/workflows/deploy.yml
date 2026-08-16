@@ -46,6 +46,8 @@ jobs:
 
       - name: Generate app icons
         uses: ./.github/actions/generate-app-icons
+        with:
+          platform: web
 
       - name: Determine version from tag
         id: version
