@@ -289,4 +289,132 @@ void main() {
         .widget<TextField>(find.widgetWithText(TextField, 'Your name'));
     expect(nameField.controller?.text, 'Alice');
   });
+
+  testWidgets(
+      'the Account card shows a spinner and disables the sign-out button '
+      'while a sign-out is in flight', (tester) async {
+    // A complete household (rather than the default no-household state)
+    // keeps the household-setup card's own isLoading-gated "Create
+    // household" spinner button off screen, so the sign-out button's
+    // spinner is the only new one this test needs to reason about.
+    final configProvider = ConfigProvider.forTesting(
+      isSignedIn: true,
+      currentUserEmail: 'alice@example.com',
+      currentUserId: 'user-1',
+      config: AppConfig(
+        householdId: 'household-1',
+        person1Name: 'Alice',
+        person2Name: 'Bob',
+      ),
+      memberNamesByUserId: const {'user-1': 'Alice', 'user-2': 'Bob'},
+    );
+    await pumpConfigScreen(
+      tester,
+      configProvider: configProvider,
+      categoriesProvider: CategoriesProvider(
+        fetchCategories: ({required householdId}) async => const [
+          {'id': 'cat-1', 'name': 'Groceries', 'icon': null},
+        ],
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    final spinnerInButton = find.descendant(
+      of: find.byType(ElevatedButton),
+      matching: find.byType(CircularProgressIndicator),
+    );
+    expect(spinnerInButton, findsNothing);
+    expect(find.widgetWithText(ElevatedButton, 'Sign Out'), findsOneWidget);
+
+    final signOutFuture = configProvider.signOut();
+    await tester.pump();
+
+    expect(spinnerInButton, findsOneWidget);
+    expect(find.widgetWithText(ElevatedButton, 'Sign Out'), findsNothing);
+    final signOutButton = tester.widget<ElevatedButton>(
+      find.ancestor(of: spinnerInButton, matching: find.byType(ElevatedButton)),
+    );
+    expect(signOutButton.onPressed, isNull);
+
+    // Let the (failing, offline) network call finish so no timer/future is
+    // left dangling past the end of the test.
+    await signOutFuture;
+    await tester.pump(const Duration(seconds: 1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      "currentUserEmail and myPersonName fall back to reading Supabase's "
+      "real auth client when not using ConfigProvider.forTesting's "
+      'override (both null while signed out, since nothing more than the '
+      'real branch itself is reachable without a live Supabase session)',
+      (tester) async {
+    final configProvider = ConfigProvider();
+
+    expect(configProvider.currentUserEmail, isNull);
+    expect(configProvider.myPersonName, isNull);
+
+    // Flush the constructor's background _loadConfig() microtask so
+    // nothing is left pending past the end of the test.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'updateMyPersonName falls back to the real Supabase update when not '
+      'using the override-only test double, and safely records the '
+      'failure instead of throwing (offline test environment)',
+      (tester) async {
+    final configProvider = ConfigProvider.forTesting(
+      isSignedIn: true,
+      currentUserId: 'user-1',
+      config: AppConfig(
+        householdId: 'household-1',
+        person1Name: 'Alice',
+        person2Name: 'Bob',
+      ),
+    );
+
+    await configProvider.updateMyPersonName('New Name');
+
+    expect(configProvider.error, isNotNull);
+  });
+
+  testWidgets(
+      'reloadHouseholdMembers falls back to the real Supabase household '
+      'lookup and safely completes instead of throwing (offline test '
+      'environment)', (tester) async {
+    final configProvider = ConfigProvider.forTesting(
+      isSignedIn: true,
+      currentUserId: 'user-1',
+    );
+
+    await configProvider.reloadHouseholdMembers();
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'CategoriesProvider.loadCategories falls back to the real Supabase '
+      'query when no fetchCategories override is given, and safely '
+      'records the failure instead of throwing (offline test environment)',
+      (tester) async {
+    final configProvider = ConfigProvider.forTesting(
+      isSignedIn: true,
+      currentUserId: 'user-1',
+      config: AppConfig(
+        householdId: 'household-1',
+        person1Name: 'Alice',
+        person2Name: 'Bob',
+      ),
+    );
+    final categoriesProvider = CategoriesProvider();
+
+    await categoriesProvider.loadCategories(configProvider);
+
+    expect(categoriesProvider.categories, isEmpty);
+    expect(categoriesProvider.error, isNotNull);
+  });
 }
