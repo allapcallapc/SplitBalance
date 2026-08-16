@@ -133,4 +133,36 @@ void main() {
     expect(find.text('Intermediate Screen'), findsNothing);
     expect(find.text('Root Marker'), findsOneWidget);
   });
+
+  testWidgets(
+      'shows the French tooltip for the view-bills action when the French '
+      'locale is active', (tester) async {
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ConfigProvider()),
+          ChangeNotifierProvider(create: (_) => BillsProvider()),
+          ChangeNotifierProvider(create: (_) => TabNavigationProvider()),
+        ],
+        child: MaterialApp(
+          locale: const Locale('fr'),
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [Locale('en'), Locale('fr')],
+          home: _buildCategoryDetailScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.byTooltip('Voir les factures de cette catégorie'),
+      findsOneWidget,
+    );
+  });
 }
