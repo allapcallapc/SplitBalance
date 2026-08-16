@@ -649,6 +649,10 @@
   "@noBillsInCategory": {
     "description": "Empty state shown on the category detail screen when the category has no bills"
   },
+  "viewBillsInCategory": "View bills in this category",
+  "@viewBillsInCategory": {
+    "description": "Tooltip for the app bar action on the category detail screen that jumps to the Bills tab filtered to this category"
+  },
   "noBillsToChart": "No bills to chart yet",
   "@noBillsToChart": {
     "description": "Empty state shown on the total detail screen when there are no bills at all"

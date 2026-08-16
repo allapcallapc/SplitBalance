@@ -27,6 +27,7 @@ import 'package:splitbalance/providers/categories_provider.dart';
 import 'package:splitbalance/providers/config_provider.dart';
 import 'package:splitbalance/providers/payment_splits_provider.dart';
 import 'package:splitbalance/providers/pending_payments_provider.dart';
+import 'package:splitbalance/providers/tab_navigation_provider.dart';
 import 'package:splitbalance/services/tab_index_store.dart';
 
 /// Records calls and, when [loadDelay] is set, lets a test hold
@@ -77,6 +78,7 @@ Future<void> pumpMainNavigationScreen(
         ChangeNotifierProvider(create: (_) => CategoriesProvider()),
         ChangeNotifierProvider(create: (_) => CalculationProvider()),
         ChangeNotifierProvider(create: (_) => PendingPaymentsProvider()),
+        ChangeNotifierProvider(create: (_) => TabNavigationProvider()),
       ],
       child: MaterialApp(
         localizationsDelegates: const [

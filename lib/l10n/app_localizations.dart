@@ -974,6 +974,12 @@ abstract class AppLocalizations {
   /// **'No bills in this category yet'**
   String get noBillsInCategory;
 
+  /// Tooltip for the app bar action on the category detail screen that jumps to the Bills tab filtered to this category
+  ///
+  /// In en, this message translates to:
+  /// **'View bills in this category'**
+  String get viewBillsInCategory;
+
   /// Empty state shown on the total detail screen when there are no bills at all
   ///
   /// In en, this message translates to:
