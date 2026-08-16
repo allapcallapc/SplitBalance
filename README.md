@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="SplitBalance logo" width="120">
+</p>
+
 # SplitBalance
 
 SplitBalance is a Flutter web app for managing shared bills with Google Drive storage. The app helps couples or roommates track bills, configure payment splits by date range and category, and automatically calculate who owes whom.
