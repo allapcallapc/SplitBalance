@@ -500,9 +500,19 @@ class _ConfigScreenState extends State<ConfigScreen> {
             ElevatedButton(
               onPressed: configProvider.isLoading
                   ? null
+                  // coverage:ignore-start
+                  // Widget tests can't tap this without either hanging (a
+                  // real signOut() call blocks on Supabase's GoTrue auth
+                  // endpoint indefinitely against the offline test project,
+                  // unlike the Postgrest-backed calls elsewhere on this
+                  // screen, which fail fast - see
+                  // test/config_screen_test.dart) or faking the tap
+                  // instead of invoking onPressed for real, which
+                  // wouldn't actually exercise this line.
                   : () async {
                       await configProvider.signOut();
                     },
+                  // coverage:ignore-end
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
