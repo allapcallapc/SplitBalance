@@ -292,7 +292,8 @@ void main() {
 
   testWidgets(
       'the Account card shows a spinner and disables the sign-out button '
-      'while a sign-out is in flight', (tester) async {
+      'while any ConfigProvider operation is in flight (isLoading is a '
+      'single shared flag)', (tester) async {
     // A complete household (rather than the default no-household state)
     // keeps the household-setup card's own isLoading-gated "Create
     // household" spinner button off screen, so the sign-out button's
@@ -327,7 +328,14 @@ void main() {
     expect(spinnerInButton, findsNothing);
     expect(find.widgetWithText(ElevatedButton, 'Sign Out'), findsOneWidget);
 
-    final signOutFuture = configProvider.signOut();
+    // Driven via createHousehold rather than signOut: both flip the same
+    // shared configProvider.isLoading flag the Account card renders off
+    // of, but createHousehold hits Postgrest's RPC endpoint, which (like
+    // the plain table queries exercised elsewhere in this file) fails
+    // fast against the offline test Supabase project. signOut hits the
+    // GoTrue auth endpoint instead, which - unlike Postgrest - was
+    // observed in CI to hang rather than fail fast, timing the test out.
+    final createHouseholdFuture = configProvider.createHousehold('Someone');
     await tester.pump();
 
     expect(spinnerInButton, findsOneWidget);
@@ -339,7 +347,7 @@ void main() {
 
     // Let the (failing, offline) network call finish so no timer/future is
     // left dangling past the end of the test.
-    await signOutFuture;
+    await createHouseholdFuture;
     await tester.pump(const Duration(seconds: 1));
     expect(tester.takeException(), isNull);
   });
