@@ -18,6 +18,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:splitbalance/l10n/app_localizations.dart';
+import 'package:splitbalance/l10n/app_localizations_fr.dart';
 import 'package:splitbalance/providers/bills_provider.dart';
 import 'package:splitbalance/providers/categories_provider.dart';
 import 'package:splitbalance/providers/config_provider.dart';
@@ -94,5 +95,15 @@ void main() {
     expect(find.text('No bills yet'), findsNothing);
     expect(find.text('Add Your First Bill'), findsNothing);
     expect(find.text('Clear filters'), findsOneWidget);
+  });
+
+  test(
+      'AppLocalizationsFr provides a French noBillsMatchFilters translation '
+      '(no widget test exercises the fr locale, so this covers the getter '
+      'directly)', () {
+    expect(
+      AppLocalizationsFr().noBillsMatchFilters,
+      'Aucune facture ne correspond à vos filtres',
+    );
   });
 }
