@@ -668,36 +668,6 @@ abstract class AppLocalizations {
   /// **'French'**
   String get french;
 
-  /// Title for clear all config dialog
-  ///
-  /// In en, this message translates to:
-  /// **'Clear All Configuration?'**
-  String get clearAllConfiguration;
-
-  /// Message for clearing all configuration
-  ///
-  /// In en, this message translates to:
-  /// **'This will:\n\n• Sign out from Google\n• Clear folder selection\n• Clear person names\n• Clear all saved settings\n\nThis action cannot be undone.'**
-  String get clearAllConfigMessage;
-
-  /// Button label for clear all configuration
-  ///
-  /// In en, this message translates to:
-  /// **'Clear All Configuration'**
-  String get clearAllConfigurationButton;
-
-  /// Button label to clear all config
-  ///
-  /// In en, this message translates to:
-  /// **'Clear All'**
-  String get clearAll;
-
-  /// Success message when config is cleared
-  ///
-  /// In en, this message translates to:
-  /// **'All configuration cleared'**
-  String get allConfigCleared;
-
   /// Button label to calculate balances
   ///
   /// In en, this message translates to:

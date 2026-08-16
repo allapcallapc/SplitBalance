@@ -317,22 +317,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get french => 'Français';
 
   @override
-  String get clearAllConfiguration => 'Effacer toute la configuration ?';
-
-  @override
-  String get clearAllConfigMessage =>
-      'Cela va :\n\n• Vous déconnecter de Google\n• Effacer la sélection du dossier\n• Effacer les noms des personnes\n• Effacer tous les paramètres enregistrés\n\nCette action ne peut pas être annulée.';
-
-  @override
-  String get clearAllConfigurationButton => 'Effacer toute la configuration';
-
-  @override
-  String get clearAll => 'Tout effacer';
-
-  @override
-  String get allConfigCleared => 'Toute la configuration a été effacée';
-
-  @override
   String get calculateBalances => 'Calculer les soldes';
 
   @override

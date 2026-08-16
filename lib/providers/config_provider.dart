@@ -234,35 +234,6 @@ class ConfigProvider with ChangeNotifier {
     }
   }
 
-  // Clear all configuration
-  Future<void> clearAllConfig() async {
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      try {
-        await _supabase.auth.signOut();
-      } catch (e) {
-        // Ignore sign out errors
-      }
-
-      // Clear all SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
-
-      // Reset config to default (keep language preference)
-      final currentLanguage = _config.language;
-      _config = AppConfig(
-          person1Name: '', person2Name: '', language: currentLanguage);
-      _error = null;
-    } catch (e) {
-      _error = 'Failed to clear configuration: $e';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
   // Create a new household and join it as its first member.
   Future<bool> createHousehold(String personName) async {
     if (!isSignedIn) {
