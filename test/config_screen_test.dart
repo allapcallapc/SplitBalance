@@ -176,9 +176,14 @@ void main() {
     // The language selector sits below the theme selector, past the
     // default 800x600 test viewport while signed out - scroll it into view
     // before tapping (unlike the theme selector's "Dark" segment, which is
-    // high enough up to already be on-screen).
+    // high enough up to already be on-screen). Can't use pumpAndSettle to
+    // wait out the scroll animation: GooglePayDetectionSection shows its
+    // own CircularProgressIndicator until its platform-channel query
+    // resolves, which never happens in a test environment, so its ticker
+    // animates indefinitely and pumpAndSettle would hang forever (same
+    // constraint documented in main_navigation_screen_test.dart).
     await tester.ensureVisible(find.text('French'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('French'));
     await tester.pump();
 
