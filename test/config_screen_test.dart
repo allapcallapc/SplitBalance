@@ -19,6 +19,7 @@ import 'package:splitbalance/l10n/app_localizations.dart';
 import 'package:splitbalance/models/app_config.dart';
 import 'package:splitbalance/providers/categories_provider.dart';
 import 'package:splitbalance/providers/config_provider.dart';
+import 'package:splitbalance/providers/pending_payments_provider.dart';
 import 'package:splitbalance/screens/config_screen.dart';
 
 Future<void> pumpConfigScreen(
@@ -33,6 +34,10 @@ Future<void> pumpConfigScreen(
         ChangeNotifierProvider.value(
           value: categoriesProvider ?? CategoriesProvider(),
         ),
+        // ConfigScreen always renders GooglePayDetectionSection, which
+        // reads PendingPaymentsProvider directly - without this the whole
+        // screen throws ProviderNotFoundException regardless of auth state.
+        ChangeNotifierProvider(create: (_) => PendingPaymentsProvider()),
       ],
       child: const MaterialApp(
         localizationsDelegates: [
