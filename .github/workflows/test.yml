@@ -42,6 +42,9 @@ jobs:
       - name: Run analysis
         run: flutter analyze --no-fatal-infos
 
+      - name: Generate app icons
+        run: dart run flutter_launcher_icons
+
       - name: Run Android unit tests
         run: |
           flutter build apk --debug --target-platform android-arm64
