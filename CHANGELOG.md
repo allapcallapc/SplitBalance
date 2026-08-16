@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.2.0](https://github.com/allapcallapc/SplitBalance/compare/v3.1.0...v3.2.0) (2026-08-16)
+
+
+### Features
+
+* include notification title in the Google Pay bill note ([#65](https://github.com/allapcallapc/SplitBalance/issues/65)) ([e1db84e](https://github.com/allapcallapc/SplitBalance/commit/e1db84e6c25a7d9b81c33c2d86c9996d9c046146))
+* replace app icon and automate icon generation with flutter_launcher_icons ([99d4c07](https://github.com/allapcallapc/SplitBalance/commit/99d4c074c3d861981c4aece2a64361a1a9c040b4))
+
 ## [3.1.0](https://github.com/allapcallapc/SplitBalance/compare/v3.0.0...v3.1.0) (2026-08-08)
 
 
