@@ -49,6 +49,19 @@ class _SummaryScreenState extends State<SummaryScreen> {
     }
   }
 
+  // Tints the current theme's own surface color with the accent instead of
+  // using a fixed Material [accent][50]/withValues(alpha: 0.3) swatch, so the
+  // card blends with non-blue-seeded themes (e.g. pink, teal) instead of
+  // clashing against their tinted scaffold/card backgrounds.
+  Color _netBalanceCardColor(BuildContext context, MaterialColor accent) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    return Color.alphaBlend(
+      accent.withValues(alpha: isDark ? 0.3 : 0.15),
+      theme.colorScheme.surface,
+    );
+  }
+
   Future<void> _calculateBalances() async {
     final configProvider = context.read<ConfigProvider>();
     final splitsProvider = context.read<PaymentSplitsProvider>();
@@ -188,16 +201,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 // Net Balance Card
                 Card(
                   color: result.netBalance.abs() < 0.01
-                      ? (Theme.of(context).brightness == Brightness.dark
-                          ? Colors.green.withValues(alpha: 0.3)
-                          : Colors.green[50])
+                      ? _netBalanceCardColor(context, Colors.green)
                       : (result.netBalance > 0
-                          ? (Theme.of(context).brightness == Brightness.dark
-                              ? Colors.blue.withValues(alpha: 0.3)
-                              : Colors.blue[50])
-                          : (Theme.of(context).brightness == Brightness.dark
-                              ? Colors.orange.withValues(alpha: 0.3)
-                              : Colors.orange[50])),
+                          ? _netBalanceCardColor(context, Colors.blue)
+                          : _netBalanceCardColor(context, Colors.orange)),
                   child: Padding(
                     padding: const EdgeInsets.all(24.0),
                     child: Column(
