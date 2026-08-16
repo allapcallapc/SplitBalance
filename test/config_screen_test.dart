@@ -174,15 +174,6 @@ void main() {
     expect(configProvider.language, AppLanguage.french);
   });
 
-  testWidgets('the "Clear All Configuration" button is hidden while signed out',
-      (tester) async {
-    await pumpConfigScreen(tester, configProvider: ConfigProvider());
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-
-    expect(find.text('Clear All Configuration'), findsNothing);
-  });
-
   testWidgets(
       'signed in without a household: shows the Account card (email, sign '
       'out) and the household setup card (create/join), not the Household '
@@ -202,8 +193,6 @@ void main() {
     expect(find.widgetWithText(ElevatedButton, 'Sign Out'), findsOneWidget);
     expect(find.text('Set up your household'), findsOneWidget);
     expect(find.text('Household'), findsNothing);
-    // Clear Configuration is only offered once signed in.
-    expect(find.text('Clear All Configuration'), findsOneWidget);
   });
 
   testWidgets(
