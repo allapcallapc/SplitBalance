@@ -6,6 +6,7 @@ import '../providers/calculation_provider.dart';
 import '../providers/payment_splits_provider.dart';
 import '../providers/categories_provider.dart';
 import '../providers/config_provider.dart';
+import '../services/calculation_service.dart';
 import '../widgets/app_bar_action_icon_button.dart';
 import '../widgets/ledger_visuals.dart';
 import 'category_detail_screen.dart';
@@ -47,6 +48,82 @@ class _SummaryScreenState extends State<SummaryScreen> {
     } else {
       _lastNavigationIndex = currentIndex;
     }
+  }
+
+  // Background/foreground for the Net Balance card. "Owed to you"/"you owe"
+  // are tinted with the color of whichever person is owed money - the same
+  // teal/orange used for their dot, proportional-bar segment, and legend
+  // entry elsewhere on this screen (see PersonColors) - so the card ties
+  // back to a color that already identifies that person on this page,
+  // instead of a hue picked only to fit the active theme. Balanced keeps a
+  // literal green tint: a universal "all settled" signal with no receiver
+  // to color it by.
+  ({Color background, Color foreground}) _netBalanceCardStyle(
+    BuildContext context,
+    double netBalance,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (netBalance.abs() < 0.01) {
+      return (
+        background: Color.alphaBlend(
+          Colors.green.withValues(alpha: isDark ? 0.3 : 0.15),
+          scheme.surface,
+        ),
+        foreground: isDark ? Colors.green[300]! : Colors.green[900]!,
+      );
+    }
+    // netBalance > 0 means person1 owes person2 (see
+    // CalculationProvider.getBalanceMessage), so person2 is who should
+    // receive money, and vice versa.
+    final receiver =
+        netBalance > 0 ? PersonColors.person2 : PersonColors.person1;
+    return (
+      background: Color.alphaBlend(
+        receiver.withValues(alpha: isDark ? 0.3 : 0.15),
+        scheme.surface,
+      ),
+      foreground: receiver,
+    );
+  }
+
+  Widget _buildNetBalanceCard(
+    BuildContext context,
+    AppLocalizations l10n,
+    BalanceResult result,
+    CalculationProvider calculationProvider,
+  ) {
+    final cardStyle = _netBalanceCardStyle(context, result.netBalance);
+    return Card(
+      color: cardStyle.background,
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          children: [
+            Text(
+              result.netBalance.abs() < 0.01
+                  ? l10n.allBalanced
+                  : l10n.netBalance,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: cardStyle.foreground,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              calculationProvider.getBalanceMessage(l10n),
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: cardStyle.foreground,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _calculateBalances() async {
@@ -185,57 +262,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Net Balance Card
-                Card(
-                  color: result.netBalance.abs() < 0.01
-                      ? (Theme.of(context).brightness == Brightness.dark
-                          ? Colors.green.withValues(alpha: 0.3)
-                          : Colors.green[50])
-                      : (result.netBalance > 0
-                          ? (Theme.of(context).brightness == Brightness.dark
-                              ? Colors.blue.withValues(alpha: 0.3)
-                              : Colors.blue[50])
-                          : (Theme.of(context).brightness == Brightness.dark
-                              ? Colors.orange.withValues(alpha: 0.3)
-                              : Colors.orange[50])),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      children: [
-                        Text(
-                          result.netBalance.abs() < 0.01
-                              ? l10n.allBalanced
-                              : l10n.netBalance,
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: result.netBalance.abs() < 0.01
-                                ? (Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? Colors.green[300]
-                                    : Colors.green[900])
-                                : Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          calculationProvider.getBalanceMessage(l10n),
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: result.netBalance.abs() < 0.01
-                                ? (Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? Colors.green[300]
-                                    : Colors.green[900])
-                                : Theme.of(context).colorScheme.onSurface,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                _buildNetBalanceCard(
+                    context, l10n, result, calculationProvider),
                 const SizedBox(height: 24),
 
                 // Expense Summary
@@ -315,11 +343,14 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         // would paint after (i.e. over) the ink features
                         // layer from the Card's Material further up, masking
                         // the effect the other (undecorated) ledger rows show.
+                        // Transparent so the Total row shows the same
+                        // background as every other row (the Card's own
+                        // color) instead of a fixed grey that only matched
+                        // the default blue theme's near-white/near-black
+                        // card colors and stood out as a mismatched band on
+                        // pink/teal.
                         child: Material(
-                          color: Theme.of(context).brightness ==
-                                  Brightness.dark
-                              ? Colors.grey[850]
-                              : Colors.grey[50],
+                          color: Colors.transparent,
                           borderRadius: const BorderRadius.vertical(
                               bottom: Radius.circular(12)),
                           clipBehavior: Clip.antiAlias,

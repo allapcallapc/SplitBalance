@@ -17,6 +17,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:splitbalance/l10n/app_localizations.dart';
+import 'package:splitbalance/models/bill.dart';
+import 'package:splitbalance/models/category.dart';
+import 'package:splitbalance/models/payment_split.dart';
 import 'package:splitbalance/providers/bills_provider.dart';
 import 'package:splitbalance/providers/calculation_provider.dart';
 import 'package:splitbalance/providers/categories_provider.dart';
@@ -309,5 +312,102 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(CategoryDetailScreen), findsOneWidget);
     expect(find.text('No bills in this category yet'), findsOneWidget);
+  });
+
+  testWidgets(
+      'Net Balance card shows the balanced state when paid matches expected '
+      'share (exercises the balanced/green branch of the card color)',
+      (tester) async {
+    final calculationProvider = CalculationProvider(
+      aggregatedCalculationService: AggregatedCalculationService(),
+    );
+
+    // Alice and Bob each paid half of a category split 50/50, so person1's
+    // expected share (50) equals what they actually paid (50) - netBalance
+    // lands exactly on 0.
+    final future = calculationProvider.calculateBalances(
+      bills: [
+        Bill(
+          date: DateTime(2026, 1, 1),
+          amount: 50,
+          paidBy: 'Alice',
+          category: 'Groceries',
+        ),
+        Bill(
+          date: DateTime(2026, 1, 1),
+          amount: 50,
+          paidBy: 'Bob',
+          category: 'Groceries',
+        ),
+      ],
+      splits: [
+        PaymentSplit(
+          category: 'all',
+          person1: 'Alice',
+          person1Percentage: 50,
+          person2: 'Bob',
+          person2Percentage: 50,
+        ),
+      ],
+      categories: [Category(name: 'Groceries')],
+      person1Name: 'Alice',
+      person2Name: 'Bob',
+    );
+    await pumpSummaryScreen(tester, calculationProvider: calculationProvider);
+    await tester.pump();
+    await future;
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(calculationProvider.balanceResult!.netBalance, closeTo(0.0, 0.01));
+    expect(find.text('All Balanced!'), findsOneWidget);
+  });
+
+  testWidgets(
+      'Net Balance card shows the "owes" state when person1 paid less than '
+      'their expected share (exercises the positive/blue branch of the '
+      'card color)', (tester) async {
+    final calculationProvider = CalculationProvider(
+      aggregatedCalculationService: AggregatedCalculationService(),
+    );
+
+    // Total spend of 100 split 50/50 means each expects to have paid 50;
+    // Alice only paid 30, so she still owes Bob the remaining 20.
+    final future = calculationProvider.calculateBalances(
+      bills: [
+        Bill(
+          date: DateTime(2026, 1, 1),
+          amount: 30,
+          paidBy: 'Alice',
+          category: 'Groceries',
+        ),
+        Bill(
+          date: DateTime(2026, 1, 1),
+          amount: 70,
+          paidBy: 'Bob',
+          category: 'Groceries',
+        ),
+      ],
+      splits: [
+        PaymentSplit(
+          category: 'all',
+          person1: 'Alice',
+          person1Percentage: 50,
+          person2: 'Bob',
+          person2Percentage: 50,
+        ),
+      ],
+      categories: [Category(name: 'Groceries')],
+      person1Name: 'Alice',
+      person2Name: 'Bob',
+    );
+    await pumpSummaryScreen(tester, calculationProvider: calculationProvider);
+    await tester.pump();
+    await future;
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(calculationProvider.balanceResult!.netBalance, greaterThan(0));
+    expect(find.text('Alice owes Bob \$20.00'), findsOneWidget);
   });
 }
