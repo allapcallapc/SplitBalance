@@ -487,7 +487,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      configProvider.currentUser?.email ?? 'Signed in',
+                      configProvider.currentUserEmail ?? 'Signed in',
                       style: TextStyle(
                           fontSize: 14, color: Colors.green[900]),
                       overflow: TextOverflow.ellipsis,

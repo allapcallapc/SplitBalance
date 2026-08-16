@@ -1,12 +1,12 @@
-// Widget-level coverage for ConfigScreen. ConfigProvider talks directly to
-// Supabase.instance.client with no DI seam (see
-// lib/providers/config_provider.dart), so a real signed-in state - and with
-// it the Account/Household card split added for the household-section-split
-// change - can't be driven here (same limitation documented in
-// test/summary_screen_test.dart and test/main_navigation_screen_test.dart).
-// This exercises everything reachable from the not-signed-in auth card:
-// sign-in/sign-up mode toggling, client-side form validation, and the
-// always-visible theme/language selectors.
+// Widget-level coverage for ConfigScreen. ConfigProvider normally talks
+// directly to Supabase.instance.client with no DI seam, which is why
+// test/summary_screen_test.dart and test/main_navigation_screen_test.dart
+// can only drive the not-signed-in path. ConfigProvider.forTesting (see
+// lib/providers/config_provider.dart) closes that gap for this screen by
+// faking the signed-in/household state directly, so the tests below cover
+// both the not-signed-in auth card (sign-in/sign-up mode toggling,
+// client-side form validation, the always-visible theme/language selectors)
+// and the signed-in Account/Household card split.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -24,12 +24,15 @@ import 'package:splitbalance/screens/config_screen.dart';
 Future<void> pumpConfigScreen(
   WidgetTester tester, {
   required ConfigProvider configProvider,
+  CategoriesProvider? categoriesProvider,
 }) async {
   await tester.pumpWidget(
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: configProvider),
-        ChangeNotifierProvider(create: (_) => CategoriesProvider()),
+        ChangeNotifierProvider.value(
+          value: categoriesProvider ?? CategoriesProvider(),
+        ),
       ],
       child: const MaterialApp(
         localizationsDelegates: [
@@ -178,5 +181,107 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('Clear All Configuration'), findsNothing);
+  });
+
+  testWidgets(
+      'signed in without a household: shows the Account card (email, sign '
+      'out) and the household setup card (create/join), not the Household '
+      'card', (tester) async {
+    final configProvider = ConfigProvider.forTesting(
+      isSignedIn: true,
+      currentUserEmail: 'alice@example.com',
+      currentUserId: 'user-1',
+    );
+    await pumpConfigScreen(tester, configProvider: configProvider);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Account'), findsOneWidget);
+    expect(find.text('alice@example.com'), findsOneWidget);
+    expect(find.widgetWithText(ElevatedButton, 'Sign Out'), findsOneWidget);
+    expect(find.text('Set up your household'), findsOneWidget);
+    expect(find.text('Household'), findsNothing);
+    // Clear Configuration is only offered once signed in.
+    expect(find.text('Clear All Configuration'), findsOneWidget);
+  });
+
+  testWidgets(
+      'signed in with a household waiting for the second person: shows the '
+      'Account card and a Household card with the fetched invite code',
+      (tester) async {
+    final configProvider = ConfigProvider.forTesting(
+      isSignedIn: true,
+      currentUserEmail: 'alice@example.com',
+      currentUserId: 'user-1',
+      config: AppConfig(
+        householdId: 'household-1',
+        person1Name: 'Alice',
+        person2Name: '',
+      ),
+      memberNamesByUserId: const {'user-1': 'Alice'},
+      getInviteCode: () async => 'AB12CD',
+    );
+    await pumpConfigScreen(
+      tester,
+      configProvider: configProvider,
+      // Non-empty on purpose: an empty result triggers ConfigScreen's
+      // "create some categories?" prompt dialog, an unrelated flow this
+      // test isn't exercising.
+      categoriesProvider: CategoriesProvider(
+        fetchCategories: ({required householdId}) async => const [
+          {'id': 'cat-1', 'name': 'Groceries', 'icon': null},
+        ],
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Account'), findsOneWidget);
+    expect(find.text('Household'), findsOneWidget);
+    expect(find.text('Alice (waiting for the other person to join)'),
+        findsOneWidget);
+    expect(find.text('AB12CD'), findsOneWidget);
+  });
+
+  testWidgets(
+      'signed in with a complete household: shows the Account card and a '
+      "Household card with both names and the current user's name "
+      'pre-filled', (tester) async {
+    final configProvider = ConfigProvider.forTesting(
+      isSignedIn: true,
+      currentUserEmail: 'alice@example.com',
+      currentUserId: 'user-1',
+      config: AppConfig(
+        householdId: 'household-1',
+        person1Name: 'Alice',
+        person2Name: 'Bob',
+      ),
+      memberNamesByUserId: const {'user-1': 'Alice', 'user-2': 'Bob'},
+    );
+    await pumpConfigScreen(
+      tester,
+      configProvider: configProvider,
+      // Non-empty on purpose: an empty result triggers ConfigScreen's
+      // "create some categories?" prompt dialog, an unrelated flow this
+      // test isn't exercising.
+      categoriesProvider: CategoriesProvider(
+        fetchCategories: ({required householdId}) async => const [
+          {'id': 'cat-1', 'name': 'Groceries', 'icon': null},
+        ],
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Account'), findsOneWidget);
+    expect(find.text('Household'), findsOneWidget);
+    expect(find.text('Alice & Bob'), findsOneWidget);
+
+    final nameField = tester
+        .widget<TextField>(find.widgetWithText(TextField, 'Your name'));
+    expect(nameField.controller?.text, 'Alice');
   });
 }
