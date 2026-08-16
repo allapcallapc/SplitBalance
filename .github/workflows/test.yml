@@ -43,7 +43,7 @@ jobs:
         run: flutter analyze --no-fatal-infos
 
       - name: Generate app icons
-        run: dart run flutter_launcher_icons
+        uses: ./.github/actions/generate-app-icons
 
       - name: Run Android unit tests
         run: |

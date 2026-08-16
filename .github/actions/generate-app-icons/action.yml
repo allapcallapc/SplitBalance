@@ -1,0 +1,14 @@
+name: 'Generate app icons'
+description: >-
+  Regenerates the Android launcher icons and web/PWA icons from
+  assets/logo.png via flutter_launcher_icons (see the `flutter_launcher_icons`
+  config in pubspec.yaml). Those generated files are gitignored rather than
+  committed, so every workflow that builds the app - or an Android debug
+  build for coverage - needs this step after `flutter pub get` and before
+  the build step, or Android builds fail with a missing mipmap/ic_launcher
+  resource.
+runs:
+  using: 'composite'
+  steps:
+    - shell: bash
+      run: dart run flutter_launcher_icons

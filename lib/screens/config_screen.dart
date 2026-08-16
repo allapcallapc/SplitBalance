@@ -628,7 +628,13 @@ class _ConfigScreenState extends State<ConfigScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Image.asset('assets/logo.png', height: 32, width: 32),
+            Image.asset(
+              'assets/logo.png',
+              height: 32,
+              width: 32,
+              cacheWidth: 96,
+              cacheHeight: 96,
+            ),
             const SizedBox(width: 12),
             Text(AppLocalizations.of(context)!.configuration),
           ],
