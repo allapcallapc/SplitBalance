@@ -43,6 +43,13 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# App icons are generated from assets/logo.png by flutter_launcher_icons
+# (see pubspec.yaml and README.md) - not committed, run
+# `dart run flutter_launcher_icons` locally to (re)generate them.
+/android/app/src/main/res/mipmap-*/ic_launcher.png
+/web/icons/
+/web/favicon.png
+
 # Google Drive API credentials (if stored locally)
 **/google-services.json
 **/credentials.json
