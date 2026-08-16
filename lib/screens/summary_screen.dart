@@ -50,21 +50,21 @@ class _SummaryScreenState extends State<SummaryScreen> {
     }
   }
 
-  // Background/foreground for the Net Balance card. "Owed to you" and "you
-  // owe" lean on the theme's own primary/tertiary container colors instead
-  // of fixed Material blue/orange swatches, so the card is guaranteed to
-  // harmonize with whichever seed color is active (blue, pink, teal, ...)
-  // rather than clashing against it - a flat alpha tint over the theme's
-  // near-white surface wasn't enough to shed the "generic blue" look on a
-  // pink or teal background. Balanced keeps a literal green tint: a
-  // universal "all settled" signal that reads fine regardless of theme.
+  // Background/foreground for the Net Balance card. "Owed to you"/"you owe"
+  // are tinted with the color of whichever person is owed money - the same
+  // teal/orange used for their dot, proportional-bar segment, and legend
+  // entry elsewhere on this screen (see PersonColors) - so the card ties
+  // back to a color that already identifies that person on this page,
+  // instead of a hue picked only to fit the active theme. Balanced keeps a
+  // literal green tint: a universal "all settled" signal with no receiver
+  // to color it by.
   ({Color background, Color foreground}) _netBalanceCardStyle(
     BuildContext context,
     double netBalance,
   ) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     if (netBalance.abs() < 0.01) {
-      final isDark = Theme.of(context).brightness == Brightness.dark;
       return (
         background: Color.alphaBlend(
           Colors.green.withValues(alpha: isDark ? 0.3 : 0.15),
@@ -73,15 +73,17 @@ class _SummaryScreenState extends State<SummaryScreen> {
         foreground: isDark ? Colors.green[300]! : Colors.green[900]!,
       );
     }
-    if (netBalance > 0) {
-      return (
-        background: scheme.primaryContainer,
-        foreground: scheme.onPrimaryContainer,
-      );
-    }
+    // netBalance > 0 means person1 owes person2 (see
+    // CalculationProvider.getBalanceMessage), so person2 is who should
+    // receive money, and vice versa.
+    final receiver =
+        netBalance > 0 ? PersonColors.person2 : PersonColors.person1;
     return (
-      background: scheme.tertiaryContainer,
-      foreground: scheme.onTertiaryContainer,
+      background: Color.alphaBlend(
+        receiver.withValues(alpha: isDark ? 0.3 : 0.15),
+        scheme.surface,
+      ),
+      foreground: receiver,
     );
   }
 
@@ -341,11 +343,14 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         // would paint after (i.e. over) the ink features
                         // layer from the Card's Material further up, masking
                         // the effect the other (undecorated) ledger rows show.
+                        // Transparent so the Total row shows the same
+                        // background as every other row (the Card's own
+                        // color) instead of a fixed grey that only matched
+                        // the default blue theme's near-white/near-black
+                        // card colors and stood out as a mismatched band on
+                        // pink/teal.
                         child: Material(
-                          color: Theme.of(context).brightness ==
-                                  Brightness.dark
-                              ? Colors.grey[850]
-                              : Colors.grey[50],
+                          color: Colors.transparent,
                           borderRadius: const BorderRadius.vertical(
                               bottom: Radius.circular(12)),
                           clipBehavior: Clip.antiAlias,
