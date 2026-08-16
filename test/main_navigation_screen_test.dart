@@ -27,6 +27,7 @@ import 'package:splitbalance/providers/categories_provider.dart';
 import 'package:splitbalance/providers/config_provider.dart';
 import 'package:splitbalance/providers/payment_splits_provider.dart';
 import 'package:splitbalance/providers/pending_payments_provider.dart';
+import 'package:splitbalance/providers/tab_navigation_provider.dart';
 import 'package:splitbalance/services/tab_index_store.dart';
 
 /// Records calls and, when [loadDelay] is set, lets a test hold
@@ -67,6 +68,7 @@ class _FakeTabIndexStore implements TabIndexStore {
 Future<void> pumpMainNavigationScreen(
   WidgetTester tester, {
   required TabIndexStore tabIndexStore,
+  TabNavigationProvider? tabNavigationProvider,
 }) async {
   await tester.pumpWidget(
     MultiProvider(
@@ -77,6 +79,9 @@ Future<void> pumpMainNavigationScreen(
         ChangeNotifierProvider(create: (_) => CategoriesProvider()),
         ChangeNotifierProvider(create: (_) => CalculationProvider()),
         ChangeNotifierProvider(create: (_) => PendingPaymentsProvider()),
+        ChangeNotifierProvider.value(
+          value: tabNavigationProvider ?? TabNavigationProvider(),
+        ),
       ],
       child: MaterialApp(
         localizationsDelegates: const [
@@ -163,5 +168,28 @@ void main() {
 
     expect(store.saveCallCount, 0);
     expect(store.clearCallCount, 0);
+  });
+
+  testWidgets(
+      'persists a tab requested via TabNavigationProvider and clears the '
+      'request once handled', (tester) async {
+    final store = _FakeTabIndexStore();
+    final tabNavigationProvider = TabNavigationProvider();
+
+    await pumpMainNavigationScreen(
+      tester,
+      tabIndexStore: store,
+      tabNavigationProvider: tabNavigationProvider,
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    tabNavigationProvider.requestTab(0);
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(store.saveCallCount, 1);
+    expect(store.storedIndex, 0);
+    expect(tabNavigationProvider.requestedIndex, isNull);
   });
 }

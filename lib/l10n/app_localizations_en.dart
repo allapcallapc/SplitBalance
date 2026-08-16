@@ -487,6 +487,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noBillsInCategory => 'No bills in this category yet';
 
   @override
+  String get viewBillsInCategory => 'View bills in this category';
+
+  @override
   String get noBillsToChart => 'No bills to chart yet';
 
   @override

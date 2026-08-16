@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/bills_provider.dart';
 import '../providers/config_provider.dart';
+import '../providers/tab_navigation_provider.dart';
 import '../utils/spend_chart_data.dart';
+import '../widgets/app_bar_action_icon_button.dart';
 import '../widgets/ledger_visuals.dart';
 import '../widgets/spend_charts.dart';
 
@@ -50,6 +54,20 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadBills());
   }
 
+  // Jumps to the Bills tab pre-filtered to this category: sets the filter on
+  // BillsProvider (BillsListScreen stays mounted in the root IndexedStack, so
+  // it picks the change up as soon as it's shown), asks MainNavigationScreen
+  // to select the Bills tab via TabNavigationProvider, then pops back to it -
+  // popUntil(isFirst) works whether this screen was reached directly from
+  // SummaryScreen or by drilling in further via TotalDetailScreen.
+  void _viewBillsInCategory(BuildContext context) {
+    final billsProvider = context.read<BillsProvider>();
+    final configProvider = context.read<ConfigProvider>();
+    unawaited(billsProvider.setCategoryFilter(widget.category, configProvider));
+    context.read<TabNavigationProvider>().requestTab(0);
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
   Future<void> _loadBills() async {
     final billsProvider = context.read<BillsProvider>();
     final configProvider = context.read<ConfigProvider>();
@@ -82,6 +100,13 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
             ),
           ],
         ),
+        actions: [
+          AppBarActionIconButton(
+            icon: const Icon(Icons.receipt_long),
+            onPressed: () => _viewBillsInCategory(context),
+            tooltip: l10n.viewBillsInCategory,
+          ),
+        ],
       ),
       body: Consumer<BillsProvider>(
         builder: (context, billsProvider, child) {

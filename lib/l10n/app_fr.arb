@@ -230,6 +230,7 @@
   "cumulativeSpend": "Dépenses cumulées",
   "categoriesByAmount": "Catégories par montant",
   "noBillsInCategory": "Aucune facture dans cette catégorie pour le moment",
+  "viewBillsInCategory": "Voir les factures de cette catégorie",
   "noBillsToChart": "Aucune facture à représenter pour le moment",
   "saveBill": "Enregistrer la facture",
   "enterAmount": "Veuillez entrer un montant",

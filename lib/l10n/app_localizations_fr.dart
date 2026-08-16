@@ -491,6 +491,9 @@ class AppLocalizationsFr extends AppLocalizations {
       'Aucune facture dans cette catégorie pour le moment';
 
   @override
+  String get viewBillsInCategory => 'Voir les factures de cette catégorie';
+
+  @override
   String get noBillsToChart => 'Aucune facture à représenter pour le moment';
 
   @override

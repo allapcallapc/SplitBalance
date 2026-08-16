@@ -12,6 +12,7 @@ import 'providers/payment_splits_provider.dart';
 import 'providers/categories_provider.dart';
 import 'providers/calculation_provider.dart';
 import 'providers/pending_payments_provider.dart';
+import 'providers/tab_navigation_provider.dart';
 import 'screens/config_screen.dart';
 import 'screens/bills_list_screen.dart';
 import 'screens/payment_splits_screen.dart';
@@ -185,6 +186,7 @@ class SplitBalanceApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CategoriesProvider()),
         ChangeNotifierProvider(create: (_) => CalculationProvider()),
         ChangeNotifierProvider(create: (_) => PendingPaymentsProvider()),
+        ChangeNotifierProvider(create: (_) => TabNavigationProvider()),
       ],
       child: Consumer<ConfigProvider>(
         builder: (context, configProvider, child) {
@@ -231,6 +233,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   bool _hasAutoNavigatedToBills = false;
   late final ValueNotifier<int> _navigationNotifier = ValueNotifier<int>(0);
   late final List<Widget> _screens;
+  TabNavigationProvider? _tabNavigationProvider;
 
   // The tab selected before a refresh, so a reload can restore it instead of
   // always landing on Bills (see GH issue #59). Explicitly cleared on
@@ -269,6 +272,30 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     _loadPersistedTabIndex();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final tabNavigationProvider = context.read<TabNavigationProvider>();
+    if (_tabNavigationProvider != tabNavigationProvider) {
+      _tabNavigationProvider?.removeListener(_onTabNavigationRequested);
+      _tabNavigationProvider = tabNavigationProvider;
+      _tabNavigationProvider?.addListener(_onTabNavigationRequested);
+    }
+  }
+
+  // A pushed screen (e.g. CategoryDetailScreen's "view bills" action) asked
+  // to land on a specific tab once popped back to this root screen.
+  void _onTabNavigationRequested() {
+    final requestedIndex = _tabNavigationProvider?.requestedIndex;
+    if (requestedIndex == null || !mounted) return;
+    setState(() {
+      _selectedIndex = requestedIndex;
+    });
+    _persistedTabIndex = requestedIndex;
+    unawaited(_tabIndexStore.save(requestedIndex));
+    _tabNavigationProvider?.clear();
+  }
+
   // Must resolve before the "first settle" auto-navigation below runs, so
   // that decision can restore the previous tab instead of racing ahead and
   // forcing Bills. Gated into `rawSettled` for that reason.
@@ -297,6 +324,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     WidgetsBinding.instance.removeObserver(this);
     _settleTimeoutTimer?.cancel();
     _navigationNotifier.dispose();
+    _tabNavigationProvider?.removeListener(_onTabNavigationRequested);
     super.dispose();
   }
 
