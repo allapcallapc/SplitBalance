@@ -410,26 +410,6 @@
   "@french": {
     "description": "French language name"
   },
-  "clearAllConfiguration": "Clear All Configuration?",
-  "@clearAllConfiguration": {
-    "description": "Title for clear all config dialog"
-  },
-  "clearAllConfigMessage": "This will:\n\n• Sign out from Google\n• Clear folder selection\n• Clear person names\n• Clear all saved settings\n\nThis action cannot be undone.",
-  "@clearAllConfigMessage": {
-    "description": "Message for clearing all configuration"
-  },
-  "clearAllConfigurationButton": "Clear All Configuration",
-  "@clearAllConfigurationButton": {
-    "description": "Button label for clear all configuration"
-  },
-  "clearAll": "Clear All",
-  "@clearAll": {
-    "description": "Button label to clear all config"
-  },
-  "allConfigCleared": "All configuration cleared",
-  "@allConfigCleared": {
-    "description": "Success message when config is cleared"
-  },
   "calculateBalances": "Calculate Balances",
   "@calculateBalances": {
     "description": "Button label to calculate balances"

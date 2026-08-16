@@ -315,22 +315,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get french => 'French';
 
   @override
-  String get clearAllConfiguration => 'Clear All Configuration?';
-
-  @override
-  String get clearAllConfigMessage =>
-      'This will:\n\n• Sign out from Google\n• Clear folder selection\n• Clear person names\n• Clear all saved settings\n\nThis action cannot be undone.';
-
-  @override
-  String get clearAllConfigurationButton => 'Clear All Configuration';
-
-  @override
-  String get clearAll => 'Clear All';
-
-  @override
-  String get allConfigCleared => 'All configuration cleared';
-
-  @override
   String get calculateBalances => 'Calculate Balances';
 
   @override
