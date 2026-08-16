@@ -102,6 +102,16 @@ class ConfigProvider with ChangeNotifier {
     _initialLoadComplete = true;
   }
 
+  // Directly drives isLoading for widget tests that need to assert on the
+  // loading-state UI (spinners, disabled buttons) without racing a real
+  // async operation's timing - same rationale as CalculationProvider's
+  // setCalculating, used the same way in test/summary_screen_test.dart.
+  @visibleForTesting
+  void setLoadingForTesting(bool value) {
+    _isLoading = value;
+    notifyListeners();
+  }
+
   Future<void> _loadConfig() async {
     _isLoading = true;
     notifyListeners();

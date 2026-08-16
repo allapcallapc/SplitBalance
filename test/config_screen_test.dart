@@ -292,8 +292,7 @@ void main() {
 
   testWidgets(
       'the Account card shows a spinner and disables the sign-out button '
-      'while any ConfigProvider operation is in flight (isLoading is a '
-      'single shared flag)', (tester) async {
+      'while ConfigProvider.isLoading is true', (tester) async {
     // A complete household (rather than the default no-household state)
     // keeps the household-setup card's own isLoading-gated "Create
     // household" spinner button off screen, so the sign-out button's
@@ -328,14 +327,15 @@ void main() {
     expect(spinnerInButton, findsNothing);
     expect(find.widgetWithText(ElevatedButton, 'Sign Out'), findsOneWidget);
 
-    // Driven via createHousehold rather than signOut: both flip the same
-    // shared configProvider.isLoading flag the Account card renders off
-    // of, but createHousehold hits Postgrest's RPC endpoint, which (like
-    // the plain table queries exercised elsewhere in this file) fails
-    // fast against the offline test Supabase project. signOut hits the
-    // GoTrue auth endpoint instead, which - unlike Postgrest - was
-    // observed in CI to hang rather than fail fast, timing the test out.
-    final createHouseholdFuture = configProvider.createHousehold('Someone');
+    // Driven directly via setLoadingForTesting rather than a real
+    // isLoading-setting operation (signOut, createHousehold, ...): a real
+    // network call's timing can't be relied on to still be in flight by
+    // the next pump (CI showed both a hang against the GoTrue auth
+    // endpoint and, going the other way, an RPC call that had already
+    // failed by the time of the very next pump) - matches
+    // CalculationProvider.setCalculating's existing use for the same kind
+    // of assertion in test/summary_screen_test.dart.
+    configProvider.setLoadingForTesting(true);
     await tester.pump();
 
     expect(spinnerInButton, findsOneWidget);
@@ -345,10 +345,8 @@ void main() {
     );
     expect(signOutButton.onPressed, isNull);
 
-    // Let the (failing, offline) network call finish so no timer/future is
-    // left dangling past the end of the test.
-    await createHouseholdFuture;
-    await tester.pump(const Duration(seconds: 1));
+    configProvider.setLoadingForTesting(false);
+    await tester.pump();
     expect(tester.takeException(), isNull);
   });
 
