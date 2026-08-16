@@ -32,6 +32,11 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Generate app icons
+        uses: ./.github/actions/generate-app-icons
+        with:
+          platform: web
+
       - name: Determine preview version
         id: version
         run: |

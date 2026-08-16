@@ -131,6 +131,8 @@ class _PaymentSplitsScreenState extends State<PaymentSplitsScreen>
               'assets/logo.png',
               height: 32,
               width: 32,
+              cacheWidth: 96,
+              cacheHeight: 96,
             ),
             const SizedBox(width: 12),
             Text(l10n.splitsAndCategories),

@@ -97,6 +97,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
               'assets/logo.png',
               height: 32,
               width: 32,
+              cacheWidth: 96,
+              cacheHeight: 96,
             ),
             const SizedBox(width: 12),
             Text(l10n.summary),

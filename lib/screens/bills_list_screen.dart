@@ -407,6 +407,8 @@ class _BillsListScreenState extends State<BillsListScreen>
               'assets/logo.png',
               height: 32,
               width: 32,
+              cacheWidth: 96,
+              cacheHeight: 96,
             ),
             const SizedBox(width: 12),
             // Flexible so a long sort label doesn't push the title into
