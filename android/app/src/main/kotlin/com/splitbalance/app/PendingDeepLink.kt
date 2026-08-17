@@ -34,12 +34,12 @@ internal fun buildPendingDeepLink(
  * Dismisses the pending-bill notification a deep link was tapped from, using the
  * same `id.hashCode()` scheme [GooglePayNotificationListenerService.showAlertNotification]
  * posts under. Only "No" (handled by [PendingPaymentActionReceiver]) cancelled its
- * notification before; the notification body and the "Yes"/"See more" actions all
- * launch MainActivity instead, and `Notification.FLAG_AUTO_CANCEL` only dismisses a
- * notification when its content intent fires - not action-button intents - so those
- * were left lingering in the shade. Cancelling by this specific hashed id (rather
- * than `cancelAll()`) means it only ever touches the one notification that was
- * actually tapped, leaving any other pending-bill notifications untouched.
+ * notification before; "Yes" and "See more" launch MainActivity via action-button
+ * `PendingIntent`s instead, and `Notification.FLAG_AUTO_CANCEL` only dismisses a
+ * notification when its *content* intent fires - not action-button intents - so
+ * those two were left lingering in the shade. Cancelling by this specific hashed id
+ * (rather than `cancelAll()`) means it only ever touches the one notification that
+ * was actually tapped, leaving any other pending-bill notifications untouched.
  *
  * Kept out of MainActivity for the same reason as [buildPendingDeepLink]: it takes
  * [Context] explicitly so it's callable from a plain JVM/Robolectric test without
@@ -47,5 +47,13 @@ internal fun buildPendingDeepLink(
  */
 internal fun cancelDeepLinkNotification(context: Context, deepLink: Map<String, Any?>?) {
     val id = deepLink?.get("id") as? String ?: return
+    cancelPendingBillNotification(context, id)
+}
+
+/**
+ * Shared by [cancelDeepLinkNotification] and [PendingPaymentActionReceiver] so the
+ * `id.hashCode()` notification-id scheme only needs to be defined in one place.
+ */
+internal fun cancelPendingBillNotification(context: Context, id: String) {
     NotificationManagerCompat.from(context).cancel(id.hashCode())
 }
