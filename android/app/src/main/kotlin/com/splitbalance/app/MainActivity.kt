@@ -46,6 +46,7 @@ class MainActivity : FlutterActivity() {
         )
         if (deepLink != null) {
             pendingDeepLink = deepLink
+            cancelDeepLinkNotification(applicationContext, deepLink)
         }
     }
 
