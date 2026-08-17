@@ -3,7 +3,6 @@ package com.splitbalance.app
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import androidx.core.app.NotificationManagerCompat
 import com.splitbalance.app.GooglePayNotificationListenerService.Companion.EXTRA_DEEP_LINK_ID
 
 /**
@@ -15,6 +14,6 @@ class PendingPaymentActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val id = intent.getStringExtra(EXTRA_DEEP_LINK_ID) ?: return
         GooglePayNotificationListenerService.removeFromQueue(context, id)
-        NotificationManagerCompat.from(context).cancel(id.hashCode())
+        cancelPendingBillNotification(context, id)
     }
 }
