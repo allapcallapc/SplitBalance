@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.3.0](https://github.com/allapcallapc/SplitBalance/compare/v3.2.0...v3.3.0) (2026-08-17)
+
+
+### Features
+
+* jump from category summary to bills filtered by that category ([#71](https://github.com/allapcallapc/SplitBalance/issues/71)) ([f7f0aa8](https://github.com/allapcallapc/SplitBalance/commit/f7f0aa8dbcba109a26441fb9dbca0616f5766d4b))
+
+
+### Bug Fixes
+
+* dismiss pending-bill notification when tapped, not just "No" ([#75](https://github.com/allapcallapc/SplitBalance/issues/75)) ([d0b05f1](https://github.com/allapcallapc/SplitBalance/commit/d0b05f111cd39c5beed68c6e78dc5ba0a3c7736a))
+* fix summary screen color clashes in pink and teal themes ([#72](https://github.com/allapcallapc/SplitBalance/issues/72)) ([49846fb](https://github.com/allapcallapc/SplitBalance/commit/49846fb43319ae7a1e0760eaf7c295ea68964b51))
+* remove Clear All Configuration button from config screen ([#74](https://github.com/allapcallapc/SplitBalance/issues/74)) ([b2e4180](https://github.com/allapcallapc/SplitBalance/commit/b2e4180ea7c8930e298a1ed9c699d9f5f9ed4ecb))
+* use distinct empty-state text when filters exclude all bills ([7bd906a](https://github.com/allapcallapc/SplitBalance/commit/7bd906a17c80d7c2480030bb6d6d3db214725286))
+
 ## [3.2.0](https://github.com/allapcallapc/SplitBalance/compare/v3.1.0...v3.2.0) (2026-08-16)
 
 
