@@ -13,6 +13,20 @@ class CategoriesProvider with ChangeNotifier {
   String? _error;
   String? _loadedForHouseholdId;
 
+  // Test-only override for the Supabase fetch in loadCategories, so widget
+  // tests can reach a "categories loaded" state (e.g. rendering ConfigScreen
+  // signed in with a household) without a real Supabase session/backend.
+  // Mirrors ConfigProvider.forTesting's getInviteCode override.
+  final Future<List<Map<String, dynamic>>> Function({
+    required String householdId,
+  })? _fetchCategoriesOverride;
+
+  CategoriesProvider({
+    @visibleForTesting
+    Future<List<Map<String, dynamic>>> Function({required String householdId})?
+        fetchCategories,
+  }) : _fetchCategoriesOverride = fetchCategories;
+
   List<models.Category> get categories => List.unmodifiable(_categories);
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -61,11 +75,13 @@ class CategoriesProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final rows = await _supabase
-          .from('categories')
-          .select()
-          .eq('household_id', householdId)
-          .order('name', ascending: true);
+      final rows = _fetchCategoriesOverride != null
+          ? await _fetchCategoriesOverride!(householdId: householdId)
+          : await _supabase
+              .from('categories')
+              .select()
+              .eq('household_id', householdId)
+              .order('name', ascending: true);
 
       _categories
         ..clear()

@@ -31,6 +31,16 @@ class ConfigProvider with ChangeNotifier {
   // join-order, not by "is this me").
   Map<String, String> _memberNamesByUserId = {};
 
+  // Auth state normally comes straight from Supabase.instance.client, which
+  // has no DI seam of its own. ConfigProvider.forTesting sets these instead
+  // so widget tests can drive the signed-in UI (including household state)
+  // without a real Supabase session - see isSignedIn/currentUserEmail/
+  // _currentUserId below, which prefer these when set.
+  final bool? _isSignedInOverride;
+  final String? _currentUserEmailOverride;
+  final String? _currentUserIdOverride;
+  final Future<String?> Function()? _getInviteCodeOverride;
+
   AppConfig get config => _config;
   bool get isLoading => _isLoading;
   // True until the persisted session/config/household lookup that runs once
@@ -42,21 +52,64 @@ class ConfigProvider with ChangeNotifier {
   bool get navigateToCategoriesRequested => _navigateToCategoriesRequested;
   bool get navigateToCategoriesTabRequested =>
       _navigateToCategoriesTabRequested;
-  bool get isSignedIn => _supabase.auth.currentSession != null;
-  User? get currentUser => _supabase.auth.currentUser;
+  bool get isSignedIn =>
+      _isSignedInOverride ?? (_supabase.auth.currentSession != null);
+  String? get currentUserEmail => _isSignedInOverride != null
+      ? _currentUserEmailOverride
+      : _supabase.auth.currentUser?.email;
+  String? get _currentUserId => _isSignedInOverride != null
+      ? _currentUserIdOverride
+      : _supabase.auth.currentUser?.id;
   String? get householdId => _config.householdId;
   String? get myPersonName =>
-      currentUser == null ? null : _memberNamesByUserId[currentUser!.id];
+      _currentUserId == null ? null : _memberNamesByUserId[_currentUserId];
   AppThemeMode get themeMode => _config.themeMode;
   AppLanguage get language => _config.language;
   Locale get locale => Locale(_config.language.localeCode);
 
-  ConfigProvider() {
+  ConfigProvider()
+      : _isSignedInOverride = null,
+        _currentUserEmailOverride = null,
+        _currentUserIdOverride = null,
+        _getInviteCodeOverride = null {
     // Load config asynchronously to ensure app is fully initialized
     Future.microtask(() => _loadConfig());
     // Supabase persists sessions itself; just react to changes (sign-in,
     // sign-out, token refresh) elsewhere in the app (e.g. a second tab).
     _supabase.auth.onAuthStateChange.listen((_) => notifyListeners());
+  }
+
+  // Test-only constructor that fakes a signed-in (or not) session and
+  // household state without touching Supabase.instance.client - the real
+  // constructor's only other option, which requires a live/mocked backend.
+  // Skips _loadConfig and the auth-state subscription entirely, so no
+  // Supabase call happens unless a test goes on to invoke a method like
+  // signOut() or getInviteCode() that necessarily needs the real client.
+  @visibleForTesting
+  ConfigProvider.forTesting({
+    required bool isSignedIn,
+    String? currentUserEmail,
+    String? currentUserId,
+    AppConfig? config,
+    Map<String, String> memberNamesByUserId = const {},
+    Future<String?> Function()? getInviteCode,
+  })  : _isSignedInOverride = isSignedIn,
+        _currentUserEmailOverride = currentUserEmail,
+        _currentUserIdOverride = currentUserId,
+        _getInviteCodeOverride = getInviteCode {
+    _config = config ?? AppConfig(person1Name: '', person2Name: '');
+    _memberNamesByUserId = memberNamesByUserId;
+    _initialLoadComplete = true;
+  }
+
+  // Directly drives isLoading for widget tests that need to assert on the
+  // loading-state UI (spinners, disabled buttons) without racing a real
+  // async operation's timing - same rationale as CalculationProvider's
+  // setCalculating, used the same way in test/summary_screen_test.dart.
+  @visibleForTesting
+  void setLoadingForTesting(bool value) {
+    _isLoading = value;
+    notifyListeners();
   }
 
   Future<void> _loadConfig() async {
@@ -299,6 +352,7 @@ class ConfigProvider with ChangeNotifier {
 
   // Fetch the current household's invite code, to share with the other person.
   Future<String?> getInviteCode() async {
+    if (_getInviteCodeOverride != null) return _getInviteCodeOverride!();
     if (_config.householdId == null) return null;
     try {
       final row = await _supabase
@@ -315,7 +369,8 @@ class ConfigProvider with ChangeNotifier {
 
   // Update the current user's own display name within the household.
   Future<void> updateMyPersonName(String name) async {
-    if (!isSignedIn || _config.householdId == null || currentUser == null) {
+    final userId = _currentUserId;
+    if (!isSignedIn || _config.householdId == null || userId == null) {
       return;
     }
 
@@ -324,7 +379,7 @@ class ConfigProvider with ChangeNotifier {
           .from('household_members')
           .update({'person_name': name})
           .eq('household_id', _config.householdId!)
-          .eq('user_id', currentUser!.id);
+          .eq('user_id', userId);
       await _loadHousehold();
       _error = null;
     } catch (e) {
@@ -337,7 +392,8 @@ class ConfigProvider with ChangeNotifier {
   // Falls back to discovering the household from household_members when no
   // household id is cached locally yet (e.g. fresh install, cache cleared).
   Future<void> _loadHousehold() async {
-    if (!isSignedIn || currentUser == null) return;
+    final userId = _currentUserId;
+    if (!isSignedIn || userId == null) return;
 
     try {
       String? id = _config.householdId;
@@ -345,7 +401,7 @@ class ConfigProvider with ChangeNotifier {
         final row = await _supabase
             .from('household_members')
             .select('household_id')
-            .eq('user_id', currentUser!.id)
+            .eq('user_id', userId)
             .limit(1)
             .maybeSingle();
         id = row?['household_id'] as String?;

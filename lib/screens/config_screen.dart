@@ -454,6 +454,82 @@ class _ConfigScreenState extends State<ConfigScreen> {
     );
   }
 
+  Widget _buildAccountCard(ConfigProvider configProvider) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.account_circle,
+                    color: Theme.of(context).colorScheme.primary, size: 24),
+                const SizedBox(width: 12),
+                const Text(
+                  'Account',
+                  style:
+                      TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green[700], size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      configProvider.currentUserEmail ?? 'Signed in',
+                      style: TextStyle(
+                          fontSize: 14, color: Colors.green[900]),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: configProvider.isLoading
+                  ? null
+                  // coverage:ignore-start
+                  // Widget tests can't tap this without either hanging (a
+                  // real signOut() call blocks on Supabase's GoTrue auth
+                  // endpoint indefinitely against the offline test project,
+                  // unlike the Postgrest-backed calls elsewhere on this
+                  // screen, which fail fast - see
+                  // test/config_screen_test.dart) or faking the tap
+                  // instead of invoking onPressed for real, which
+                  // wouldn't actually exercise this line.
+                  : () async {
+                      await configProvider.signOut();
+                    },
+                  // coverage:ignore-end
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: configProvider.isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : Text(AppLocalizations.of(context)!.signOutButton),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildHouseholdInfoCard(ConfigProvider configProvider) {
     final person1 = configProvider.config.person1Name;
     final person2 = configProvider.config.person2Name;
@@ -514,24 +590,12 @@ class _ConfigScreenState extends State<ConfigScreen> {
                   Icon(Icons.check_circle, color: Colors.green[700], size: 24),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          configProvider.currentUser?.email ?? 'Signed in',
-                          style: TextStyle(
-                              fontSize: 14, color: Colors.green[900]),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          waitingForSecondPerson
-                              ? '$person1 (waiting for the other person to join)'
-                              : '$person1 & $person2',
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.green[700]),
-                        ),
-                      ],
+                    child: Text(
+                      waitingForSecondPerson
+                          ? '$person1 (waiting for the other person to join)'
+                          : '$person1 & $person2',
+                      style: TextStyle(
+                          fontSize: 14, color: Colors.green[900]),
                     ),
                   ),
                 ],
@@ -597,24 +661,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
                       await configProvider.updateMyPersonName(name);
                     },
               child: const Text('Update my name'),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: configProvider.isLoading
-                  ? null
-                  : () async {
-                      await configProvider.signOut();
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: configProvider.isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : Text(AppLocalizations.of(context)!.signOutButton),
             ),
           ],
         ),
@@ -694,10 +740,14 @@ class _ConfigScreenState extends State<ConfigScreen> {
               children: [
                 if (!configProvider.isSignedIn)
                   _buildAuthCard(configProvider)
-                else if (householdId == null)
-                  _buildHouseholdSetupCard(configProvider)
-                else
-                  _buildHouseholdInfoCard(configProvider),
+                else ...[
+                  _buildAccountCard(configProvider),
+                  const SizedBox(height: 16),
+                  if (householdId == null)
+                    _buildHouseholdSetupCard(configProvider)
+                  else
+                    _buildHouseholdInfoCard(configProvider),
+                ],
 
                 const SizedBox(height: 16),
 
