@@ -200,6 +200,40 @@ void main() {
       expect(result.categoryBalances, isEmpty);
     });
 
+    test(
+        'a bill fully offset by reimbursements takes this same zero-paid '
+        'skip - a documented divergence from CalculationService, which '
+        'always includes a bill\'s category regardless of its net amount',
+        () async {
+      // fetchCategoryPeriodPersonPaid returns the *net* (reimbursement-
+      // subtracted) amount in production - a fully reimbursed bill with no
+      // other activity in its category/period looks identical here to a
+      // slot with no bill at all, so it's indistinguishable from the
+      // generic zero-paid case above.
+      final service = AggregatedCalculationService(
+        fetchSplits: ({required householdId}) async => [],
+        fetchPersonPaidTotal: ({required householdId, required paidBy}) async =>
+            0.0,
+        fetchCategoryPeriodPersonPaid: ({
+          required householdId,
+          required category,
+          required periodStart,
+          required periodEnd,
+          required paidBy,
+        }) async =>
+            0.0, // a $75 bill fully offset by a $75 reimbursement nets to 0
+      );
+
+      final result = await service.calculateBalances(
+        householdId: householdId,
+        categories: categories(['Food']),
+        person1Name: person1,
+        person2Name: person2,
+      );
+
+      expect(result.categoryBalances.containsKey('Food'), isFalse);
+    });
+
     test('a fetcher throwing surfaces as an error on calculateBalances',
         () async {
       final service = AggregatedCalculationService(

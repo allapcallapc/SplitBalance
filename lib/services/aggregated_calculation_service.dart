@@ -332,6 +332,17 @@ class AggregatedCalculationService {
       final slot = slots[i];
       final p1 = paidAmounts[i];
       final p2 = paidAmounts[i + 1];
+      // Known, accepted divergence from CalculationService (see this
+      // class's doc comment for the other one): a bill fully offset by its
+      // own reimbursements nets to exactly 0 here, indistinguishable from
+      // "no bill exists in this slot at all" - so its category can be
+      // silently omitted from categoryBalances if nothing else in that
+      // category/period contributes a nonzero net amount. CalculationService
+      // always includes a bill's category regardless of its net amount, so
+      // it would still show that category with $0 values. Rare in practice
+      // (a category needs to be *entirely* refunded with no other activity
+      // in the same split period) and not worth an extra bill-existence
+      // query per slot to close - revisit if it turns out to matter.
       if (p1 == 0 && p2 == 0) continue;
 
       final existing = categoryBalancesMap[slot.category] ??

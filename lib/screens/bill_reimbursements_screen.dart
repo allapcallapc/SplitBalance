@@ -24,13 +24,27 @@ class BillReimbursementsScreen extends StatefulWidget {
 }
 
 class _BillReimbursementsScreenState extends State<BillReimbursementsScreen> {
+  // Cached in didChangeDependencies rather than looked up via context.read
+  // inside dispose(): by the time dispose runs, this element can already be
+  // deactivated (e.g. during widget-tree teardown at the end of a test),
+  // and walking up to an ancestor provider at that point throws "Looking up
+  // a deactivated widget's ancestor is unsafe" - same pattern
+  // BillsListScreen uses for _configProvider.
+  ReimbursementsProvider? _reimbursementsProvider;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reimbursementsProvider = context.read<ReimbursementsProvider>();
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final billId = widget.bill.id;
       if (billId != null) {
-        context.read<ReimbursementsProvider>().loadForBill(billId);
+        _reimbursementsProvider?.loadForBill(billId);
       }
     });
   }
@@ -39,7 +53,7 @@ class _BillReimbursementsScreenState extends State<BillReimbursementsScreen> {
   void dispose() {
     // Avoid a stale reimbursement list briefly flashing if this screen (or
     // one for a different bill) is opened again later.
-    context.read<ReimbursementsProvider>().reset();
+    _reimbursementsProvider?.reset();
     super.dispose();
   }
 
