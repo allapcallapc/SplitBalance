@@ -9,6 +9,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:splitbalance/models/bill.dart';
 import 'package:splitbalance/providers/bills_provider.dart';
 
+// None of these tests care about reimbursements, so this wrapper always
+// injects a no-op fetchReimbursedTotals - otherwise every loadBillsForHousehold
+// call below would fall through to BillsProvider's real-Supabase default and
+// fail outside a signed-in session.
+BillsProvider testBillsProvider({
+  FetchBillsPage? fetchBillsPage,
+  InsertBillRow? insertBillRow,
+  UpdateBillRow? updateBillRow,
+  DeleteBillRow? deleteBillRow,
+}) {
+  return BillsProvider(
+    fetchBillsPage: fetchBillsPage,
+    insertBillRow: insertBillRow,
+    updateBillRow: updateBillRow,
+    deleteBillRow: deleteBillRow,
+    fetchReimbursedTotals: ({required billIds}) async => {},
+  );
+}
+
 Map<String, dynamic> billRow(
   String id,
   String date, {
@@ -29,7 +48,7 @@ Map<String, dynamic> billRow(
 void main() {
   group('BillsProvider - sort', () {
     test('defaults to newest-first by date', () {
-      final provider = BillsProvider();
+      final provider = testBillsProvider();
       expect(provider.sortField, BillSortField.date);
       expect(provider.sortAscending, isFalse);
     });
@@ -39,7 +58,7 @@ void main() {
         'fetchBillsPage', () async {
       BillSortField? capturedField;
       bool? capturedAscending;
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         fetchBillsPage: ({
           required String householdId,
           String? paidBy,
@@ -64,7 +83,7 @@ void main() {
   group('BillsProvider - request id guard', () {
     test('a stale loadBillsForHousehold response is dropped', () async {
       final completers = <Completer<List<Map<String, dynamic>>>>[];
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         fetchBillsPage: ({
           required String householdId,
           String? paidBy,
@@ -108,7 +127,7 @@ void main() {
         'concurrent loadBillsForHousehold reset', () async {
       final pageCompleter = Completer<List<Map<String, dynamic>>>();
       var moreRequested = false;
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         fetchBillsPage: ({
           required String householdId,
           String? paidBy,
@@ -161,7 +180,7 @@ void main() {
         'addBillForHousehold refreshes _bills from the server instead of '
         'guessing the new row\'s position locally', () async {
       var fetchCallCount = 0;
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         insertBillRow: (data) async => {
           'id': 'new-id',
           'date': data['date'],
@@ -213,7 +232,7 @@ void main() {
     test(
         'addBillForHousehold surfaces an insert failure without touching '
         'the bill lists', () async {
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         insertBillRow: (data) async => throw Exception('network error'),
         fetchBillsPage: ({
           required String householdId,
@@ -259,7 +278,7 @@ void main() {
       var fetchCallCount = 0;
       var page = [billRow('bill-1', '2026-01-01', category: 'Groceries')];
 
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         insertBillRow: (data) async => echoUpdate('bill-1', data),
         updateBillRow: (id, data) async => echoUpdate(id, data),
         fetchBillsPage: ({
@@ -312,7 +331,7 @@ void main() {
         'updateBillById with no household id skips the refetch but still '
         'updates _allBills', () async {
       var fetchCallCount = 0;
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         updateBillRow: (id, data) async => echoUpdate(id, data),
         fetchBillsPage: ({
           required String householdId,
@@ -346,7 +365,7 @@ void main() {
     test(
         'updateBillById surfaces a failure without touching the bill '
         'lists', () async {
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         updateBillRow: (id, data) async => throw Exception('network error'),
       );
 
@@ -368,7 +387,7 @@ void main() {
     test('deleteBillById removes the bill from both bills and allBills',
         () async {
       var deletedId = '';
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         insertBillRow: (data) async => echoUpdate('bill-1', data),
         deleteBillRow: (id) async => deletedId = id,
         fetchBillsPage: ({
@@ -405,7 +424,7 @@ void main() {
     test(
         'deleteBillById surfaces a failure and leaves the bill lists '
         'untouched', () async {
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         insertBillRow: (data) async => echoUpdate('bill-1', data),
         deleteBillRow: (id) async => throw Exception('network error'),
         fetchBillsPage: ({

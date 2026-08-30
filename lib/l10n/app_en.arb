@@ -886,5 +886,53 @@
   "grantInstallPermission": "Grant Install Permission",
   "@grantInstallPermission": {
     "description": "Button label to open system settings for the install-unknown-apps permission"
+  },
+  "reimbursements": "Reimbursements",
+  "@reimbursements": {
+    "description": "Label for a bill's reimbursements menu item/screen title"
+  },
+  "addReimbursement": "Add Reimbursement",
+  "@addReimbursement": {
+    "description": "Button/sheet title for adding a reimbursement to a bill"
+  },
+  "receivedBy": "Received by",
+  "@receivedBy": {
+    "description": "Label for who received a reimbursement"
+  },
+  "selectWhoReceived": "Please select who received the reimbursement",
+  "@selectWhoReceived": {
+    "description": "Validation message when no one is selected as the reimbursement recipient"
+  },
+  "saveReimbursement": "Save Reimbursement",
+  "@saveReimbursement": {
+    "description": "Button label to save a new reimbursement"
+  },
+  "deleteReimbursement": "Delete Reimbursement",
+  "@deleteReimbursement": {
+    "description": "Title for delete reimbursement confirmation dialog"
+  },
+  "areYouSureDeleteReimbursement": "Are you sure you want to delete this reimbursement?",
+  "@areYouSureDeleteReimbursement": {
+    "description": "Confirmation message for deleting a reimbursement"
+  },
+  "noReimbursementsYet": "No reimbursements yet",
+  "@noReimbursementsYet": {
+    "description": "Empty state message on the bill reimbursements screen"
+  },
+  "reimbursementExceedsRemaining": "Amount exceeds the remaining bill balance",
+  "@reimbursementExceedsRemaining": {
+    "description": "Validation message when a reimbursement amount is more than what's left on the bill"
+  },
+  "totalReimbursed": "Total reimbursed",
+  "@totalReimbursed": {
+    "description": "Label for the sum of a bill's reimbursements"
+  },
+  "remainingAmount": "Remaining",
+  "@remainingAmount": {
+    "description": "Label for a bill's amount after reimbursements"
+  },
+  "originalAmount": "Original amount",
+  "@originalAmount": {
+    "description": "Label for a bill's amount before reimbursements"
   }
 }

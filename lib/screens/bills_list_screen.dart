@@ -12,6 +12,7 @@ import '../models/bill.dart';
 import '../utils/category_icons.dart';
 import '../widgets/app_bar_action_icon_button.dart';
 import 'add_edit_bill_screen.dart';
+import 'bill_reimbursements_screen.dart';
 import 'pending_payments_screen.dart';
 
 class BillsListScreen extends StatefulWidget {
@@ -677,8 +678,32 @@ class _BillsListScreenState extends State<BillsListScreen>
                             const SizedBox(height: 4),
                             Text(
                                 '${l10n.date}: ${dateFormat.format(bill.date)}'),
-                            Text(
-                                '${l10n.amount}: ${currencyFormat.format(bill.amount)}'),
+                            if (bill.reimbursedAmount > 0)
+                              Row(
+                                children: [
+                                  Text(
+                                    '${l10n.amount}: ',
+                                  ),
+                                  Text(
+                                    currencyFormat.format(bill.amount),
+                                    style: const TextStyle(
+                                      decoration: TextDecoration.lineThrough,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    currencyFormat.format(bill.netAmount),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green[700],
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else
+                              Text(
+                                  '${l10n.amount}: ${currencyFormat.format(bill.amount)}'),
                             Text('${l10n.paidBy}: ${bill.paidBy}'),
                             Text('${l10n.category}: ${bill.category}'),
                           ],
@@ -708,6 +733,35 @@ class _BillsListScreenState extends State<BillsListScreen>
                                       ),
                                     );
                                     if (result == true && context.mounted) {
+                                      await _loadData();
+                                    }
+                                  },
+                                );
+                              },
+                            ),
+                            PopupMenuItem(
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.currency_exchange,
+                                      size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(l10n.reimbursements),
+                                ],
+                              ),
+                              onTap: () {
+                                Future.delayed(
+                                  const Duration(milliseconds: 100),
+                                  () async {
+                                    if (!context.mounted) return;
+                                    await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            BillReimbursementsScreen(
+                                                bill: bill),
+                                      ),
+                                    );
+                                    if (context.mounted) {
                                       await _loadData();
                                     }
                                   },

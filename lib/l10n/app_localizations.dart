@@ -1285,6 +1285,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Grant Install Permission'**
   String get grantInstallPermission;
+
+  /// Label for a bill's reimbursements menu item/screen title
+  ///
+  /// In en, this message translates to:
+  /// **'Reimbursements'**
+  String get reimbursements;
+
+  /// Button/sheet title for adding a reimbursement to a bill
+  ///
+  /// In en, this message translates to:
+  /// **'Add Reimbursement'**
+  String get addReimbursement;
+
+  /// Label for who received a reimbursement
+  ///
+  /// In en, this message translates to:
+  /// **'Received by'**
+  String get receivedBy;
+
+  /// Validation message when no one is selected as the reimbursement recipient
+  ///
+  /// In en, this message translates to:
+  /// **'Please select who received the reimbursement'**
+  String get selectWhoReceived;
+
+  /// Button label to save a new reimbursement
+  ///
+  /// In en, this message translates to:
+  /// **'Save Reimbursement'**
+  String get saveReimbursement;
+
+  /// Title for delete reimbursement confirmation dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Reimbursement'**
+  String get deleteReimbursement;
+
+  /// Confirmation message for deleting a reimbursement
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this reimbursement?'**
+  String get areYouSureDeleteReimbursement;
+
+  /// Empty state message on the bill reimbursements screen
+  ///
+  /// In en, this message translates to:
+  /// **'No reimbursements yet'**
+  String get noReimbursementsYet;
+
+  /// Validation message when a reimbursement amount is more than what's left on the bill
+  ///
+  /// In en, this message translates to:
+  /// **'Amount exceeds the remaining bill balance'**
+  String get reimbursementExceedsRemaining;
+
+  /// Label for the sum of a bill's reimbursements
+  ///
+  /// In en, this message translates to:
+  /// **'Total reimbursed'**
+  String get totalReimbursed;
+
+  /// Label for a bill's amount after reimbursements
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining'**
+  String get remainingAmount;
+
+  /// Label for a bill's amount before reimbursements
+  ///
+  /// In en, this message translates to:
+  /// **'Original amount'**
+  String get originalAmount;
 }
 
 class _AppLocalizationsDelegate

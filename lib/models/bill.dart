@@ -7,6 +7,10 @@ class Bill {
   final String paidBy;
   final String category;
   final String details;
+  // Sum of this bill's reimbursements (see Reimbursement) - not a `bills`
+  // table column, so it's always 0 unless the caller explicitly populated it
+  // (e.g. BillsProvider merges in a live sum after loading bill rows).
+  final double reimbursedAmount;
 
   Bill({
     this.id,
@@ -15,7 +19,13 @@ class Bill {
     required this.paidBy,
     required this.category,
     this.details = '',
+    this.reimbursedAmount = 0,
   });
+
+  // What this bill "really" cost after subtracting anything reimbursed
+  // against it - what balance/spend calculations should use instead of
+  // [amount].
+  double get netAmount => amount - reimbursedAmount;
 
   // Convert to a Supabase row payload (no id: assigned by the database)
   Map<String, dynamic> toMap() {
@@ -37,6 +47,9 @@ class Bill {
       paidBy: map['paid_by'] as String,
       category: map['category'] as String,
       details: map['details'] as String? ?? '',
+      // Not a real `bills` column - only present when the caller injected it
+      // into the row map (see BillsProvider's reimbursed-totals merge).
+      reimbursedAmount: (map['reimbursed_amount'] as num?)?.toDouble() ?? 0,
     );
   }
 
@@ -94,6 +107,7 @@ class Bill {
     String? paidBy,
     String? category,
     String? details,
+    double? reimbursedAmount,
   }) {
     return Bill(
       id: id ?? this.id,
@@ -102,6 +116,7 @@ class Bill {
       paidBy: paidBy ?? this.paidBy,
       category: category ?? this.category,
       details: details ?? this.details,
+      reimbursedAmount: reimbursedAmount ?? this.reimbursedAmount,
     );
   }
 }

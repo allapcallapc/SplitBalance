@@ -34,16 +34,26 @@ typedef UpdateBillRow = Future<Map<String, dynamic>> Function(
 // Deletes the row with the given id.
 typedef DeleteBillRow = Future<void> Function(String id);
 
+// Sums bill_reimbursements.amount for each of [billIds], keyed by bill id.
+// Bills with no reimbursements are simply absent from the result (treated as
+// 0 by the caller) rather than present with a 0 entry.
+typedef FetchReimbursedTotals = Future<Map<String, double>> Function({
+  required List<String> billIds,
+});
+
 class BillsProvider with ChangeNotifier {
   BillsProvider({
     FetchBillsPage? fetchBillsPage,
     InsertBillRow? insertBillRow,
     UpdateBillRow? updateBillRow,
     DeleteBillRow? deleteBillRow,
+    FetchReimbursedTotals? fetchReimbursedTotals,
   })  : _fetchBillsPage = fetchBillsPage ?? _defaultFetchBillsPage,
         _insertBillRow = insertBillRow ?? _defaultInsertBillRow,
         _updateBillRow = updateBillRow ?? _defaultUpdateBillRow,
-        _deleteBillRow = deleteBillRow ?? _defaultDeleteBillRow;
+        _deleteBillRow = deleteBillRow ?? _defaultDeleteBillRow,
+        _fetchReimbursedTotals =
+            fetchReimbursedTotals ?? _defaultFetchReimbursedTotals;
 
   static const int pageSize = 25;
 
@@ -51,6 +61,7 @@ class BillsProvider with ChangeNotifier {
   final InsertBillRow _insertBillRow;
   final UpdateBillRow _updateBillRow;
   final DeleteBillRow _deleteBillRow;
+  final FetchReimbursedTotals _fetchReimbursedTotals;
 
   // Paginated, server-filtered bills backing the bills list screen.
   final List<Bill> _bills = [];
@@ -216,6 +227,50 @@ class BillsProvider with ChangeNotifier {
     await Supabase.instance.client.from('bills').delete().eq('id', id);
   }
 
+  static Future<Map<String, double>> _defaultFetchReimbursedTotals({
+    required List<String> billIds,
+  }) async {
+    if (billIds.isEmpty) return {};
+
+    final totals = <String, double>{};
+    // Paginated the same way AggregatedCalculationService._sumAmounts is,
+    // in case a household's full bill set (loadAllBills) pushes this past
+    // PostgREST's max_rows cap.
+    const chunkSize = 1000;
+    var start = 0;
+    while (true) {
+      final rows = await Supabase.instance.client
+          .from('bill_reimbursements')
+          .select('bill_id, amount')
+          .inFilter('bill_id', billIds)
+          .order('id')
+          .range(start, start + chunkSize - 1);
+      for (final row in rows) {
+        final billId = row['bill_id'] as String;
+        totals[billId] =
+            (totals[billId] ?? 0) + (row['amount'] as num).toDouble();
+      }
+      if (rows.length < chunkSize) break;
+      start += chunkSize;
+    }
+    return totals;
+  }
+
+  // Fetches reimbursed totals for [bills] and returns them with
+  // reimbursedAmount populated, for display (list badges, category/summary
+  // charts) - not consulted by balance calculations, which subtract
+  // reimbursements at the query level (see AggregatedCalculationService).
+  Future<List<Bill>> _withReimbursedTotals(List<Bill> bills) async {
+    final ids = [for (final b in bills) if (b.id != null) b.id!];
+    if (ids.isEmpty) return bills;
+    final totals = await _fetchReimbursedTotals(billIds: ids);
+    if (totals.isEmpty) return bills;
+    return [
+      for (final bill in bills)
+        bill.copyWith(reimbursedAmount: totals[bill.id] ?? 0),
+    ];
+  }
+
   // Load the first page of bills for the current household, applying the
   // active paid-by/category filters server-side. Resets any pagination
   // already accumulated via loadMoreBills().
@@ -255,9 +310,13 @@ class BillsProvider with ChangeNotifier {
       // since superseded this one; drop the stale response.
       if (requestId != _requestId) return;
 
+      final pageBills =
+          await _withReimbursedTotals(rows.map(Bill.fromMap).toList());
+      if (requestId != _requestId) return;
+
       _bills
         ..clear()
-        ..addAll(rows.map((row) => Bill.fromMap(row)));
+        ..addAll(pageBills);
       _hasMore = rows.length == pageSize;
       _error = null;
     } catch (e) {
@@ -305,7 +364,11 @@ class BillsProvider with ChangeNotifier {
       // exists, so drop them instead of appending onto the new page 1.
       if (requestId != _requestId) return;
 
-      _bills.addAll(rows.map((row) => Bill.fromMap(row)));
+      final pageBills =
+          await _withReimbursedTotals(rows.map(Bill.fromMap).toList());
+      if (requestId != _requestId) return;
+
+      _bills.addAll(pageBills);
       _hasMore = rows.length == pageSize;
       _error = null;
     } catch (e) {
@@ -339,9 +402,12 @@ class BillsProvider with ChangeNotifier {
           .eq('household_id', configProvider.householdId!)
           .order('date', ascending: false);
 
+      final loadedBills =
+          await _withReimbursedTotals(rows.map(Bill.fromMap).toList());
+
       _allBills
         ..clear()
-        ..addAll(rows.map((row) => Bill.fromMap(row)));
+        ..addAll(loadedBills);
       _error = null;
     } catch (e) {
       _error = 'Failed to load bills: $e';
@@ -468,7 +534,14 @@ class BillsProvider with ChangeNotifier {
     Bill saved;
     try {
       final row = await _updateBillRow(id, updatedBill.toMap());
-      saved = Bill.fromMap(row);
+      // Editing a bill's own fields never touches its reimbursements, so
+      // carry forward whatever total was already known locally rather than
+      // resetting it to 0 (the row from _updateBillRow has no reimbursed
+      // total of its own - it's not a `bills` column).
+      final previousReimbursed = _allBills
+              .firstWhere((b) => b.id == id, orElse: () => updatedBill)
+              .reimbursedAmount;
+      saved = Bill.fromMap(row).copyWith(reimbursedAmount: previousReimbursed);
     } catch (e) {
       _error = 'Failed to update bill: $e';
       _isLoading = false;

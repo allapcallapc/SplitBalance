@@ -35,9 +35,9 @@ List<MonthlySpend> computeMonthlySpend(
     byMonth[monthKey] = MonthlySpend(
       month: monthKey,
       person1Amount:
-          (existing?.person1Amount ?? 0) + (isPerson1 ? bill.amount : 0),
+          (existing?.person1Amount ?? 0) + (isPerson1 ? bill.netAmount : 0),
       person2Amount:
-          (existing?.person2Amount ?? 0) + (isPerson2 ? bill.amount : 0),
+          (existing?.person2Amount ?? 0) + (isPerson2 ? bill.netAmount : 0),
     );
   }
 
@@ -74,7 +74,7 @@ List<CumulativeSpendPoint> computeCumulativeSpend(
 
   double running = 0;
   return relevant.map((bill) {
-    running += bill.amount;
+    running += bill.netAmount;
     return CumulativeSpendPoint(date: bill.date, cumulativeAmount: running);
   }).toList();
 }

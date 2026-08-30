@@ -130,15 +130,27 @@ class AggregatedCalculationService {
     return total;
   }
 
+  // Net of reimbursements: bill_reimbursements has no paid_by column of its
+  // own, so the reimbursed side is queried via a PostgREST embed
+  // (bills!inner(...)) that lets a filter reach into the linked bill's
+  // columns without a second round trip or an RPC.
   static Future<double> _defaultFetchPersonPaidTotal({
     required String householdId,
     required String paidBy,
-  }) {
-    return _sumAmounts(() => Supabase.instance.client
-        .from('bills')
-        .select('amount')
-        .eq('household_id', householdId)
-        .eq('paid_by', paidBy));
+  }) async {
+    final results = await Future.wait([
+      _sumAmounts(() => Supabase.instance.client
+          .from('bills')
+          .select('amount')
+          .eq('household_id', householdId)
+          .eq('paid_by', paidBy)),
+      _sumAmounts(() => Supabase.instance.client
+          .from('bill_reimbursements')
+          .select('amount, bills!inner(paid_by)')
+          .eq('household_id', householdId)
+          .eq('bills.paid_by', paidBy)),
+    ]);
+    return results[0] - results[1];
   }
 
   static Future<int> _defaultFetchPersonBillCount({
@@ -166,22 +178,43 @@ class AggregatedCalculationService {
     required DateTime? periodStart,
     required DateTime? periodEnd,
     required String paidBy,
-  }) {
-    return _sumAmounts(() {
-      var query = Supabase.instance.client
-          .from('bills')
-          .select('amount')
-          .eq('household_id', householdId)
-          .eq('category', category)
-          .eq('paid_by', paidBy);
-      if (periodStart != null) {
-        query = query.gt('date', _dateFormat.format(periodStart));
-      }
-      if (periodEnd != null) {
-        query = query.lte('date', _dateFormat.format(periodEnd));
-      }
-      return query;
-    });
+  }) async {
+    final results = await Future.wait([
+      _sumAmounts(() {
+        var query = Supabase.instance.client
+            .from('bills')
+            .select('amount')
+            .eq('household_id', householdId)
+            .eq('category', category)
+            .eq('paid_by', paidBy);
+        if (periodStart != null) {
+          query = query.gt('date', _dateFormat.format(periodStart));
+        }
+        if (periodEnd != null) {
+          query = query.lte('date', _dateFormat.format(periodEnd));
+        }
+        return query;
+      }),
+      // Same embed approach as _defaultFetchPersonPaidTotal, reaching into
+      // the linked bill's category/paid_by/date to filter this reimbursement
+      // slice to the same (category, period, person) slot.
+      _sumAmounts(() {
+        var query = Supabase.instance.client
+            .from('bill_reimbursements')
+            .select('amount, bills!inner(category, paid_by, date)')
+            .eq('household_id', householdId)
+            .eq('bills.category', category)
+            .eq('bills.paid_by', paidBy);
+        if (periodStart != null) {
+          query = query.gt('bills.date', _dateFormat.format(periodStart));
+        }
+        if (periodEnd != null) {
+          query = query.lte('bills.date', _dateFormat.format(periodEnd));
+        }
+        return query;
+      }),
+    ]);
+    return results[0] - results[1];
   }
 
   static Future<HouseholdTotals> _defaultFetchHouseholdTotals({
@@ -190,6 +223,9 @@ class AggregatedCalculationService {
     // Future.wait<num> (not the usual Future<T>.wait) so the differently
     // typed count (int) and sum (double) queries can run in parallel from
     // one call, the same way the two-fetch shape below fires in parallel.
+    // bill_reimbursements carries its own household_id (denormalized from
+    // its linked bill), so this total needs no join - unlike the per-payer
+    // fetchers above, which need paid_by off the bill itself.
     final results = await Future.wait<num>([
       Supabase.instance.client
           .from('bills')
@@ -199,10 +235,14 @@ class AggregatedCalculationService {
           .from('bills')
           .select('amount')
           .eq('household_id', householdId)),
+      _sumAmounts(() => Supabase.instance.client
+          .from('bill_reimbursements')
+          .select('amount')
+          .eq('household_id', householdId)),
     ]);
     return HouseholdTotals(
       billCount: results[0].toInt(),
-      totalAmount: results[1].toDouble(),
+      totalAmount: results[1].toDouble() - results[2].toDouble(),
     );
   }
 
