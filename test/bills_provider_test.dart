@@ -6,6 +6,8 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:splitbalance/models/bill.dart';
 import 'package:splitbalance/providers/bills_provider.dart';
 
@@ -49,6 +51,49 @@ Map<String, dynamic> billRow(
 }
 
 void main() {
+  setUpAll(() async {
+    // Only the "real Supabase default" group below needs this - it's here
+    // rather than in that group's own setUp so it runs once for the whole
+    // file, matching test/bills_list_screen_test.dart's pattern.
+    SharedPreferences.setMockInitialValues({});
+    await Supabase.initialize(
+      url: 'https://example.supabase.co',
+      anonKey: 'test-anon-key',
+    );
+  });
+
+  group('BillsProvider - reimbursed totals default (real Supabase client)',
+      () {
+    test(
+        'omitting fetchReimbursedTotals falls through to the real default, '
+        'which surfaces a network failure as a provider error rather than '
+        'throwing', () async {
+      // No fetchReimbursedTotals override, so _withReimbursedTotals falls
+      // through to _defaultFetchReimbursedTotals - which has no injection
+      // seam of its own and hits Supabase.instance.client directly. Against
+      // the fake project url configured in setUpAll, that request fails,
+      // proving the fallback wiring itself (the `?? _defaultFetchReimbursedTotals`
+      // in BillsProvider's constructor) actually runs and that failure
+      // doesn't propagate uncaught.
+      final provider = BillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            [billRow('bill-1', '2026-01-01')],
+      );
+
+      await provider.loadBillsForHousehold('household-1');
+
+      expect(provider.error, contains('Failed to load bills'));
+    });
+  });
+
   group('BillsProvider - sort', () {
     test('defaults to newest-first by date', () {
       final provider = testBillsProvider();

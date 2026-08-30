@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:splitbalance/l10n/app_localizations.dart';
+import 'package:splitbalance/l10n/app_localizations_fr.dart';
 import 'package:splitbalance/models/app_config.dart';
 import 'package:splitbalance/models/bill.dart';
 import 'package:splitbalance/providers/config_provider.dart';
@@ -274,5 +275,39 @@ void main() {
       expect(provider.reimbursements, isEmpty);
       expect(find.text('No reimbursements yet'), findsOneWidget);
     });
+  });
+
+  group('AppLocalizationsFr - reimbursement strings', () {
+    // No widget test in this suite exercises the fr locale, so these cover
+    // the new getters directly - same pattern as
+    // test/bills_list_screen_test.dart's noBillsMatchFilters coverage.
+    final fr = AppLocalizationsFr();
+
+    test('reimbursements', () => expect(fr.reimbursements, 'Remboursements'));
+    test('addReimbursement',
+        () => expect(fr.addReimbursement, 'Ajouter un remboursement'));
+    test('receivedBy', () => expect(fr.receivedBy, 'Reçu par'));
+    test(
+        'selectWhoReceived',
+        () => expect(fr.selectWhoReceived,
+            'Veuillez sélectionner qui a reçu le remboursement'));
+    test('saveReimbursement',
+        () => expect(fr.saveReimbursement, 'Enregistrer le remboursement'));
+    test('deleteReimbursement',
+        () => expect(fr.deleteReimbursement, 'Supprimer le remboursement'));
+    test(
+        'areYouSureDeleteReimbursement',
+        () => expect(fr.areYouSureDeleteReimbursement,
+            'Êtes-vous sûr de vouloir supprimer ce remboursement ?'));
+    test('noReimbursementsYet',
+        () => expect(fr.noReimbursementsYet, 'Aucun remboursement pour le moment'));
+    test(
+        'reimbursementExceedsRemaining',
+        () => expect(fr.reimbursementExceedsRemaining,
+            'Le montant dépasse le solde restant de la facture'));
+    test('totalReimbursed',
+        () => expect(fr.totalReimbursed, 'Total remboursé'));
+    test('remainingAmount', () => expect(fr.remainingAmount, 'Restant'));
+    test('originalAmount', () => expect(fr.originalAmount, 'Montant initial'));
   });
 }

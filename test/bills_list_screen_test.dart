@@ -19,23 +19,32 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:splitbalance/l10n/app_localizations.dart';
 import 'package:splitbalance/l10n/app_localizations_fr.dart';
+import 'package:splitbalance/models/app_config.dart';
 import 'package:splitbalance/providers/bills_provider.dart';
 import 'package:splitbalance/providers/categories_provider.dart';
 import 'package:splitbalance/providers/config_provider.dart';
 import 'package:splitbalance/providers/pending_payments_provider.dart';
+import 'package:splitbalance/providers/reimbursements_provider.dart';
+import 'package:splitbalance/screens/bill_reimbursements_screen.dart';
 import 'package:splitbalance/screens/bills_list_screen.dart';
 
 Future<void> pumpBillsListScreen(
   WidgetTester tester, {
   required BillsProvider billsProvider,
+  ConfigProvider? configProvider,
+  CategoriesProvider? categoriesProvider,
+  ReimbursementsProvider? reimbursementsProvider,
 }) async {
   await tester.pumpWidget(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ConfigProvider()),
-        ChangeNotifierProvider(create: (_) => CategoriesProvider()),
+        ChangeNotifierProvider.value(value: configProvider ?? ConfigProvider()),
+        ChangeNotifierProvider.value(
+            value: categoriesProvider ?? CategoriesProvider()),
         ChangeNotifierProvider(create: (_) => PendingPaymentsProvider()),
         ChangeNotifierProvider.value(value: billsProvider),
+        ChangeNotifierProvider.value(
+            value: reimbursementsProvider ?? ReimbursementsProvider()),
       ],
       child: const MaterialApp(
         localizationsDelegates: [
@@ -95,6 +104,113 @@ void main() {
     expect(find.text('No bills yet'), findsNothing);
     expect(find.text('Add Your First Bill'), findsNothing);
     expect(find.text('Clear filters'), findsOneWidget);
+  });
+
+  group('BillsListScreen - signed in with bills', () {
+    ConfigProvider signedInConfigProvider() => ConfigProvider.forTesting(
+          isSignedIn: true,
+          config: AppConfig(
+            householdId: 'household-1',
+            person1Name: 'Alice',
+            person2Name: 'Bob',
+          ),
+        );
+
+    Map<String, dynamic> billRow(
+      String id,
+      String date, {
+      double amount = 100.0,
+      String paidBy = 'Alice',
+      String category = 'Food',
+    }) {
+      return {
+        'id': id,
+        'date': date,
+        'amount': amount,
+        'paid_by': paidBy,
+        'category': category,
+        'details': '',
+      };
+    }
+
+    testWidgets(
+        'shows a plain amount for an unreimbursed bill and a struck-through '
+        'original next to the net amount for a reimbursed one',
+        (tester) async {
+      final billsProvider = BillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            [
+              billRow('plain', '2026-01-01', amount: 50.0),
+              billRow('reimbursed', '2026-01-02', amount: 100.0),
+            ],
+        fetchReimbursedTotals: ({required billIds}) async =>
+            {'reimbursed': 30.0},
+      );
+
+      await pumpBillsListScreen(
+        tester,
+        billsProvider: billsProvider,
+        configProvider: signedInConfigProvider(),
+        categoriesProvider: CategoriesProvider(
+            fetchCategories: ({required householdId}) async => []),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Amount: \$50.00'), findsOneWidget);
+      expect(find.text('\$100.00'), findsOneWidget); // struck-through original
+      expect(find.text('\$70.00'), findsOneWidget); // net after reimbursement
+    });
+
+    testWidgets(
+        'tapping "Reimbursements" on a bill opens BillReimbursementsScreen',
+        (tester) async {
+      final billsProvider = BillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            [billRow('bill-1', '2026-01-01', amount: 80.0)],
+        fetchReimbursedTotals: ({required billIds}) async => {},
+      );
+
+      await pumpBillsListScreen(
+        tester,
+        billsProvider: billsProvider,
+        configProvider: signedInConfigProvider(),
+        categoriesProvider: CategoriesProvider(
+            fetchCategories: ({required householdId}) async => []),
+        reimbursementsProvider: ReimbursementsProvider(
+          fetchReimbursementsForBill: ({required billId}) async => [],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(PopupMenuButton));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Reimbursements'));
+      // The menu item's onTap fires after a 100ms Future.delayed.
+      await tester.pump(const Duration(milliseconds: 150));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(BillReimbursementsScreen), findsOneWidget);
+      expect(find.text('Original amount'), findsOneWidget);
+      expect(find.text('\$80.00'), findsWidgets);
+    });
   });
 
   test(

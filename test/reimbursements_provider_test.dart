@@ -3,6 +3,8 @@
 // signed-in Supabase session - same pattern as test/bills_provider_test.dart.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:splitbalance/models/reimbursement.dart';
 import 'package:splitbalance/providers/reimbursements_provider.dart';
 
@@ -25,6 +27,52 @@ Map<String, dynamic> reimbursementRow(
 }
 
 void main() {
+  setUpAll(() async {
+    // Only the "real Supabase defaults" group below needs this - matches
+    // test/bills_list_screen_test.dart's pattern.
+    SharedPreferences.setMockInitialValues({});
+    await Supabase.initialize(
+      url: 'https://example.supabase.co',
+      anonKey: 'test-anon-key',
+    );
+  });
+
+  group('ReimbursementsProvider - real Supabase defaults', () {
+    // None of these override fetchReimbursementsForBill/insertReimbursementRow/
+    // deleteReimbursementRow, so each falls through to its real default,
+    // which has no injection seam and hits Supabase.instance.client
+    // directly. Against the fake project url configured above, every call
+    // fails - proving the defaults actually run and that the failure
+    // surfaces as a provider error rather than an uncaught exception.
+    test('loadForBill', () async {
+      final provider = ReimbursementsProvider();
+      await provider.loadForBill('bill-1');
+      expect(provider.error, contains('Failed to load reimbursements'));
+    });
+
+    test('addReimbursement', () async {
+      final provider = ReimbursementsProvider();
+      final success = await provider.addReimbursement(
+        Reimbursement(
+          billId: 'bill-1',
+          date: DateTime(2024, 1, 1),
+          amount: 10.0,
+          receivedBy: 'Alice',
+        ),
+        'household-1',
+      );
+      expect(success, isFalse);
+      expect(provider.error, contains('Failed to add reimbursement'));
+    });
+
+    test('deleteReimbursement', () async {
+      final provider = ReimbursementsProvider();
+      final success = await provider.deleteReimbursement('reimb-1');
+      expect(success, isFalse);
+      expect(provider.error, contains('Failed to delete reimbursement'));
+    });
+  });
+
   group('ReimbursementsProvider - loadForBill', () {
     test('populates reimbursements from the fetcher, newest first as '
         'returned', () async {
