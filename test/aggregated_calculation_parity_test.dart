@@ -344,6 +344,74 @@ void main() {
     });
   });
 
+  group('Parity - reimbursements', () {
+    // CalculationService nets out bill.reimbursedAmount via netAmount, and
+    // InMemoryBillSource's fetch functions do the same - proving the two
+    // calculators still agree once reimbursements are in the mix, the same
+    // way the rest of this suite does for the un-reimbursed case.
+    test('a partially reimbursed bill', () async {
+      await expectParity(
+        bills: [
+          Bill(
+              date: baseDate,
+              amount: 100.0,
+              paidBy: person1,
+              category: 'Food',
+              reimbursedAmount: 30.0),
+          Bill(date: baseDate, amount: 100.0, paidBy: person2, category: 'Food'),
+        ],
+        splits: [
+          PaymentSplit(
+            category: 'all',
+            person1: person1,
+            person1Percentage: 50.0,
+            person2: person2,
+            person2Percentage: 50.0,
+          ),
+        ],
+        categoryNames: ['Food'],
+      );
+    });
+
+    test('reimbursements spread across categories and date periods',
+        () async {
+      await expectParity(
+        bills: [
+          Bill(
+              date: DateTime(2024, 1, 10),
+              amount: 200.0,
+              paidBy: person1,
+              category: 'Rent',
+              reimbursedAmount: 50.0),
+          Bill(
+              date: DateTime(2024, 2, 15),
+              amount: 75.0,
+              paidBy: person2,
+              category: 'Food',
+              reimbursedAmount: 75.0), // fully reimbursed
+        ],
+        splits: [
+          PaymentSplit(
+            endDate: DateTime(2024, 1, 31),
+            category: 'all',
+            person1: person1,
+            person1Percentage: 60.0,
+            person2: person2,
+            person2Percentage: 40.0,
+          ),
+          PaymentSplit(
+            category: 'all',
+            person1: person1,
+            person1Percentage: 50.0,
+            person2: person2,
+            person2Percentage: 50.0,
+          ),
+        ],
+        categoryNames: ['Rent', 'Food'],
+      );
+    });
+  });
+
   group('Parity - endDate+1 ambiguous boundary day', () {
     // The single calendar day right after a split's endDate is ambiguous
     // under PaymentSplit.containsDate, and which split wins depends on the

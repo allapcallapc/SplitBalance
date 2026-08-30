@@ -82,6 +82,23 @@ void main() {
     test('empty bill list produces no months', () {
       expect(computeMonthlySpend([], person1, person2), isEmpty);
     });
+
+    test('buckets by netAmount, not amount, when a bill has reimbursements',
+        () {
+      final bills = [
+        Bill(
+            date: DateTime(2024, 1, 5),
+            amount: 100.0,
+            paidBy: person1,
+            category: 'Food',
+            reimbursedAmount: 40.0),
+      ];
+
+      final months = computeMonthlySpend(bills, person1, person2);
+
+      expect(months, hasLength(1));
+      expect(months.single.person1Amount, 60.0);
+    });
   });
 
   group('computeCumulativeSpend', () {
@@ -137,6 +154,28 @@ void main() {
 
     test('empty bill list produces no points', () {
       expect(computeCumulativeSpend([], person1, person2), isEmpty);
+    });
+
+    test('accumulates netAmount, not amount, when a bill has reimbursements',
+        () {
+      final bills = [
+        Bill(
+            date: DateTime(2024, 1, 1),
+            amount: 100.0,
+            paidBy: person1,
+            category: 'Food',
+            reimbursedAmount: 25.0),
+        Bill(
+            date: DateTime(2024, 1, 2),
+            amount: 50.0,
+            paidBy: person2,
+            category: 'Food'),
+      ];
+
+      final points = computeCumulativeSpend(bills, person1, person2);
+
+      expect(points[0].cumulativeAmount, 75.0);
+      expect(points[1].cumulativeAmount, 125.0);
     });
   });
 }

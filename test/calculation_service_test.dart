@@ -1426,6 +1426,170 @@ void main() {
     });
   });
 
+  group('CalculationService - Reimbursements', () {
+    const String person1 = 'Alice';
+    const String person2 = 'Bob';
+    final DateTime baseDate = DateTime(2024, 1, 15);
+
+    List<Category> getCategories([List<String>? names]) {
+      return (names ?? ['Food', 'Rent'])
+          .map((name) => Category(name: name))
+          .toList();
+    }
+
+    final splits = [
+      PaymentSplit(
+        category: 'all',
+        person1: person1,
+        person1Percentage: 50.0,
+        person2: person2,
+        person2Percentage: 50.0,
+      ),
+    ];
+
+    test('a reimbursed bill reduces both paid and expected amounts, '
+        'preserving the split ratio', () {
+      final bills = [
+        Bill(
+          date: baseDate,
+          amount: 100.0,
+          paidBy: person1,
+          category: 'Food',
+          reimbursedAmount: 30.0,
+        ),
+      ];
+
+      final result = CalculationService.calculateBalances(
+        bills: bills,
+        splits: splits,
+        categories: getCategories(),
+        person1Name: person1,
+        person2Name: person2,
+      );
+
+      // Net cost is 70, not the original 100.
+      expect(result.person1Paid, 70.0);
+      expect(result.person2Paid, 0.0);
+      // Still split 50/50, just over the smaller net amount.
+      expect(result.person1Expected, 35.0);
+      expect(result.person2Expected, 35.0);
+
+      final foodBalance = result.categoryBalances['Food']!;
+      expect(foodBalance.person1Paid, 70.0);
+      expect(foodBalance.person1Expected, 35.0);
+      expect(foodBalance.person2Expected, 35.0);
+    });
+
+    test('a bill with no reimbursements behaves exactly as before '
+        '(reimbursedAmount defaults to 0)', () {
+      final bills = [
+        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
+      ];
+
+      final result = CalculationService.calculateBalances(
+        bills: bills,
+        splits: splits,
+        categories: getCategories(),
+        person1Name: person1,
+        person2Name: person2,
+      );
+
+      expect(result.person1Paid, 100.0);
+      expect(result.person1Expected, 50.0);
+      expect(result.person2Expected, 50.0);
+    });
+
+    test('a fully reimbursed bill contributes nothing to paid or expected',
+        () {
+      final bills = [
+        Bill(
+          date: baseDate,
+          amount: 100.0,
+          paidBy: person1,
+          category: 'Food',
+          reimbursedAmount: 100.0,
+        ),
+      ];
+
+      final result = CalculationService.calculateBalances(
+        bills: bills,
+        splits: splits,
+        categories: getCategories(),
+        person1Name: person1,
+        person2Name: person2,
+      );
+
+      expect(result.person1Paid, 0.0);
+      expect(result.person1Expected, 0.0);
+      expect(result.person2Expected, 0.0);
+    });
+
+    test('reimbursements exceeding the bill amount are allowed to go '
+        'negative rather than clamp at zero', () {
+      // Deliberately over-reimbursed (e.g. a race condition, or a manual DB
+      // edit outside the app's own add-reimbursement validation, which
+      // itself blocks this in the normal flow). netAmount is defined as a
+      // plain subtraction with no floor, so this bill acts as a small
+      // credit rather than being treated as free.
+      final bills = [
+        Bill(
+          date: baseDate,
+          amount: 100.0,
+          paidBy: person1,
+          category: 'Food',
+          reimbursedAmount: 120.0,
+        ),
+      ];
+
+      expect(bills.single.netAmount, -20.0);
+
+      final result = CalculationService.calculateBalances(
+        bills: bills,
+        splits: splits,
+        categories: getCategories(),
+        person1Name: person1,
+        person2Name: person2,
+      );
+
+      expect(result.person1Paid, -20.0);
+      expect(result.person1Expected, -10.0);
+      expect(result.person2Expected, -10.0);
+    });
+
+    test('reimbursements on multiple bills across categories net out '
+        'independently', () {
+      final bills = [
+        Bill(
+          date: baseDate,
+          amount: 200.0,
+          paidBy: person1,
+          category: 'Rent',
+          reimbursedAmount: 50.0,
+        ),
+        Bill(
+          date: baseDate,
+          amount: 60.0,
+          paidBy: person2,
+          category: 'Food',
+          reimbursedAmount: 10.0,
+        ),
+      ];
+
+      final result = CalculationService.calculateBalances(
+        bills: bills,
+        splits: splits,
+        categories: getCategories(),
+        person1Name: person1,
+        person2Name: person2,
+      );
+
+      expect(result.person1Paid, 150.0); // 200 - 50
+      expect(result.person2Paid, 50.0); // 60 - 10
+      expect(result.categoryBalances['Rent']!.person1Paid, 150.0);
+      expect(result.categoryBalances['Food']!.person2Paid, 50.0);
+    });
+  });
+
   group('computeSplitPeriodsForCategory / findMatchingSplit / collectEndDates', () {
     const String person1 = 'Alice';
     const String person2 = 'Bob';

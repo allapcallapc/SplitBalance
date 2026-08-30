@@ -334,4 +334,179 @@ void main() {
       timeout: const Timeout(Duration(minutes: 3)),
     );
   });
+
+  group('AggregatedCalculationService - reimbursements (real Supabase '
+      'queries)', () {
+    // seedHousehold's billRows path doesn't hand back generated ids, and
+    // bill_reimbursements needs a real bill_id to link against - so these
+    // tests seed bills directly instead, capturing the inserted row.
+    test('a reimbursement reduces the payer\'s total and the household '
+        'total, without changing the 50/50 split ratio', () async {
+      final household =
+          await admin.from('households').insert({}).select().single();
+      final householdId = household['id'] as String;
+      createdHouseholdIds.add(householdId);
+
+      await admin.from('categories').insert({
+        'household_id': householdId,
+        'name': 'Food',
+      });
+      final bill = await admin
+          .from('bills')
+          .insert({
+            'household_id': householdId,
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Alice',
+            'category': 'Food',
+          })
+          .select()
+          .single();
+      await admin.from('payment_splits').insert({
+        'household_id': householdId,
+        'category': 'Food',
+        'person1': 'Alice',
+        'person1_percentage': 50.0,
+        'person2': 'Bob',
+        'person2_percentage': 50.0,
+      });
+      await admin.from('bill_reimbursements').insert({
+        'household_id': householdId,
+        'bill_id': bill['id'],
+        'date': '2024-01-20',
+        'amount': 30.0,
+        'received_by': 'Alice',
+      });
+
+      final service = AggregatedCalculationService();
+      final result = await service.calculateBalances(
+        householdId: householdId,
+        categories: [Category(name: 'Food')],
+        person1Name: 'Alice',
+        person2Name: 'Bob',
+      );
+
+      // Net cost is 70 (100 - 30), split ratio unchanged at 50/50.
+      expect(result.person1Paid, closeTo(70.0, 0.01));
+      expect(result.person2Paid, closeTo(0.0, 0.01));
+      expect(result.person1Expected, closeTo(35.0, 0.01));
+      expect(result.person2Expected, closeTo(35.0, 0.01));
+
+      final foodBalance = result.categoryBalances['Food'];
+      expect(foodBalance, isNotNull);
+      expect(foodBalance!.person1Paid, closeTo(70.0, 0.01));
+
+      final totals = await service.fetchHouseholdTotals(householdId: householdId);
+      expect(totals.billCount, 1); // reimbursements aren't bills
+      expect(totals.totalAmount, closeTo(70.0, 0.01));
+    });
+
+    test('a reimbursement on one payer\'s bill does not leak into the '
+        'other payer\'s total (proves the bills!inner(paid_by) embed '
+        'filters correctly)', () async {
+      final household =
+          await admin.from('households').insert({}).select().single();
+      final householdId = household['id'] as String;
+      createdHouseholdIds.add(householdId);
+
+      await admin.from('categories').insert({
+        'household_id': householdId,
+        'name': 'Food',
+      });
+      final aliceBill = await admin
+          .from('bills')
+          .insert({
+            'household_id': householdId,
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Alice',
+            'category': 'Food',
+          })
+          .select()
+          .single();
+      await admin.from('bills').insert({
+        'household_id': householdId,
+        'date': '2024-01-15',
+        'amount': 100.0,
+        'paid_by': 'Bob',
+        'category': 'Food',
+      });
+      // Only Alice's bill is reimbursed.
+      await admin.from('bill_reimbursements').insert({
+        'household_id': householdId,
+        'bill_id': aliceBill['id'],
+        'date': '2024-01-20',
+        'amount': 40.0,
+        'received_by': 'Alice',
+      });
+
+      final service = AggregatedCalculationService();
+      final result = await service.calculateBalances(
+        householdId: householdId,
+        categories: [Category(name: 'Food')],
+        person1Name: 'Alice',
+        person2Name: 'Bob',
+      );
+
+      expect(result.person1Paid, closeTo(60.0, 0.01)); // 100 - 40
+      expect(result.person2Paid, closeTo(100.0, 0.01)); // untouched
+    });
+
+    test('deleting a reimbursement restores the bill\'s full amount to the '
+        'calculation', () async {
+      final household =
+          await admin.from('households').insert({}).select().single();
+      final householdId = household['id'] as String;
+      createdHouseholdIds.add(householdId);
+
+      await admin.from('categories').insert({
+        'household_id': householdId,
+        'name': 'Food',
+      });
+      final bill = await admin
+          .from('bills')
+          .insert({
+            'household_id': householdId,
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Alice',
+            'category': 'Food',
+          })
+          .select()
+          .single();
+      final reimbursement = await admin
+          .from('bill_reimbursements')
+          .insert({
+            'household_id': householdId,
+            'bill_id': bill['id'],
+            'date': '2024-01-20',
+            'amount': 25.0,
+            'received_by': 'Alice',
+          })
+          .select()
+          .single();
+
+      final service = AggregatedCalculationService();
+      final reimbursedResult = await service.calculateBalances(
+        householdId: householdId,
+        categories: [Category(name: 'Food')],
+        person1Name: 'Alice',
+        person2Name: 'Bob',
+      );
+      expect(reimbursedResult.person1Paid, closeTo(75.0, 0.01));
+
+      await admin
+          .from('bill_reimbursements')
+          .delete()
+          .eq('id', reimbursement['id']);
+
+      final restoredResult = await service.calculateBalances(
+        householdId: householdId,
+        categories: [Category(name: 'Food')],
+        person1Name: 'Alice',
+        person2Name: 'Bob',
+      );
+      expect(restoredResult.person1Paid, closeTo(100.0, 0.01));
+    });
+  });
 }

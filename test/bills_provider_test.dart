@@ -9,22 +9,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:splitbalance/models/bill.dart';
 import 'package:splitbalance/providers/bills_provider.dart';
 
-// None of these tests care about reimbursements, so this wrapper always
-// injects a no-op fetchReimbursedTotals - otherwise every loadBillsForHousehold
-// call below would fall through to BillsProvider's real-Supabase default and
-// fail outside a signed-in session.
+// Most of these tests don't care about reimbursements, so this wrapper
+// defaults to a no-op fetchReimbursedTotals - otherwise every
+// loadBillsForHousehold call below would fall through to BillsProvider's
+// real-Supabase default and fail outside a signed-in session. Tests that DO
+// care (see the "reimbursed totals" group) pass their own.
 BillsProvider testBillsProvider({
   FetchBillsPage? fetchBillsPage,
   InsertBillRow? insertBillRow,
   UpdateBillRow? updateBillRow,
   DeleteBillRow? deleteBillRow,
+  FetchReimbursedTotals? fetchReimbursedTotals,
 }) {
   return BillsProvider(
     fetchBillsPage: fetchBillsPage,
     insertBillRow: insertBillRow,
     updateBillRow: updateBillRow,
     deleteBillRow: deleteBillRow,
-    fetchReimbursedTotals: ({required billIds}) async => {},
+    fetchReimbursedTotals:
+        fetchReimbursedTotals ?? ({required billIds}) async => {},
   );
 }
 
@@ -454,6 +457,137 @@ void main() {
       expect(provider.error, contains('Failed to delete bill'));
       expect(provider.bills, isNotEmpty);
       expect(provider.allBills, isNotEmpty);
+    });
+  });
+
+  group('BillsProvider - reimbursed totals', () {
+    test('loadBillsForHousehold merges reimbursedAmount into each bill',
+        () async {
+      final provider = testBillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            [
+              billRow('bill-1', '2026-01-01'),
+              billRow('bill-2', '2026-01-02'),
+            ],
+        fetchReimbursedTotals: ({required billIds}) async {
+          expect(billIds, unorderedEquals(['bill-1', 'bill-2']));
+          return {'bill-1': 4.0};
+        },
+      );
+
+      await provider.loadBillsForHousehold('household-1');
+
+      final bill1 = provider.bills.firstWhere((b) => b.id == 'bill-1');
+      final bill2 = provider.bills.firstWhere((b) => b.id == 'bill-2');
+      expect(bill1.reimbursedAmount, 4.0);
+      expect(bill1.netAmount, 6.0); // billRow's default amount is 10.0
+      // bill-2 has no entry in the fetcher's result - stays at 0, not
+      // dropped or errored.
+      expect(bill2.reimbursedAmount, 0.0);
+    });
+
+    test('loadMoreBillsForHousehold merges reimbursedAmount into the '
+        'appended page too', () async {
+      final provider = testBillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async {
+          if (offset == 0) {
+            return List.generate(
+              BillsProvider.pageSize,
+              (i) => billRow('p1-$i', '2026-01-01'),
+            );
+          }
+          return [billRow('p2-0', '2026-01-02')];
+        },
+        fetchReimbursedTotals: ({required billIds}) async {
+          if (billIds.contains('p2-0')) return {'p2-0': 2.5};
+          return {};
+        },
+      );
+
+      await provider.loadBillsForHousehold('household-1');
+      await provider.loadMoreBillsForHousehold('household-1');
+
+      final appended = provider.bills.firstWhere((b) => b.id == 'p2-0');
+      expect(appended.reimbursedAmount, 2.5);
+    });
+
+    // loadAllBills has no injection seam for its own bill-row query (it
+    // calls Supabase.instance.client directly - see BillsProvider._supabase),
+    // so it can't be exercised against fake data in a plain unit test; its
+    // use of the same _withReimbursedTotals merge helper is covered here via
+    // loadBillsForHousehold/loadMoreBillsForHousehold above, and end-to-end
+    // against a real database by the integration suite.
+
+    test('updateBillById carries forward the previously known '
+        'reimbursedAmount instead of resetting it to 0', () async {
+      final provider = testBillsProvider(
+        updateBillRow: (id, data) async => {
+          'id': id,
+          'date': data['date'],
+          'amount': data['amount'],
+          'paid_by': data['paid_by'],
+          'category': data['category'],
+          'details': data['details'],
+        },
+      );
+
+      // Seed _allBills with an entry that already carries a known
+      // reimbursedAmount: since this id isn't in _allBills yet,
+      // updateBillById's orElse fallback uses the incoming Bill argument's
+      // own reimbursedAmount - standing in here for a bill that was
+      // originally populated by loadAllBills with its real reimbursed total
+      // already merged in. householdId is null so this skips the refetch
+      // and only exercises the _allBills merge itself.
+      await provider.updateBillById(
+        'bill-1',
+        Bill(
+          id: 'bill-1',
+          date: DateTime.parse('2026-01-01'),
+          amount: 10.0,
+          paidBy: 'Alice',
+          category: 'Groceries',
+          reimbursedAmount: 12.0,
+        ),
+        null,
+      );
+      expect(provider.allBills.single.reimbursedAmount, 12.0);
+
+      // Editing the bill's category shouldn't touch its reimbursements. The
+      // second updatedBill below has no reimbursedAmount of its own
+      // (matching AddEditBillScreen, which never sets it) and
+      // _updateBillRow's response has none either (it's not a `bills`
+      // column) - so updateBillById must carry the existing _allBills total
+      // forward rather than resetting it to 0.
+      await provider.updateBillById(
+        'bill-1',
+        Bill(
+          id: 'bill-1',
+          date: DateTime.parse('2026-01-01'),
+          amount: 10.0,
+          paidBy: 'Alice',
+          category: 'Rent',
+        ),
+        null,
+      );
+
+      expect(provider.allBills.single.category, 'Rent');
+      expect(provider.allBills.single.reimbursedAmount, 12.0);
     });
   });
 }
