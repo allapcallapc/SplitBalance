@@ -51,9 +51,22 @@ class _BillReimbursementsScreenState extends State<BillReimbursementsScreen> {
 
   @override
   void dispose() {
-    // Avoid a stale reimbursement list briefly flashing if this screen (or
+    // Deferred to a microtask rather than called synchronously: reset()
+    // calls notifyListeners(), and this provider is registered above both
+    // this screen and BillsListScreen, so its InheritedProviderScope tries
+    // to rebuild immediately - during a pop transition that lands mid-frame
+    // (the tree still locked), throwing "setState()/markNeedsBuild() called
+    // when widget tree was locked". A microtask runs after the current
+    // frame finishes, once the tree is unlocked again. Safe to call on the
+    // provider after this widget is gone - reset() only touches the
+    // ChangeNotifier itself, not this element/context.
+    //
+    // Avoids a stale reimbursement list briefly flashing if this screen (or
     // one for a different bill) is opened again later.
-    _reimbursementsProvider?.reset();
+    final provider = _reimbursementsProvider;
+    if (provider != null) {
+      Future.microtask(provider.reset);
+    }
     super.dispose();
   }
 
