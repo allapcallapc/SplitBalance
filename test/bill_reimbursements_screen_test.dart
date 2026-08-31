@@ -5,6 +5,8 @@
 // needs a real Supabase session - same pattern as
 // test/bills_list_screen_test.dart and test/category_detail_screen_test.dart.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -56,6 +58,7 @@ Future<void> pumpScreen(
   required Bill bill,
   required ReimbursementsProvider reimbursementsProvider,
   ConfigProvider? configProvider,
+  bool settle = true,
 }) async {
   await tester.pumpWidget(
     MultiProvider(
@@ -76,7 +79,11 @@ Future<void> pumpScreen(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+  }
 }
 
 void main() {
@@ -130,6 +137,29 @@ void main() {
 
       expect(find.text('Add Reimbursement'), findsNothing);
       expect(find.byType(FloatingActionButton), findsNothing);
+    });
+
+    testWidgets('shows a loading indicator while reimbursements are loading',
+        (tester) async {
+      final completer = Completer<List<Map<String, dynamic>>>();
+      final provider = ReimbursementsProvider(
+        fetchReimbursementsForBill: ({required billId}) => completer.future,
+      );
+
+      // settle: false - a full pumpAndSettle would wait forever for the
+      // unresolved completer, so this only pumps the one frame needed to
+      // render the initial (loading) state.
+      await pumpScreen(tester, bill: bill, reimbursementsProvider: provider,
+          settle: false);
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('No reimbursements yet'), findsNothing);
+
+      completer.complete([]);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.text('No reimbursements yet'), findsOneWidget);
     });
   });
 
@@ -239,6 +269,31 @@ void main() {
       expect(find.text('Save Reimbursement'), findsNothing);
       expect(provider.reimbursements, hasLength(1));
     });
+
+    testWidgets(
+        'an insert failure shows the provider\'s error and keeps the sheet '
+        'open', (tester) async {
+      final provider = ReimbursementsProvider(
+        fetchReimbursementsForBill: ({required billId}) async => [],
+        insertReimbursementRow: (data) async =>
+            throw Exception('network error'),
+      );
+
+      await pumpScreen(tester, bill: bill, reimbursementsProvider: provider);
+
+      await tester.tap(find.text('Add Reimbursement'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).first, '20');
+      await tester.tap(find.text('Save Reimbursement'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('Failed to add reimbursement'),
+          findsOneWidget);
+      // The sheet stays open - saving failed, nothing to dismiss for.
+      expect(find.text('Save Reimbursement'), findsOneWidget);
+      expect(provider.reimbursements, isEmpty);
+    });
   });
 
   group('BillReimbursementsScreen - delete', () {
@@ -274,6 +329,28 @@ void main() {
       expect(deletedId, 'r1');
       expect(provider.reimbursements, isEmpty);
       expect(find.text('No reimbursements yet'), findsOneWidget);
+    });
+
+    testWidgets(
+        'a delete failure shows the provider\'s error and leaves the item '
+        'in place', (tester) async {
+      final provider = ReimbursementsProvider(
+        fetchReimbursementsForBill: ({required billId}) async =>
+            [reimbursementRow('r1', 'bill-1', '2024-01-05', amount: 30.0)],
+        deleteReimbursementRow: (id) async =>
+            throw Exception('network error'),
+      );
+
+      await pumpScreen(tester, bill: bill, reimbursementsProvider: provider);
+
+      await tester.tap(find.byIcon(Icons.delete));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Failed to delete reimbursement'),
+          findsOneWidget);
+      expect(provider.reimbursements, hasLength(1));
     });
   });
 

@@ -210,6 +210,15 @@ void main() {
       expect(find.byType(BillReimbursementsScreen), findsOneWidget);
       expect(find.text('Original amount'), findsOneWidget);
       expect(find.text('\$80.00'), findsWidgets);
+
+      // Navigating back lets Navigator.push's returned Future resolve,
+      // reaching the post-push `await _loadData()` call - otherwise that
+      // line never runs, since push() only completes once its route pops.
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(BillReimbursementsScreen), findsNothing);
     });
   });
 

@@ -21,6 +21,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:splitbalance/models/category.dart';
+import 'package:splitbalance/models/reimbursement.dart';
+import 'package:splitbalance/providers/bills_provider.dart';
+import 'package:splitbalance/providers/reimbursements_provider.dart';
 import 'package:splitbalance/services/aggregated_calculation_service.dart';
 
 void main() {
@@ -507,6 +510,101 @@ void main() {
         person2Name: 'Bob',
       );
       expect(restoredResult.person1Paid, closeTo(100.0, 0.01));
+    });
+  });
+
+  group('BillsProvider / ReimbursementsProvider - real Supabase defaults',
+      () {
+    // Neither provider's own default fetch/insert/delete methods have an
+    // injection seam - every other test in this repo supplies a fake, so
+    // this is the only place these actually run against a real backend.
+    // Uses Supabase.instance.client the same way AggregatedCalculationService
+    // above does (initialized with the service-role key in setUpAll).
+
+    test('BillsProvider merges a real bill_reimbursements row into the '
+        'loaded bill', () async {
+      final householdId = await seedHousehold(
+        categoryRows: [
+          {'name': 'Food'},
+        ],
+        billRows: [
+          {
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Alice',
+            'category': 'Food',
+          },
+        ],
+        splitRows: const [],
+      );
+      final bill =
+          await admin.from('bills').select().eq('household_id', householdId).single();
+      await admin.from('bill_reimbursements').insert({
+        'household_id': householdId,
+        'bill_id': bill['id'],
+        'date': '2024-01-20',
+        'amount': 30.0,
+        'received_by': 'Alice',
+      });
+
+      final billsProvider = BillsProvider();
+      await billsProvider.loadBillsForHousehold(householdId);
+
+      expect(billsProvider.error, isNull);
+      expect(billsProvider.bills, hasLength(1));
+      expect(billsProvider.bills.single.reimbursedAmount, closeTo(30.0, 0.01));
+      expect(billsProvider.bills.single.netAmount, closeTo(70.0, 0.01));
+    });
+
+    test('ReimbursementsProvider add/load/delete round-trips through the '
+        'real bill_reimbursements table', () async {
+      final householdId = await seedHousehold(
+        categoryRows: [
+          {'name': 'Food'},
+        ],
+        billRows: [
+          {
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Alice',
+            'category': 'Food',
+          },
+        ],
+        splitRows: const [],
+      );
+      final bill =
+          await admin.from('bills').select().eq('household_id', householdId).single();
+      final billId = bill['id'] as String;
+
+      final reimbursementsProvider = ReimbursementsProvider();
+
+      final added = await reimbursementsProvider.addReimbursement(
+        Reimbursement(
+          billId: billId,
+          date: DateTime(2024, 1, 20),
+          amount: 25.0,
+          receivedBy: 'Alice',
+          note: 'refund',
+        ),
+        householdId,
+      );
+      expect(added, isTrue);
+      expect(reimbursementsProvider.error, isNull);
+      expect(reimbursementsProvider.reimbursements, hasLength(1));
+      final reimbursementId = reimbursementsProvider.reimbursements.single.id!;
+
+      // A fresh load should see the same row that addReimbursement just
+      // inserted via the real client.
+      await reimbursementsProvider.loadForBill(billId);
+      expect(reimbursementsProvider.error, isNull);
+      expect(reimbursementsProvider.reimbursements, hasLength(1));
+      expect(reimbursementsProvider.totalReimbursed, closeTo(25.0, 0.01));
+
+      final deleted =
+          await reimbursementsProvider.deleteReimbursement(reimbursementId);
+      expect(deleted, isTrue);
+      expect(reimbursementsProvider.error, isNull);
+      expect(reimbursementsProvider.reimbursements, isEmpty);
     });
   });
 }
