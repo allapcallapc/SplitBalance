@@ -227,11 +227,11 @@ class BillsProvider with ChangeNotifier {
     await Supabase.instance.client.from('bills').delete().eq('id', id);
   }
 
-  // billIds is never empty here - the only caller, _withReimbursedTotals,
-  // already returns early on an empty list before reaching this.
   static Future<Map<String, double>> _defaultFetchReimbursedTotals({
     required List<String> billIds,
   }) async {
+    if (billIds.isEmpty) return {};
+
     final totals = <String, double>{};
     // Paginated the same way AggregatedCalculationService._sumAmounts is,
     // in case a household's full bill set (loadAllBills) pushes this past
