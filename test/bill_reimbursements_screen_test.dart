@@ -42,12 +42,13 @@ Map<String, dynamic> reimbursementRow(
 ConfigProvider testConfigProvider({
   String person1Name = 'Alice',
   String person2Name = 'Bob',
+  String? householdId = 'household-1',
 }) {
   return ConfigProvider.forTesting(
     isSignedIn: true,
     currentUserId: 'user-1',
     config: AppConfig(
-      householdId: 'household-1',
+      householdId: householdId,
       person1Name: person1Name,
       person2Name: person2Name,
     ),
@@ -109,6 +110,32 @@ void main() {
       expect(find.text('No reimbursements yet'), findsOneWidget);
       expect(find.text('\$100.00'), findsWidgets); // original + remaining
       expect(find.text('Add Reimbursement'), findsOneWidget); // the FAB
+    });
+
+    testWidgets(
+        'never calls loadForBill when the bill has no saved id yet '
+        '(defensive - real navigation only ever reaches this screen with '
+        'an already-saved bill)', (tester) async {
+      var loadForBillCalled = false;
+      final provider = ReimbursementsProvider(
+        fetchReimbursementsForBill: ({required billId}) async {
+          loadForBillCalled = true;
+          return [];
+        },
+      );
+      final unsavedBill = Bill(
+        date: DateTime(2024, 1, 1),
+        amount: 50.0,
+        paidBy: 'Alice',
+        category: 'Food',
+      );
+
+      await pumpScreen(
+          tester, bill: unsavedBill, reimbursementsProvider: provider);
+
+      expect(tester.takeException(), isNull);
+      expect(loadForBillCalled, isFalse);
+      expect(find.text('No reimbursements yet'), findsOneWidget);
     });
 
     testWidgets('lists each reimbursement with its date, receiver, and note',
@@ -325,6 +352,38 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text(todayLabel), findsOneWidget);
+    });
+
+    testWidgets(
+        'saving does nothing when there is no household id (defensive - '
+        'real navigation only ever reaches this screen once signed into a '
+        'household)', (tester) async {
+      var insertCalled = false;
+      final provider = ReimbursementsProvider(
+        fetchReimbursementsForBill: ({required billId}) async => [],
+        insertReimbursementRow: (data) async {
+          insertCalled = true;
+          return reimbursementRow('r1', 'bill-1', '2024-01-01');
+        },
+      );
+
+      await pumpScreen(
+        tester,
+        bill: bill,
+        reimbursementsProvider: provider,
+        configProvider: testConfigProvider(householdId: null),
+      );
+
+      await tester.tap(find.text('Add Reimbursement'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).first, '20');
+      await tester.tap(find.text('Save Reimbursement'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(insertCalled, isFalse);
+      // Nothing happened, so the sheet just stays open.
+      expect(find.text('Save Reimbursement'), findsOneWidget);
     });
   });
 
