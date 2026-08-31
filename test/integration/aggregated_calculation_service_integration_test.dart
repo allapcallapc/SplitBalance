@@ -20,9 +20,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:splitbalance/models/app_config.dart';
 import 'package:splitbalance/models/category.dart';
 import 'package:splitbalance/models/reimbursement.dart';
 import 'package:splitbalance/providers/bills_provider.dart';
+import 'package:splitbalance/providers/config_provider.dart';
 import 'package:splitbalance/providers/reimbursements_provider.dart';
 import 'package:splitbalance/services/aggregated_calculation_service.dart';
 
@@ -616,6 +618,59 @@ void main() {
       },
       timeout: const Timeout(Duration(minutes: 3)),
     );
+
+    test('BillsProvider.loadAllBills merges reimbursed totals into the '
+        'unpaginated bill set', () async {
+      // loadAllBills() has no injection seam of its own (it calls
+      // Supabase.instance.client directly, gated only by ConfigProvider),
+      // so - unlike loadBillsForHousehold/loadMoreBillsForHousehold, which
+      // have @visibleForTesting *ForHousehold entry points - it can only be
+      // exercised end-to-end against a real Supabase instance, which is
+      // exactly what this suite provides.
+      final householdId = await seedHousehold(
+        categoryRows: [
+          {'name': 'Food'},
+        ],
+        billRows: [
+          {
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Alice',
+            'category': 'Food',
+          },
+        ],
+        splitRows: const [],
+      );
+      final bill =
+          await admin.from('bills').select().eq('household_id', householdId).single();
+      await admin.from('bill_reimbursements').insert({
+        'household_id': householdId,
+        'bill_id': bill['id'],
+        'date': '2024-01-20',
+        'amount': 25.0,
+        'received_by': 'Alice',
+      });
+
+      final billsProvider = BillsProvider();
+      final configProvider = ConfigProvider.forTesting(
+        isSignedIn: true,
+        config: AppConfig(
+          householdId: householdId,
+          person1Name: 'Alice',
+          person2Name: 'Bob',
+        ),
+      );
+
+      await billsProvider.loadAllBills(configProvider);
+
+      expect(billsProvider.error, isNull);
+      expect(billsProvider.allBills, hasLength(1));
+      expect(
+          billsProvider.allBills.single.reimbursedAmount, closeTo(25.0, 0.01));
+      expect(billsProvider.allBills.single.netAmount, closeTo(75.0, 0.01));
+      expect(
+          billsProvider.hasLoadedAllBillsForHousehold(householdId), isTrue);
+    });
 
     test('ReimbursementsProvider add/load/delete round-trips through the '
         'real bill_reimbursements table', () async {
