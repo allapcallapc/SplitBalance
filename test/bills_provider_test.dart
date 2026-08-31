@@ -534,6 +534,103 @@ void main() {
       expect(provider.error, isNull);
     });
 
+    test(
+        'a stale loadBillsForHousehold response is dropped even when it '
+        'only becomes stale after fetchBillsPage already resolved - i.e. '
+        'while still waiting on fetchReimbursedTotals', () async {
+      final reimbursedCompleter = Completer<Map<String, double>>();
+      var fetchBillsPageCalls = 0;
+      final provider = testBillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async {
+          fetchBillsPageCalls++;
+          return [billRow('bill-$fetchBillsPageCalls', '2026-01-01')];
+        },
+        // Shared by both calls below - resolving it once resolves both
+        // loads' pending _withReimbursedTotals at the same time, so which
+        // one is stale is decided purely by the requestId guard.
+        fetchReimbursedTotals: ({required billIds}) => reimbursedCompleter.future,
+      );
+
+      final firstLoad = provider.loadBillsForHousehold('household-1');
+      // Let fetchBillsPage resolve and fetchReimbursedTotals get called
+      // (and start waiting on the completer) for the first load.
+      await Future<void>.delayed(Duration.zero);
+
+      // A second load starts before the first's reimbursed-totals fetch
+      // ever resolves - simulating a fast second filter change.
+      final secondLoad = provider.loadBillsForHousehold('household-1');
+      await Future<void>.delayed(Duration.zero);
+
+      reimbursedCompleter.complete({});
+      await firstLoad;
+      await secondLoad;
+
+      // Only the second (current) load's bill made it into _bills - the
+      // first's result was discarded by the post-fetchReimbursedTotals
+      // requestId check, not just the earlier post-fetchBillsPage one.
+      expect(provider.bills.map((b) => b.id), ['bill-2']);
+      expect(provider.error, isNull);
+    });
+
+    test(
+        'a stale loadMoreBillsForHousehold response is dropped even when it '
+        'only becomes stale while waiting on fetchReimbursedTotals',
+        () async {
+      final reimbursedCompleter = Completer<Map<String, double>>();
+      final provider = testBillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async {
+          if (offset == 0) {
+            // Full page so hasMore is true and loadMore is eligible.
+            return List.generate(
+              BillsProvider.pageSize,
+              (i) => billRow('p1-$i', '2026-01-01'),
+            );
+          }
+          return [billRow('p2-0', '2026-01-02')];
+        },
+        fetchReimbursedTotals: ({required billIds}) async {
+          // The first page's own totals fetch resolves immediately; only
+          // the "load more" page's totals fetch waits on the completer.
+          if (billIds.contains('p2-0')) return reimbursedCompleter.future;
+          return {};
+        },
+      );
+
+      await provider.loadBillsForHousehold('household-1');
+      final moreLoad = provider.loadMoreBillsForHousehold('household-1');
+      // Let fetchBillsPage resolve and fetchReimbursedTotals start waiting.
+      await Future<void>.delayed(Duration.zero);
+
+      // A fresh page-1 load (e.g. the filter changed) resets state while
+      // "load more" is still waiting on its reimbursed-totals fetch.
+      final resetLoad = provider.loadBillsForHousehold('household-1');
+      await Future<void>.delayed(Duration.zero);
+
+      reimbursedCompleter.complete({});
+      await moreLoad;
+      await resetLoad;
+
+      // The stale "load more" page must not have been appended.
+      expect(provider.bills.any((b) => b.id == 'p2-0'), isFalse);
+      expect(provider.isLoadingMore, isFalse);
+    });
+
     test('loadBillsForHousehold merges reimbursedAmount into each bill',
         () async {
       final provider = testBillsProvider(
