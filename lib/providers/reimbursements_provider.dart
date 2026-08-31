@@ -123,11 +123,6 @@ class ReimbursementsProvider with ChangeNotifier {
     }
   }
 
-  void clearError() {
-    _error = null;
-    notifyListeners();
-  }
-
   // Drops the currently loaded bill's reimbursements - called when leaving
   // the reimbursements screen so a future loadForBill for a different bill
   // never briefly shows stale data.

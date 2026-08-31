@@ -506,6 +506,34 @@ void main() {
   });
 
   group('BillsProvider - reimbursed totals', () {
+    test(
+        'loadBillsForHousehold with no bills never calls fetchReimbursedTotals',
+        () async {
+      var fetchReimbursedTotalsCalled = false;
+      final provider = testBillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            const [],
+        fetchReimbursedTotals: ({required billIds}) async {
+          fetchReimbursedTotalsCalled = true;
+          return {};
+        },
+      );
+
+      await provider.loadBillsForHousehold('household-1');
+
+      expect(fetchReimbursedTotalsCalled, isFalse);
+      expect(provider.bills, isEmpty);
+      expect(provider.error, isNull);
+    });
+
     test('loadBillsForHousehold merges reimbursedAmount into each bill',
         () async {
       final provider = testBillsProvider(

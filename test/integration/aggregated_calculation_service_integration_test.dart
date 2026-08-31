@@ -556,6 +556,67 @@ void main() {
       expect(billsProvider.bills.single.netAmount, closeTo(70.0, 0.01));
     });
 
+    test(
+      'BillsProvider pages through more than max_rows worth of '
+      'reimbursements on a single bill without truncating the total',
+      () async {
+        // _defaultFetchReimbursedTotals pages in chunks of 1000 - this seeds
+        // more than that for one bill so the "page came back full, fetch the
+        // next one" branch (rows.length == chunkSize, so keep going instead
+        // of breaking) actually runs, the same way the existing "more bills
+        // than max_rows" test above does for AggregatedCalculationService.
+        const reimbursementCount = 1200;
+        final householdId = await seedHousehold(
+          categoryRows: [
+            {'name': 'Food'},
+          ],
+          billRows: [
+            {
+              'date': '2024-01-15',
+              'amount': 10000.0,
+              'paid_by': 'Alice',
+              'category': 'Food',
+            },
+          ],
+          splitRows: const [],
+        );
+        final bill = await admin
+            .from('bills')
+            .select()
+            .eq('household_id', householdId)
+            .single();
+        final billId = bill['id'] as String;
+
+        const batchSize = 500;
+        for (var start = 0; start < reimbursementCount; start += batchSize) {
+          final end = (start + batchSize < reimbursementCount)
+              ? start + batchSize
+              : reimbursementCount;
+          await admin.from('bill_reimbursements').insert(List.generate(
+                end - start,
+                (_) => {
+                  'household_id': householdId,
+                  'bill_id': billId,
+                  'date': '2024-01-20',
+                  'amount': 1.0,
+                  'received_by': 'Alice',
+                },
+              ));
+        }
+
+        final billsProvider = BillsProvider();
+        await billsProvider.loadBillsForHousehold(householdId);
+
+        expect(billsProvider.error, isNull);
+        expect(billsProvider.bills, hasLength(1));
+        expect(
+          billsProvider.bills.single.reimbursedAmount,
+          closeTo(reimbursementCount.toDouble(), 0.01),
+        );
+      },
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
+
     test('ReimbursementsProvider add/load/delete round-trips through the '
         'real bill_reimbursements table', () async {
       final householdId = await seedHousehold(

@@ -10,6 +10,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import 'package:splitbalance/l10n/app_localizations.dart';
@@ -293,6 +294,37 @@ void main() {
       // The sheet stays open - saving failed, nothing to dismiss for.
       expect(find.text('Save Reimbursement'), findsOneWidget);
       expect(provider.reimbursements, isEmpty);
+    });
+
+    testWidgets('picking a date updates the date shown in the sheet',
+        (tester) async {
+      final provider = ReimbursementsProvider(
+        fetchReimbursementsForBill: ({required billId}) async => [],
+      );
+
+      await pumpScreen(tester, bill: bill, reimbursementsProvider: provider);
+
+      await tester.tap(find.text('Add Reimbursement'));
+      await tester.pumpAndSettle();
+
+      final todayLabel = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      expect(find.text(todayLabel), findsOneWidget);
+
+      await tester.tap(find.text(todayLabel));
+      await tester.pumpAndSettle();
+
+      // Confirm the date picker with its default (today) selection - looking
+      // up the actual localized button label rather than hardcoding it,
+      // since that's what the code under test does too. Enough to exercise
+      // the showDatePicker/setSheetState round trip without needing to
+      // navigate the calendar to a different day.
+      final localizations = MaterialLocalizations.of(
+          tester.element(find.byType(BillReimbursementsScreen)));
+      await tester.tap(find.text(localizations.okButtonLabel));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text(todayLabel), findsOneWidget);
     });
   });
 
