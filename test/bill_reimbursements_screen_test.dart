@@ -43,6 +43,7 @@ ConfigProvider testConfigProvider({
   String person1Name = 'Alice',
   String person2Name = 'Bob',
   String? householdId = 'household-1',
+  Map<String, String> memberNamesByUserId = const {},
 }) {
   return ConfigProvider.forTesting(
     isSignedIn: true,
@@ -52,6 +53,7 @@ ConfigProvider testConfigProvider({
       person1Name: person1Name,
       person2Name: person2Name,
     ),
+    memberNamesByUserId: memberNamesByUserId,
   );
 }
 
@@ -384,6 +386,74 @@ void main() {
       expect(insertCalled, isFalse);
       // Nothing happened, so the sheet just stays open.
       expect(find.text('Save Reimbursement'), findsOneWidget);
+    });
+
+    testWidgets(
+        'defaults the receiver to the signed-in member\'s own name when one '
+        'is known', (tester) async {
+      Map<String, dynamic>? capturedInsert;
+      final provider = ReimbursementsProvider(
+        fetchReimbursementsForBill: ({required billId}) async => [],
+        insertReimbursementRow: (data) async {
+          capturedInsert = data;
+          return reimbursementRow('r1', 'bill-1', '2024-01-01',
+              amount: 20.0, receivedBy: 'Bob');
+        },
+      );
+
+      // 'user-1' (the signed-in id baked into testConfigProvider) maps to
+      // 'Bob' here, so the receiver dropdown should default to 'Bob' rather
+      // than falling back to person1Name ('Alice').
+      await pumpScreen(
+        tester,
+        bill: bill,
+        reimbursementsProvider: provider,
+        configProvider: testConfigProvider(
+          memberNamesByUserId: const {'user-1': 'Bob'},
+        ),
+      );
+
+      await tester.tap(find.text('Add Reimbursement'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).first, '20');
+      await tester.tap(find.text('Save Reimbursement'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(capturedInsert, isNotNull);
+      expect(capturedInsert!['received_by'], 'Bob');
+    });
+
+    testWidgets('changing the receiver dropdown updates who gets saved',
+        (tester) async {
+      Map<String, dynamic>? capturedInsert;
+      final provider = ReimbursementsProvider(
+        fetchReimbursementsForBill: ({required billId}) async => [],
+        insertReimbursementRow: (data) async {
+          capturedInsert = data;
+          return reimbursementRow('r1', 'bill-1', '2024-01-01',
+              amount: 20.0, receivedBy: 'Bob');
+        },
+      );
+
+      await pumpScreen(tester, bill: bill, reimbursementsProvider: provider);
+
+      await tester.tap(find.text('Add Reimbursement'));
+      await tester.pumpAndSettle();
+
+      // Defaults to 'Alice' (person1Name); open the dropdown and pick 'Bob'.
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Bob').last);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextFormField).first, '20');
+      await tester.tap(find.text('Save Reimbursement'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(capturedInsert, isNotNull);
+      expect(capturedInsert!['received_by'], 'Bob');
     });
   });
 
