@@ -9,7 +9,13 @@ class Bill {
   final String details;
   // Sum of this bill's reimbursements (see Reimbursement) - not a `bills`
   // table column, so it's always 0 unless the caller explicitly populated it
-  // (e.g. BillsProvider merges in a live sum after loading bill rows).
+  // (e.g. BillsProvider merges in a live sum after loading bill rows). A
+  // single scalar with no per-receiver breakdown, so anything computed from
+  // it (netAmount, CalculationService's balance math) always nets the
+  // reduction against this bill's own paidBy - it can't know that a
+  // reimbursement was received by the other person instead. Only
+  // AggregatedCalculationService, which queries bill_reimbursements.received_by
+  // directly, gets that case right (see its calculateBalances doc comment).
   final double reimbursedAmount;
 
   Bill({

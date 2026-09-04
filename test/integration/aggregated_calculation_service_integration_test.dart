@@ -407,8 +407,8 @@ void main() {
     });
 
     test('a reimbursement on one payer\'s bill does not leak into the '
-        'other payer\'s total (proves the bills!inner(paid_by) embed '
-        'filters correctly)', () async {
+        'other payer\'s total when both received their own reimbursement',
+        () async {
       final household =
           await admin.from('households').insert({}).select().single();
       final householdId = household['id'] as String;
@@ -512,6 +512,70 @@ void main() {
         person2Name: 'Bob',
       );
       expect(restoredResult.person1Paid, closeTo(100.0, 0.01));
+    });
+
+    test('a reimbursement received by the *other* person shifts the debt '
+        'to include the reimbursed amount, on top of their normal split '
+        'share', () async {
+      // Alice pays a $100 bill, but the $50 reimbursement is received by
+      // Bob instead of Alice (e.g. an insurance payout landed in his
+      // account). Bob is now holding $50 that belongs against Alice's
+      // outlay, plus he still owes his normal 50/50 share of the $50 net
+      // cost ($25) - so he owes Alice $75 total, not just $25.
+      final household =
+          await admin.from('households').insert({}).select().single();
+      final householdId = household['id'] as String;
+      createdHouseholdIds.add(householdId);
+
+      await admin.from('categories').insert({
+        'household_id': householdId,
+        'name': 'Food',
+      });
+      final bill = await admin
+          .from('bills')
+          .insert({
+            'household_id': householdId,
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Alice',
+            'category': 'Food',
+          })
+          .select()
+          .single();
+      await admin.from('payment_splits').insert({
+        'household_id': householdId,
+        'category': 'Food',
+        'person1': 'Alice',
+        'person1_percentage': 50.0,
+        'person2': 'Bob',
+        'person2_percentage': 50.0,
+      });
+      await admin.from('bill_reimbursements').insert({
+        'household_id': householdId,
+        'bill_id': bill['id'],
+        'date': '2024-01-20',
+        'amount': 50.0,
+        'received_by': 'Bob',
+      });
+
+      final service = AggregatedCalculationService();
+      final result = await service.calculateBalances(
+        householdId: householdId,
+        categories: [Category(name: 'Food')],
+        person1Name: 'Alice',
+        person2Name: 'Bob',
+      );
+
+      // Alice is still out her full $100 - she never got any of it back.
+      expect(result.person1Paid, closeTo(100.0, 0.01));
+      // Bob's total goes negative: he holds $50 he didn't spend.
+      expect(result.person2Paid, closeTo(-50.0, 0.01));
+      // Expected shares are still based on the $50 net cost, 50/50.
+      expect(result.person1Expected, closeTo(25.0, 0.01));
+      expect(result.person2Expected, closeTo(25.0, 0.01));
+      // netBalance = person1Expected - person1Paid = 25 - 100 = -75, i.e.
+      // person2 (Bob) owes person1 (Alice) $75.
+      expect(result.netBalance, closeTo(-75.0, 0.01));
     });
   });
 

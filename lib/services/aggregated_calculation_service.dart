@@ -130,10 +130,16 @@ class AggregatedCalculationService {
     return total;
   }
 
-  // Net of reimbursements: bill_reimbursements has no paid_by column of its
-  // own, so the reimbursed side is queried via a PostgREST embed
-  // (bills!inner(...)) that lets a filter reach into the linked bill's
-  // columns without a second round trip or an RPC.
+  // A reimbursement reduces whoever *received* the money's paid total, not
+  // necessarily the bill's original payer - money can be reimbursed back to
+  // either household member regardless of who fronted the bill (see
+  // Reimbursement.receivedBy). When a reimbursement's receiver differs from
+  // the bill's payer, this correctly shifts the debt: the payer's total
+  // stays at the bill's full amount (they're still out that cash) while the
+  // receiver's total goes negative by the reimbursed amount (they're now
+  // holding money that belongs to the payer), on top of whatever they
+  // separately owe from the split itself. bill_reimbursements.household_id
+  // is denormalized from the linked bill, so no join is needed here.
   static Future<double> _defaultFetchPersonPaidTotal({
     required String householdId,
     required String paidBy,
@@ -146,9 +152,9 @@ class AggregatedCalculationService {
           .eq('paid_by', paidBy)),
       _sumAmounts(() => Supabase.instance.client
           .from('bill_reimbursements')
-          .select('amount, bills!inner(paid_by)')
+          .select('amount')
           .eq('household_id', householdId)
-          .eq('bills.paid_by', paidBy)),
+          .eq('received_by', paidBy)),
     ]);
     return results[0] - results[1];
   }
@@ -195,16 +201,17 @@ class AggregatedCalculationService {
         }
         return query;
       }),
-      // Same embed approach as _defaultFetchPersonPaidTotal, reaching into
-      // the linked bill's category/paid_by/date to filter this reimbursement
-      // slice to the same (category, period, person) slot.
+      // Scoped to this (category, period) slot via the linked bill's own
+      // category/date (a PostgREST embed, bills!inner(...)), but attributed
+      // to whoever *received* the reimbursement rather than the bill's payer
+      // - see _defaultFetchPersonPaidTotal.
       _sumAmounts(() {
         var query = Supabase.instance.client
             .from('bill_reimbursements')
-            .select('amount, bills!inner(category, paid_by, date)')
+            .select('amount, bills!inner(category, date)')
             .eq('household_id', householdId)
             .eq('bills.category', category)
-            .eq('bills.paid_by', paidBy);
+            .eq('received_by', paidBy);
         if (periodStart != null) {
           query = query.gt('bills.date', _dateFormat.format(periodStart));
         }
@@ -264,6 +271,15 @@ class AggregatedCalculationService {
   // categoryBalances here (this service can only ever query categories it's
   // told about), whereas the old path throws for that case. Tracked in
   // https://github.com/allapcallapc/SplitBalance/issues/49.
+  //
+  // A second, deliberate divergence: when a reimbursement's receivedBy
+  // differs from its bill's paidBy, this service attributes the reduction
+  // to whoever actually received the money (see _defaultFetchPersonPaidTotal)
+  // - so the receiver's total goes negative by that amount on top of their
+  // own split share, correctly shifting the debt to them. CalculationService
+  // can't do this: Bill.reimbursedAmount is a single pre-aggregated scalar
+  // with no per-receiver breakdown, so it always nets the reduction against
+  // the bill's own payer regardless of who actually received it.
   Future<BalanceResult> calculateBalances({
     required String householdId,
     required List<models.Category> categories,
