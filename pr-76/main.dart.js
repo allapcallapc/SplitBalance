@@ -120769,7 +120769,7 @@ $S:63}
 A.ai6.prototype={
 $0(){var s=$.c3().b
 s===$&&A.a()
-return s.dL(0,"bill_reimbursements").kD(0,"amount, bills!inner(paid_by)").dm("household_id",this.a).dm("bills.paid_by",this.b)},
+return s.dL(0,"bill_reimbursements").kD(0,"amount").dm("household_id",this.a).dm("received_by",this.b)},
 $S:63}
 A.ai_.prototype={
 $0(){var s,r=this,q=$.c3().b
@@ -120783,7 +120783,7 @@ $S:63}
 A.ai0.prototype={
 $0(){var s,r=this,q="bills.date",p=$.c3().b
 p===$&&A.a()
-s=p.dL(0,"bill_reimbursements").kD(0,"amount, bills!inner(category, paid_by, date)").dm("household_id",r.a).dm("bills.category",r.b).dm("bills.paid_by",r.c)
+s=p.dL(0,"bill_reimbursements").kD(0,"amount, bills!inner(category, date)").dm("household_id",r.a).dm("bills.category",r.b).dm("received_by",r.c)
 p=r.d
 if(p!=null)s=A.jp(s.ni(s.nz(q,"gt."+$.ahn().cr(p))),s.$ti.c)
 p=r.e
