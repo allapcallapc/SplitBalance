@@ -27,6 +27,7 @@ import 'package:splitbalance/providers/bills_provider.dart';
 import 'package:splitbalance/providers/config_provider.dart';
 import 'package:splitbalance/providers/reimbursements_provider.dart';
 import 'package:splitbalance/services/aggregated_calculation_service.dart';
+import 'package:splitbalance/utils/spend_chart_data.dart';
 
 void main() {
   late SupabaseClient admin;
@@ -734,6 +735,60 @@ void main() {
       expect(billsProvider.allBills.single.netAmount, closeTo(75.0, 0.01));
       expect(
           billsProvider.hasLoadedAllBillsForHousehold(householdId), isTrue);
+    });
+
+    // Regression test for a live user report: the Summary screen's monthly/
+    // cumulative spend charts (CategoryDetailScreen, TotalDetailScreen) read
+    // computeMonthlySpend(billsProvider.allBills, ...) - so it's not enough
+    // for that function to use netAmount (see spend_chart_data_test.dart),
+    // allBills itself has to actually carry the reimbursement. This chains
+    // loadAllBills all the way through to computeMonthlySpend's output
+    // against a real backend, since loadAllBills has no injection seam to
+    // exercise this any other way.
+    test('a bill\'s reimbursement is reflected in computeMonthlySpend once '
+        'allBills is (re)loaded', () async {
+      final householdId = await seedHousehold(
+        categoryRows: [
+          {'name': 'Food'},
+        ],
+        billRows: [
+          {
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Alice',
+            'category': 'Food',
+          },
+        ],
+        splitRows: const [],
+      );
+      final bill =
+          await admin.from('bills').select().eq('household_id', householdId).single();
+      await admin.from('bill_reimbursements').insert({
+        'household_id': householdId,
+        'bill_id': bill['id'],
+        'date': '2024-01-20',
+        'amount': 50.0,
+        'received_by': 'Alice',
+      });
+
+      final billsProvider = BillsProvider();
+      final configProvider = ConfigProvider.forTesting(
+        isSignedIn: true,
+        config: AppConfig(
+          householdId: householdId,
+          person1Name: 'Alice',
+          person2Name: 'Bob',
+        ),
+      );
+
+      await billsProvider.loadAllBills(configProvider);
+
+      final months = computeMonthlySpend(
+          billsProvider.allBills, 'Alice', 'Bob');
+
+      expect(months, hasLength(1));
+      expect(months.single.total, closeTo(50.0, 0.01)); // 100 - 50, not 100
+      expect(months.single.person1Amount, closeTo(50.0, 0.01));
     });
 
     test('ReimbursementsProvider add/load/delete round-trips through the '
