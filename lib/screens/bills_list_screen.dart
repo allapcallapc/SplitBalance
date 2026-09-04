@@ -762,6 +762,23 @@ class _BillsListScreenState extends State<BillsListScreen>
                                       ),
                                     );
                                     if (context.mounted) {
+                                      // Reimbursements are added/deleted
+                                      // through ReimbursementsProvider, which
+                                      // BillsProvider knows nothing about -
+                                      // _loadData() below only refreshes the
+                                      // paginated `bills` list, so force a
+                                      // fresh allBills fetch too, otherwise
+                                      // the Summary screen's monthly/
+                                      // cumulative spend charts (which read
+                                      // allBills, cached since it's normally
+                                      // only refetched on bill add/edit/
+                                      // delete) keep showing pre-reimbursement
+                                      // totals until something else happens
+                                      // to invalidate that cache.
+                                      final configProvider =
+                                          context.read<ConfigProvider>();
+                                      await billsProvider
+                                          .loadAllBills(configProvider);
                                       await _loadData();
                                     }
                                   },

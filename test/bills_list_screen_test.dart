@@ -219,6 +219,16 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.byType(BillReimbursementsScreen), findsNothing);
+      // Reimbursements are added/deleted through ReimbursementsProvider,
+      // which BillsProvider has no way to observe - returning here must
+      // force a fresh loadAllBills() (loadAllBills has no injection seam of
+      // its own, so hasLoadedAllBillsForHousehold flipping true, which its
+      // finally block sets unconditionally, is the only observable signal
+      // it ran) rather than leaving BillsProvider.allBills - and therefore
+      // the Summary screen's monthly/cumulative spend charts - stuck with
+      // whatever reimbursement totals were cached before this screen opened.
+      expect(billsProvider.hasLoadedAllBillsForHousehold('household-1'),
+          isTrue);
     });
   });
 
