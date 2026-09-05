@@ -2,6 +2,8 @@
 // state, rendering a duplicate group's bills side by side, and the
 // edit/delete actions on each bill card.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -102,6 +104,33 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('No duplicate bills found'), findsOneWidget);
+  });
+
+  testWidgets('shows a loading spinner while duplicate detection is in '
+      'flight', (tester) async {
+    final completer = Completer<List<Map<String, dynamic>>>();
+    final duplicateBillsProvider = DuplicateBillsProvider(
+      service: DuplicateBillsService(
+        fetchHouseholdBillRows: ({required householdId}) => completer.future,
+      ),
+    );
+
+    await pumpDuplicateBillsScreen(
+      tester,
+      configProvider: signedInConfigProvider(),
+      duplicateBillsProvider: duplicateBillsProvider,
+    );
+    // A single pump (not pumpAndSettle) lets initState's postFrameCallback
+    // kick off the load without waiting for completer.future to resolve.
+    await tester.pump();
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    completer.complete([]);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
   testWidgets(

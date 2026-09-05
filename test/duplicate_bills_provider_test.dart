@@ -272,13 +272,17 @@ void main() {
       // No service override, so this exercises the real
       // _defaultFetchMatchingBillRows against the fake project url - proving
       // findMatches' own try/catch (not just loadDuplicatesForHousehold's)
-      // covers the real default, not only an injected fake.
+      // covers the real default, not only an injected fake. Passes
+      // excludeId so the default's `.neq('id', excludeId)` query-building
+      // branch (independent of the network round-trip that then fails) runs
+      // too, not just the no-excludeId path already covered above.
       final provider = DuplicateBillsProvider();
 
       final matches = await provider.findMatches(
         configProvider: signedInConfigProvider(),
         date: DateTime(2026, 1, 1),
         amount: 10.0,
+        excludeId: 'bill-being-edited',
       );
 
       expect(matches, isEmpty);
