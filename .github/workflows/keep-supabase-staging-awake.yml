@@ -1,0 +1,31 @@
+name: Keep Supabase staging awake
+
+# Supabase free-tier projects auto-pause after ~7 days with no API
+# activity, which then requires manually unpausing from the dashboard.
+# This pings the staging project's REST endpoint twice a week - well
+# inside that window - so it's never idle long enough to pause. No
+# secrets needed: env/staging.json's URL and anon key are already public
+# (see lib/config/supabase_config.dart's doc comment on why that's safe).
+on:
+  schedule:
+    - cron: '0 6 * * 1,4'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Ping staging Supabase REST endpoint
+        run: |
+          URL=$(jq -r '.SUPABASE_URL' env/staging.json)
+          KEY=$(jq -r '.SUPABASE_ANON_KEY' env/staging.json)
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 \
+            "$URL/rest/v1/" -H "apikey: $KEY") || STATUS=000
+          echo "Response status: $STATUS"
+          if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
+            echo "::error::Unexpected status '$STATUS' pinging staging Supabase project - it may be paused or unreachable"
+            exit 1
+          fi
