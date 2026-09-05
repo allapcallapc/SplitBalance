@@ -122,8 +122,8 @@ void main() {
   });
 
   group('RecoveredAmountsProvider - addRecoveredAmount', () {
-    test('inserts with the household id attached and prepends the saved '
-        'row to the list', () async {
+    test('inserts with the household id attached and places the saved row '
+        'first when its date is the newest', () async {
       Map<String, dynamic>? capturedInsert;
       final provider = RecoveredAmountsProvider(
         fetchRecoveredAmountsForBill: ({required billId}) async =>
@@ -152,9 +152,37 @@ void main() {
       expect(capturedInsert!['household_id'], 'household-1');
       expect(capturedInsert!['bill_id'], 'bill-1');
       expect(capturedInsert!['amount'], 20.0);
-      // Prepended, not appended.
+      // Newest date first, matching loadForBill's ordering.
       expect(provider.recoveredAmounts.map((r) => r.id), ['r2', 'r1']);
       expect(provider.totalRecovered, 30.0);
+    });
+
+    test(
+        'inserts the saved row into its sorted position, not always first, '
+        'when it backdates an entry recorded after the fact', () async {
+      final provider = RecoveredAmountsProvider(
+        fetchRecoveredAmountsForBill: ({required billId}) async =>
+            [recoveredAmountRow('r1', 'bill-1', '2024-02-01', amount: 10.0)],
+        insertRecoveredAmountRow: (data) async =>
+            recoveredAmountRow('r2', 'bill-1', '2024-01-15', amount: 20.0),
+      );
+      await provider.loadForBill('bill-1');
+
+      final success = await provider.addRecoveredAmount(
+        RecoveredAmount(
+          billId: 'bill-1',
+          date: DateTime(2024, 1, 15),
+          amount: 20.0,
+          receivedBy: 'Bob',
+        ),
+        'household-1',
+      );
+
+      expect(success, isTrue);
+      // r1 (2024-02-01) is still newer than the backdated r2 (2024-01-15),
+      // so it must stay first rather than being pushed down by a plain
+      // prepend.
+      expect(provider.recoveredAmounts.map((r) => r.id), ['r1', 'r2']);
     });
 
     test('returns false and sets error without touching the list when the '

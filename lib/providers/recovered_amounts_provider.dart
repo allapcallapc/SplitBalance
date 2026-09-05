@@ -100,7 +100,12 @@ class RecoveredAmountsProvider with ChangeNotifier {
         'household_id': householdId,
       });
       final saved = RecoveredAmount.fromMap(row);
-      _recoveredAmounts = [saved, ..._recoveredAmounts];
+      // loadForBill fetches ordered by date descending (newest first) - keep
+      // that invariant here too, rather than always prepending, so a
+      // backdated entry (recording something added after the fact) doesn't
+      // display above a genuinely newer one until the next reload.
+      _recoveredAmounts = [saved, ..._recoveredAmounts]
+        ..sort((a, b) => b.date.compareTo(a.date));
       notifyListeners();
       return true;
     } catch (e) {
