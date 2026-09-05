@@ -394,6 +394,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get chooseIcon => 'Choisir une icône';
 
   @override
+  String get searchIcons => 'Rechercher des icônes';
+
+  @override
+  String get noIconsFound => 'Aucune icône trouvée';
+
+  @override
   String get dismiss => 'Ignorer';
 
   @override

@@ -800,6 +800,18 @@ abstract class AppLocalizations {
   /// **'Choose an icon'**
   String get chooseIcon;
 
+  /// Hint text for the category icon search field
+  ///
+  /// In en, this message translates to:
+  /// **'Search icons'**
+  String get searchIcons;
+
+  /// Shown when an icon search has no matches
+  ///
+  /// In en, this message translates to:
+  /// **'No icons found'**
+  String get noIconsFound;
+
   /// Dismiss button label
   ///
   /// In en, this message translates to:

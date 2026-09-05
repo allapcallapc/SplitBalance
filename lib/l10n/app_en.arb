@@ -528,6 +528,14 @@
   "@chooseIcon": {
     "description": "Label for the category icon picker"
   },
+  "searchIcons": "Search icons",
+  "@searchIcons": {
+    "description": "Hint text for the category icon search field"
+  },
+  "noIconsFound": "No icons found",
+  "@noIconsFound": {
+    "description": "Shown when an icon search has no matches"
+  },
   "dismiss": "Dismiss",
   "@dismiss": {
     "description": "Dismiss button label"
