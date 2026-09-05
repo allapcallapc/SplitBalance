@@ -195,6 +195,7 @@
   "chooseIcon": "Choisir une icône",
   "searchIcons": "Rechercher des icônes",
   "noIconsFound": "Aucune icône trouvée",
+  "showingIconsCount": "Affichage de {shown} sur {total} icônes",
   "enterCategoryName": "Veuillez entrer un nom de catégorie",
   "dismiss": "Ignorer",
   "paymentSplits": "Répartitions de paiement",

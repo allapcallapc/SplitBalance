@@ -400,6 +400,11 @@ class AppLocalizationsFr extends AppLocalizations {
   String get noIconsFound => 'Aucune icône trouvée';
 
   @override
+  String showingIconsCount(int shown, int total) {
+    return 'Affichage de $shown sur $total icônes';
+  }
+
+  @override
   String get dismiss => 'Ignorer';
 
   @override

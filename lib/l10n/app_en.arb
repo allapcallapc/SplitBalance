@@ -536,6 +536,18 @@
   "@noIconsFound": {
     "description": "Shown when an icon search has no matches"
   },
+  "showingIconsCount": "Showing {shown} of {total} icons",
+  "@showingIconsCount": {
+    "description": "Caption above the category icon picker's grid indicating how many of the matching icons are currently loaded, e.g. \"Showing 60 of 2,231 icons\" - more load automatically as you scroll",
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "dismiss": "Dismiss",
   "@dismiss": {
     "description": "Dismiss button label"

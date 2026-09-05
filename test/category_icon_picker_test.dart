@@ -1,9 +1,11 @@
-// Widget-level coverage for the searchable category icon picker added to
-// PaymentSplitsScreen's "Add Category" dialog (_CategoryIconPicker in
-// lib/screens/payment_splits_screen.dart): a small default set
-// (commonCategoryIconKeys) shown in a Wrap, with a search field that
-// filters across the full generated categoryIconOptions map (2000+
-// entries, capped to the picker's _maxSearchResults per query).
+// Widget-level coverage for the searchable, infinite-scrolling category icon
+// picker in PaymentSplitsScreen's "Add Category" dialog (_CategoryIconPicker
+// in lib/screens/payment_splits_screen.dart): it shows a page of matches
+// (all of categoryIconOptions by default, or a filtered subset once the
+// user searches) in a Wrap, with a "Showing X of Y" caption, and loads
+// another page when the dialog's own scroll view is scrolled near its
+// bottom (rather than a GridView/ListView over the whole 2000+ entry set at
+// once, which crashed the Flutter framework while the dialog animated in).
 //
 // Same not-signed-in setup as test/bills_list_screen_test.dart: ConfigProvider
 // talks directly to Supabase.instance.client with no DI seam, so
@@ -26,6 +28,9 @@ import 'package:splitbalance/providers/config_provider.dart';
 import 'package:splitbalance/providers/payment_splits_provider.dart';
 import 'package:splitbalance/screens/payment_splits_screen.dart';
 import 'package:splitbalance/utils/category_icons.dart';
+
+// Mirrors _CategoryIconPickerState._pageSize (private, so not importable).
+const int _pageSize = 60;
 
 Future<void> pumpPaymentSplitsScreen(WidgetTester tester) async {
   await tester.pumpWidget(
@@ -79,12 +84,41 @@ void main() {
   });
 
   testWidgets(
-      'icon picker starts with the common icon set and narrows as you type',
+      'icon picker starts with one page of icons and shows how many are '
+      'loaded', (tester) async {
+    await pumpPaymentSplitsScreen(tester);
+    await openAddCategoryDialog(tester);
+
+    expect(iconGridChildCount(tester), _pageSize);
+    expect(
+      find.text('Showing $_pageSize of ${categoryIconOptions.length} icons'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('scrolling near the bottom loads another page of icons',
       (tester) async {
     await pumpPaymentSplitsScreen(tester);
     await openAddCategoryDialog(tester);
 
-    expect(iconGridChildCount(tester), commonCategoryIconKeys.length);
+    expect(iconGridChildCount(tester), _pageSize);
+
+    // Drag the dialog's own scroll view (its bounds are always within the
+    // visible viewport, unlike its Wrap child once there's enough icons to
+    // overflow) - the picker doesn't own a scrollable of its own and relies
+    // on this ambient one (see Scrollable.maybeOf in
+    // _CategoryIconPickerState) to know when to load another page.
+    await tester.drag(find.byKey(const Key('categoryDialogScroll')),
+        const Offset(0, -3000));
+    await tester.pumpAndSettle();
+
+    expect(iconGridChildCount(tester), greaterThan(_pageSize));
+  });
+
+  testWidgets('searching narrows the results and resets the page',
+      (tester) async {
+    await pumpPaymentSplitsScreen(tester);
+    await openAddCategoryDialog(tester);
 
     await tester.enterText(
         find.byKey(const Key('categoryIconSearchField')), 'zoom_out_map');
@@ -92,6 +126,7 @@ void main() {
 
     expect(iconGridChildCount(tester), 1);
     expect(find.byIcon(Icons.zoom_out_map), findsOneWidget);
+    expect(find.text('Showing 1 of 1 icons'), findsOneWidget);
   });
 
   testWidgets('icon picker shows an empty state when nothing matches',
@@ -132,5 +167,7 @@ void main() {
       'getters directly)', () {
     expect(AppLocalizationsFr().searchIcons, 'Rechercher des icônes');
     expect(AppLocalizationsFr().noIconsFound, 'Aucune icône trouvée');
+    expect(AppLocalizationsFr().showingIconsCount(60, 2231),
+        'Affichage de 60 sur 2231 icônes');
   });
 }

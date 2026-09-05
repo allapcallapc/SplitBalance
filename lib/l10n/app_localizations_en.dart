@@ -397,6 +397,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noIconsFound => 'No icons found';
 
   @override
+  String showingIconsCount(int shown, int total) {
+    return 'Showing $shown of $total icons';
+  }
+
+  @override
   String get dismiss => 'Dismiss';
 
   @override

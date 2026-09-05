@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -1862,6 +1864,7 @@ class _CategoriesTab extends StatelessWidget {
         builder: (context, setState) => AlertDialog(
           title: Text(l10n.addCategory),
           content: SingleChildScrollView(
+            key: const Key('categoryDialogScroll'),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1941,6 +1944,7 @@ class _CategoriesTab extends StatelessWidget {
         builder: (context, setState) => AlertDialog(
           title: Text(l10n.editCategory),
           content: SingleChildScrollView(
+            key: const Key('categoryDialogScroll'),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2063,19 +2067,20 @@ class _CategoriesTab extends StatelessWidget {
   }
 }
 
-// Searchable grid of selectable icons used when adding/editing a category.
-// Selecting null (no explicit choice) falls back to [defaultCategoryIcon]
-// wherever the category's icon is displayed - see Category.iconData.
+// Searchable, infinite-scrolling grid of selectable icons used when
+// adding/editing a category. Selecting null (no explicit choice) falls back
+// to [defaultCategoryIcon] wherever the category's icon is displayed - see
+// Category.iconData.
 //
 // categoryIconOptions covers Flutter's full built-in icon set (2000+
-// entries). Rather than a GridView/ListView over the whole set - which,
-// nested in this dialog's own scrollable content, has been observed to
-// crash the Flutter framework on unrelated interactions once the item
-// count gets into the thousands - this shows a small default set
-// (commonCategoryIconKeys) in an unbounded Wrap (matching the original,
-// pre-search picker) and only computes/renders a (capped) filtered list
-// once the user searches, growing the outer dialog's own scroll area
-// exactly like the original did.
+// entries). Rendering all of it into a GridView/ListView at once - even
+// nested in this dialog's own scrollable content - has been observed to
+// crash the Flutter framework while the dialog animates in, so only
+// _pageSize matches are ever built into the Wrap at a time; scrolling this
+// picker's ambient dialog scroll view (found via Scrollable.maybeOf, since
+// the picker doesn't own a scrollable of its own - see _onAmbientScroll)
+// loads another page, and the "Showing X of Y" caption above the grid makes
+// it clear there's more to find by scrolling or narrowing the search.
 class _CategoryIconPicker extends StatefulWidget {
   final String? selectedIcon;
   final ValueChanged<String> onSelected;
@@ -2090,32 +2095,61 @@ class _CategoryIconPicker extends StatefulWidget {
 }
 
 class _CategoryIconPickerState extends State<_CategoryIconPicker> {
-  // Search results are capped so a broad query (e.g. a single common
-  // letter) can't dump thousands of tiles into the Wrap at once.
-  static const int _maxSearchResults = 60;
+  static const int _pageSize = 60;
+  // How close to the bottom (in logical pixels) of the ambient scroll view
+  // triggers loading the next page.
+  static const double _loadMoreThreshold = 200;
 
   final _searchController = TextEditingController();
   String _query = '';
+  int _visibleCount = _pageSize;
+  ScrollPosition? _ambientScrollPosition;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final position = Scrollable.maybeOf(context)?.position;
+    if (!identical(_ambientScrollPosition, position)) {
+      _ambientScrollPosition?.removeListener(_onAmbientScroll);
+      _ambientScrollPosition = position;
+      _ambientScrollPosition?.addListener(_onAmbientScroll);
+    }
+  }
 
   @override
   void dispose() {
+    _ambientScrollPosition?.removeListener(_onAmbientScroll);
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onAmbientScroll() {
+    final position = _ambientScrollPosition;
+    if (position == null) return;
+    if (position.pixels < position.maxScrollExtent - _loadMoreThreshold) {
+      return;
+    }
+    final total = _matches().length;
+    if (_visibleCount < total) {
+      setState(
+          () => _visibleCount = math.min(_visibleCount + _pageSize, total));
+    }
+  }
+
+  List<MapEntry<String, IconData>> _matches() {
+    final query = _query.trim().toLowerCase().replaceAll(' ', '_');
+    if (query.isEmpty) return categoryIconOptions.entries.toList();
+    return categoryIconOptions.entries
+        .where((entry) => entry.key.contains(query))
+        .toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
-    final query = _query.trim().toLowerCase().replaceAll(' ', '_');
-    final entries = query.isEmpty
-        ? commonCategoryIconKeys
-            .map((key) => MapEntry(key, categoryIconOptions[key]!))
-            .toList()
-        : categoryIconOptions.entries
-            .where((entry) => entry.key.contains(query))
-            .take(_maxSearchResults)
-            .toList();
+    final matches = _matches();
+    final visible = matches.take(_visibleCount).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2129,20 +2163,30 @@ class _CategoryIconPickerState extends State<_CategoryIconPicker> {
             isDense: true,
             border: const OutlineInputBorder(),
           ),
-          onChanged: (value) => setState(() => _query = value),
+          onChanged: (value) => setState(() {
+            _query = value;
+            _visibleCount = _pageSize;
+          }),
         ),
         const SizedBox(height: 8),
-        if (entries.isEmpty)
+        if (matches.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: Center(child: Text(l10n.noIconsFound)),
           )
-        else
+        else ...[
+          Text(
+            l10n.showingIconsCount(visible.length, matches.length),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 4),
           Wrap(
             key: const Key('categoryIconGrid'),
             spacing: 8,
             runSpacing: 8,
-            children: entries.map((entry) {
+            children: visible.map((entry) {
               final key = entry.key;
               final iconData = entry.value;
               final isSelected = widget.selectedIcon == key ||
@@ -2177,6 +2221,7 @@ class _CategoryIconPickerState extends State<_CategoryIconPicker> {
               );
             }).toList(),
           ),
+        ],
       ],
     );
   }
