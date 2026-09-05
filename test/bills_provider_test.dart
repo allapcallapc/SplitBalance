@@ -6,8 +6,32 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:splitbalance/models/bill.dart';
 import 'package:splitbalance/providers/bills_provider.dart';
+
+// Most of these tests don't care about recovered amounts, so this wrapper
+// defaults to a no-op fetchRecoveredBreakdown - otherwise every
+// loadBillsForHousehold call below would fall through to BillsProvider's
+// real-Supabase default and fail outside a signed-in session. Tests that DO
+// care (see the "recovered totals" group) pass their own.
+BillsProvider testBillsProvider({
+  FetchBillsPage? fetchBillsPage,
+  InsertBillRow? insertBillRow,
+  UpdateBillRow? updateBillRow,
+  DeleteBillRow? deleteBillRow,
+  FetchRecoveredBreakdown? fetchRecoveredBreakdown,
+}) {
+  return BillsProvider(
+    fetchBillsPage: fetchBillsPage,
+    insertBillRow: insertBillRow,
+    updateBillRow: updateBillRow,
+    deleteBillRow: deleteBillRow,
+    fetchRecoveredBreakdown:
+        fetchRecoveredBreakdown ?? ({required billIds}) async => {},
+  );
+}
 
 Map<String, dynamic> billRow(
   String id,
@@ -27,9 +51,53 @@ Map<String, dynamic> billRow(
 }
 
 void main() {
+  setUpAll(() async {
+    // Only the "real Supabase default" group below needs this - it's here
+    // rather than in that group's own setUp so it runs once for the whole
+    // file, matching test/bills_list_screen_test.dart's pattern.
+    SharedPreferences.setMockInitialValues({});
+    await Supabase.initialize(
+      url: 'https://example.supabase.co',
+      anonKey: 'test-anon-key',
+    );
+  });
+
+  group('BillsProvider - recovered totals default (real Supabase client)',
+      () {
+    test(
+        'omitting fetchRecoveredBreakdown falls through to the real '
+        'default, which surfaces a network failure as a provider error '
+        'rather than throwing', () async {
+      // No fetchRecoveredBreakdown override, so _withRecoveredTotals falls
+      // through to _defaultFetchRecoveredBreakdown - which has no
+      // injection seam of its own and hits Supabase.instance.client
+      // directly. Against the fake project url configured in setUpAll,
+      // that request fails, proving the fallback wiring itself (the
+      // `?? _defaultFetchRecoveredBreakdown` in BillsProvider's
+      // constructor) actually runs and that failure doesn't propagate
+      // uncaught.
+      final provider = BillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            [billRow('bill-1', '2026-01-01')],
+      );
+
+      await provider.loadBillsForHousehold('household-1');
+
+      expect(provider.error, contains('Failed to load bills'));
+    });
+  });
+
   group('BillsProvider - sort', () {
     test('defaults to newest-first by date', () {
-      final provider = BillsProvider();
+      final provider = testBillsProvider();
       expect(provider.sortField, BillSortField.date);
       expect(provider.sortAscending, isFalse);
     });
@@ -39,7 +107,7 @@ void main() {
         'fetchBillsPage', () async {
       BillSortField? capturedField;
       bool? capturedAscending;
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         fetchBillsPage: ({
           required String householdId,
           String? paidBy,
@@ -64,7 +132,7 @@ void main() {
   group('BillsProvider - request id guard', () {
     test('a stale loadBillsForHousehold response is dropped', () async {
       final completers = <Completer<List<Map<String, dynamic>>>>[];
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         fetchBillsPage: ({
           required String householdId,
           String? paidBy,
@@ -108,7 +176,7 @@ void main() {
         'concurrent loadBillsForHousehold reset', () async {
       final pageCompleter = Completer<List<Map<String, dynamic>>>();
       var moreRequested = false;
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         fetchBillsPage: ({
           required String householdId,
           String? paidBy,
@@ -161,7 +229,7 @@ void main() {
         'addBillForHousehold refreshes _bills from the server instead of '
         'guessing the new row\'s position locally', () async {
       var fetchCallCount = 0;
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         insertBillRow: (data) async => {
           'id': 'new-id',
           'date': data['date'],
@@ -213,7 +281,7 @@ void main() {
     test(
         'addBillForHousehold surfaces an insert failure without touching '
         'the bill lists', () async {
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         insertBillRow: (data) async => throw Exception('network error'),
         fetchBillsPage: ({
           required String householdId,
@@ -259,7 +327,7 @@ void main() {
       var fetchCallCount = 0;
       var page = [billRow('bill-1', '2026-01-01', category: 'Groceries')];
 
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         insertBillRow: (data) async => echoUpdate('bill-1', data),
         updateBillRow: (id, data) async => echoUpdate(id, data),
         fetchBillsPage: ({
@@ -312,7 +380,7 @@ void main() {
         'updateBillById with no household id skips the refetch but still '
         'updates _allBills', () async {
       var fetchCallCount = 0;
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         updateBillRow: (id, data) async => echoUpdate(id, data),
         fetchBillsPage: ({
           required String householdId,
@@ -346,7 +414,7 @@ void main() {
     test(
         'updateBillById surfaces a failure without touching the bill '
         'lists', () async {
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         updateBillRow: (id, data) async => throw Exception('network error'),
       );
 
@@ -368,7 +436,7 @@ void main() {
     test('deleteBillById removes the bill from both bills and allBills',
         () async {
       var deletedId = '';
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         insertBillRow: (data) async => echoUpdate('bill-1', data),
         deleteBillRow: (id) async => deletedId = id,
         fetchBillsPage: ({
@@ -405,7 +473,7 @@ void main() {
     test(
         'deleteBillById surfaces a failure and leaves the bill lists '
         'untouched', () async {
-      final provider = BillsProvider(
+      final provider = testBillsProvider(
         insertBillRow: (data) async => echoUpdate('bill-1', data),
         deleteBillRow: (id) async => throw Exception('network error'),
         fetchBillsPage: ({
@@ -435,6 +503,333 @@ void main() {
       expect(provider.error, contains('Failed to delete bill'));
       expect(provider.bills, isNotEmpty);
       expect(provider.allBills, isNotEmpty);
+    });
+  });
+
+  group('BillsProvider - recovered totals', () {
+    test(
+        'loadBillsForHousehold with no bills never calls '
+        'fetchRecoveredBreakdown', () async {
+      var fetchRecoveredBreakdownCalled = false;
+      final provider = testBillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            const [],
+        fetchRecoveredBreakdown: ({required billIds}) async {
+          fetchRecoveredBreakdownCalled = true;
+          return {};
+        },
+      );
+
+      await provider.loadBillsForHousehold('household-1');
+
+      expect(fetchRecoveredBreakdownCalled, isFalse);
+      expect(provider.bills, isEmpty);
+      expect(provider.error, isNull);
+    });
+
+    test(
+        'a stale loadBillsForHousehold response is dropped even when it '
+        'only becomes stale after fetchBillsPage already resolved - i.e. '
+        'while still waiting on fetchRecoveredBreakdown', () async {
+      final recoveredCompleter = Completer<Map<String, Map<String, double>>>();
+      var fetchBillsPageCalls = 0;
+      final provider = testBillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async {
+          fetchBillsPageCalls++;
+          return [billRow('bill-$fetchBillsPageCalls', '2026-01-01')];
+        },
+        // Shared by both calls below - resolving it once resolves both
+        // loads' pending _withRecoveredTotals at the same time, so which
+        // one is stale is decided purely by the requestId guard.
+        fetchRecoveredBreakdown: ({required billIds}) =>
+            recoveredCompleter.future,
+      );
+
+      final firstLoad = provider.loadBillsForHousehold('household-1');
+      // Let fetchBillsPage resolve and fetchRecoveredBreakdown get called
+      // (and start waiting on the completer) for the first load.
+      await Future<void>.delayed(Duration.zero);
+
+      // A second load starts before the first's recovered-totals fetch
+      // ever resolves - simulating a fast second filter change.
+      final secondLoad = provider.loadBillsForHousehold('household-1');
+      await Future<void>.delayed(Duration.zero);
+
+      recoveredCompleter.complete({});
+      await firstLoad;
+      await secondLoad;
+
+      // Only the second (current) load's bill made it into _bills - the
+      // first's result was discarded by the post-fetchRecoveredBreakdown
+      // requestId check, not just the earlier post-fetchBillsPage one.
+      expect(provider.bills.map((b) => b.id), ['bill-2']);
+      expect(provider.error, isNull);
+    });
+
+    test(
+        'a stale loadMoreBillsForHousehold response is dropped even when it '
+        'only becomes stale while waiting on fetchRecoveredBreakdown',
+        () async {
+      final recoveredCompleter = Completer<Map<String, Map<String, double>>>();
+      final provider = testBillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async {
+          if (offset == 0) {
+            // Full page so hasMore is true and loadMore is eligible.
+            return List.generate(
+              BillsProvider.pageSize,
+              (i) => billRow('p1-$i', '2026-01-01'),
+            );
+          }
+          return [billRow('p2-0', '2026-01-02')];
+        },
+        fetchRecoveredBreakdown: ({required billIds}) async {
+          // The first page's own totals fetch resolves immediately; only
+          // the "load more" page's totals fetch waits on the completer.
+          if (billIds.contains('p2-0')) return recoveredCompleter.future;
+          return {};
+        },
+      );
+
+      await provider.loadBillsForHousehold('household-1');
+      final moreLoad = provider.loadMoreBillsForHousehold('household-1');
+      // Let fetchBillsPage resolve and fetchRecoveredBreakdown start waiting.
+      await Future<void>.delayed(Duration.zero);
+
+      // A fresh page-1 load (e.g. the filter changed) resets state while
+      // "load more" is still waiting on its recovered-totals fetch.
+      final resetLoad = provider.loadBillsForHousehold('household-1');
+      await Future<void>.delayed(Duration.zero);
+
+      recoveredCompleter.complete({});
+      await moreLoad;
+      await resetLoad;
+
+      // The stale "load more" page must not have been appended.
+      expect(provider.bills.any((b) => b.id == 'p2-0'), isFalse);
+      expect(provider.isLoadingMore, isFalse);
+    });
+
+    test('loadBillsForHousehold merges recoveredAmount into each bill',
+        () async {
+      final provider = testBillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            [
+              billRow('bill-1', '2026-01-01'),
+              billRow('bill-2', '2026-01-02'),
+            ],
+        fetchRecoveredBreakdown: ({required billIds}) async {
+          expect(billIds, unorderedEquals(['bill-1', 'bill-2']));
+          return {
+            'bill-1': {'Alice': 4.0},
+          };
+        },
+      );
+
+      await provider.loadBillsForHousehold('household-1');
+
+      final bill1 = provider.bills.firstWhere((b) => b.id == 'bill-1');
+      final bill2 = provider.bills.firstWhere((b) => b.id == 'bill-2');
+      expect(bill1.recoveredAmount, 4.0);
+      expect(bill1.netAmount, 6.0); // billRow's default amount is 10.0
+      expect(bill1.recoveredByReceiver, {'Alice': 4.0});
+      // bill-2 has no entry in the fetcher's result - stays at 0/empty, not
+      // dropped or errored.
+      expect(bill2.recoveredAmount, 0.0);
+      expect(bill2.recoveredByReceiver, isEmpty);
+    });
+
+    test('loadMoreBillsForHousehold merges recoveredAmount into the '
+        'appended page too', () async {
+      final provider = testBillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async {
+          if (offset == 0) {
+            return List.generate(
+              BillsProvider.pageSize,
+              (i) => billRow('p1-$i', '2026-01-01'),
+            );
+          }
+          return [billRow('p2-0', '2026-01-02')];
+        },
+        fetchRecoveredBreakdown: ({required billIds}) async {
+          if (billIds.contains('p2-0')) {
+            return {
+              'p2-0': {'Bob': 2.5},
+            };
+          }
+          return {};
+        },
+      );
+
+      await provider.loadBillsForHousehold('household-1');
+      await provider.loadMoreBillsForHousehold('household-1');
+
+      final appended = provider.bills.firstWhere((b) => b.id == 'p2-0');
+      expect(appended.recoveredAmount, 2.5);
+    });
+
+    // loadAllBills has no injection seam for its own bill-row query (it
+    // calls Supabase.instance.client directly - see BillsProvider._supabase),
+    // so it can't be exercised against fake data in a plain unit test; its
+    // use of the same _withRecoveredTotals merge helper is covered here via
+    // loadBillsForHousehold/loadMoreBillsForHousehold above, and end-to-end
+    // against a real database by the integration suite.
+
+    test('updateBillById fetches the authoritative recovered total instead '
+        'of trusting a stale _allBills cache', () async {
+      // Bug this guards against: _allBills can be stale relative to a
+      // recovered amount added/deleted elsewhere (another device, or a
+      // screen that skipped a refetch via hasLoadedAllBillsForHousehold) -
+      // updateBillById must ask _fetchRecoveredBreakdown for the current
+      // truth rather than carrying forward whatever _allBills happened to
+      // have cached for this id.
+      var recoveredTotalToReturn = 12.0;
+      final provider = testBillsProvider(
+        updateBillRow: (id, data) async => {
+          'id': id,
+          'date': data['date'],
+          'amount': data['amount'],
+          'paid_by': data['paid_by'],
+          'category': data['category'],
+          'details': data['details'],
+        },
+        fetchRecoveredBreakdown: ({required billIds}) async {
+          expect(billIds, ['bill-1']);
+          return {
+            'bill-1': {'Alice': recoveredTotalToReturn},
+          };
+        },
+      );
+
+      await provider.updateBillById(
+        'bill-1',
+        Bill(
+          id: 'bill-1',
+          date: DateTime.parse('2026-01-01'),
+          amount: 10.0,
+          paidBy: 'Alice',
+          category: 'Groceries',
+        ),
+        null,
+      );
+      expect(provider.allBills.single.recoveredAmount, 12.0);
+
+      // A recovered amount was added elsewhere since that first update -
+      // _allBills still has the stale 12.0 cached, but the fetcher now
+      // reports the true, updated total.
+      recoveredTotalToReturn = 30.0;
+
+      await provider.updateBillById(
+        'bill-1',
+        Bill(
+          id: 'bill-1',
+          date: DateTime.parse('2026-01-01'),
+          amount: 10.0,
+          paidBy: 'Alice',
+          category: 'Rent',
+        ),
+        null,
+      );
+
+      expect(provider.allBills.single.category, 'Rent');
+      // Reflects the fresh fetch (30.0), not the stale cached value (12.0).
+      expect(provider.allBills.single.recoveredAmount, 30.0);
+      expect(provider.allBills.single.recoveredByReceiver, {'Alice': 30.0});
+    });
+
+    test('updateBillById defaults recoveredAmount to 0 when the fetcher has '
+        'no entry for this bill', () async {
+      final provider = testBillsProvider(
+        updateBillRow: (id, data) async => {
+          'id': id,
+          'date': data['date'],
+          'amount': data['amount'],
+          'paid_by': data['paid_by'],
+          'category': data['category'],
+          'details': data['details'],
+        },
+        fetchRecoveredBreakdown: ({required billIds}) async => {},
+      );
+
+      await provider.updateBillById(
+        'bill-1',
+        Bill(
+          id: 'bill-1',
+          date: DateTime.parse('2026-01-01'),
+          amount: 10.0,
+          paidBy: 'Alice',
+          category: 'Groceries',
+        ),
+        null,
+      );
+
+      expect(provider.allBills.single.recoveredAmount, 0.0);
+      expect(provider.allBills.single.recoveredByReceiver, isEmpty);
+    });
+
+    test('sums a bill\'s recovered amount across multiple receivers',
+        () async {
+      final provider = testBillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            [billRow('bill-1', '2026-01-01', amount: 100.0)],
+        fetchRecoveredBreakdown: ({required billIds}) async => {
+          'bill-1': {'Alice': 30.0, 'Bob': 20.0},
+        },
+      );
+
+      await provider.loadBillsForHousehold('household-1');
+
+      final bill = provider.bills.single;
+      expect(bill.recoveredAmount, 50.0);
+      expect(bill.netAmount, 50.0);
+      expect(bill.recoveredByReceiver, {'Alice': 30.0, 'Bob': 20.0});
     });
   });
 }

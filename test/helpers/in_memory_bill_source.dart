@@ -22,10 +22,11 @@ class InMemoryBillSource {
   Future<double> fetchPersonPaidTotal({
     required String householdId,
     required String paidBy,
+    required List<String> trackedPersonNames,
   }) async {
     return bills
         .where((b) => b.paidBy == paidBy)
-        .fold<double>(0.0, (sum, b) => sum + b.amount);
+        .fold<double>(0.0, (sum, b) => sum + b.netAmount);
   }
 
   Future<double> fetchCategoryPeriodPersonPaid({
@@ -34,6 +35,7 @@ class InMemoryBillSource {
     required DateTime? periodStart,
     required DateTime? periodEnd,
     required String paidBy,
+    required List<String> trackedPersonNames,
   }) async {
     return bills
         .where((b) =>
@@ -41,7 +43,7 @@ class InMemoryBillSource {
             b.paidBy == paidBy &&
             (periodStart == null || b.date.isAfter(periodStart)) &&
             (periodEnd == null || !b.date.isAfter(periodEnd)))
-        .fold<double>(0.0, (sum, b) => sum + b.amount);
+        .fold<double>(0.0, (sum, b) => sum + b.netAmount);
   }
 
   Future<HouseholdTotals> fetchHouseholdTotals({
@@ -49,7 +51,7 @@ class InMemoryBillSource {
   }) async {
     return HouseholdTotals(
       billCount: bills.length,
-      totalAmount: bills.fold<double>(0.0, (sum, b) => sum + b.amount),
+      totalAmount: bills.fold<double>(0.0, (sum, b) => sum + b.netAmount),
     );
   }
 

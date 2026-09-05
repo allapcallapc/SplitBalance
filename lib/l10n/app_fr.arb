@@ -312,5 +312,17 @@
   "downloadingUpdate": "Téléchargement de la mise à jour...",
   "updateDownloadFailed": "Impossible de télécharger la mise à jour. Réessayez plus tard.",
   "installPermissionRequired": "SplitBalance a besoin de la permission d'installer des mises à jour.",
-  "grantInstallPermission": "Autoriser l'installation"
+  "grantInstallPermission": "Autoriser l'installation",
+  "recoveredAmounts": "Montants récupérés",
+  "addRecoveredAmount": "Ajouter un montant récupéré",
+  "receivedBy": "Reçu par",
+  "selectWhoReceived": "Veuillez sélectionner qui a reçu l'argent",
+  "saveRecoveredAmount": "Enregistrer le montant récupéré",
+  "deleteRecoveredAmount": "Supprimer le montant récupéré",
+  "areYouSureDeleteRecoveredAmount": "Êtes-vous sûr de vouloir supprimer ce montant récupéré ?",
+  "noRecoveredAmountsYet": "Aucun montant récupéré pour le moment",
+  "recoveredAmountExceedsRemaining": "Le montant dépasse le solde restant de la facture",
+  "totalRecovered": "Total récupéré",
+  "remainingAmount": "Restant",
+  "originalAmount": "Montant initial"
 }

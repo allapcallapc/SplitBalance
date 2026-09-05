@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/bill.dart';
+import '../services/postgrest_paging.dart';
 import 'config_provider.dart';
 
 // Which bill field the list is ordered by.
@@ -34,16 +35,30 @@ typedef UpdateBillRow = Future<Map<String, dynamic>> Function(
 // Deletes the row with the given id.
 typedef DeleteBillRow = Future<void> Function(String id);
 
+// Sums bill_recovered_amounts.amount for each of [billIds], grouped by who
+// received it: bill_id -> {receivedBy -> total}. Bills/receivers with
+// nothing recovered are simply absent from the result (treated as 0 by the
+// caller) rather than present with a 0 entry. The per-receiver breakdown
+// (not just a flat per-bill total) is what lets spend-chart attribution
+// (see computeMonthlySpend) credit the reduction to whoever actually
+// received the money, matching AggregatedCalculationService's balance math
+// instead of always netting it against the bill's own paidBy.
+typedef FetchRecoveredBreakdown = Future<Map<String, Map<String, double>>>
+    Function({required List<String> billIds});
+
 class BillsProvider with ChangeNotifier {
   BillsProvider({
     FetchBillsPage? fetchBillsPage,
     InsertBillRow? insertBillRow,
     UpdateBillRow? updateBillRow,
     DeleteBillRow? deleteBillRow,
+    FetchRecoveredBreakdown? fetchRecoveredBreakdown,
   })  : _fetchBillsPage = fetchBillsPage ?? _defaultFetchBillsPage,
         _insertBillRow = insertBillRow ?? _defaultInsertBillRow,
         _updateBillRow = updateBillRow ?? _defaultUpdateBillRow,
-        _deleteBillRow = deleteBillRow ?? _defaultDeleteBillRow;
+        _deleteBillRow = deleteBillRow ?? _defaultDeleteBillRow,
+        _fetchRecoveredBreakdown =
+            fetchRecoveredBreakdown ?? _defaultFetchRecoveredBreakdown;
 
   static const int pageSize = 25;
 
@@ -51,6 +66,7 @@ class BillsProvider with ChangeNotifier {
   final InsertBillRow _insertBillRow;
   final UpdateBillRow _updateBillRow;
   final DeleteBillRow _deleteBillRow;
+  final FetchRecoveredBreakdown _fetchRecoveredBreakdown;
 
   // Paginated, server-filtered bills backing the bills list screen.
   final List<Bill> _bills = [];
@@ -216,6 +232,55 @@ class BillsProvider with ChangeNotifier {
     await Supabase.instance.client.from('bills').delete().eq('id', id);
   }
 
+  static Future<Map<String, Map<String, double>>>
+      _defaultFetchRecoveredBreakdown({
+    required List<String> billIds,
+  }) async {
+    if (billIds.isEmpty) return {};
+
+    // Paginated via the shared pageAndReduce helper (also used by
+    // AggregatedCalculationService._sumAmounts), in case a household's
+    // full bill set (loadAllBills) pushes this past PostgREST's max_rows
+    // cap.
+    return pageAndReduce<Map<String, Map<String, double>>>(
+      buildQuery: () => Supabase.instance.client
+          .from('bill_recovered_amounts')
+          .select('bill_id, received_by, amount')
+          .inFilter('bill_id', billIds),
+      initial: <String, Map<String, double>>{},
+      reduce: (byBill, row) {
+        final billId = row['bill_id'] as String;
+        final receivedBy = row['received_by'] as String;
+        final amount = (row['amount'] as num).toDouble();
+        final byReceiver = byBill.putIfAbsent(billId, () => <String, double>{});
+        byReceiver[receivedBy] = (byReceiver[receivedBy] ?? 0) + amount;
+        return byBill;
+      },
+    );
+  }
+
+  static double _sumRecovered(Map<String, double>? byReceiver) =>
+      byReceiver == null ? 0 : byReceiver.values.fold(0.0, (a, b) => a + b);
+
+  // Fetches recovered totals for [bills] and returns them with
+  // recoveredAmount/recoveredByReceiver populated, for display (list
+  // badges, category/summary charts) - not consulted by balance
+  // calculations, which subtract recovered amounts at the query level (see
+  // AggregatedCalculationService).
+  Future<List<Bill>> _withRecoveredTotals(List<Bill> bills) async {
+    final ids = [for (final b in bills) if (b.id != null) b.id!];
+    if (ids.isEmpty) return bills;
+    final breakdown = await _fetchRecoveredBreakdown(billIds: ids);
+    if (breakdown.isEmpty) return bills;
+    return [
+      for (final bill in bills)
+        bill.copyWith(
+          recoveredAmount: _sumRecovered(breakdown[bill.id]),
+          recoveredByReceiver: breakdown[bill.id] ?? const {},
+        ),
+    ];
+  }
+
   // Load the first page of bills for the current household, applying the
   // active paid-by/category filters server-side. Resets any pagination
   // already accumulated via loadMoreBills().
@@ -255,9 +320,13 @@ class BillsProvider with ChangeNotifier {
       // since superseded this one; drop the stale response.
       if (requestId != _requestId) return;
 
+      final pageBills =
+          await _withRecoveredTotals(rows.map(Bill.fromMap).toList());
+      if (requestId != _requestId) return;
+
       _bills
         ..clear()
-        ..addAll(rows.map((row) => Bill.fromMap(row)));
+        ..addAll(pageBills);
       _hasMore = rows.length == pageSize;
       _error = null;
     } catch (e) {
@@ -305,7 +374,11 @@ class BillsProvider with ChangeNotifier {
       // exists, so drop them instead of appending onto the new page 1.
       if (requestId != _requestId) return;
 
-      _bills.addAll(rows.map((row) => Bill.fromMap(row)));
+      final pageBills =
+          await _withRecoveredTotals(rows.map(Bill.fromMap).toList());
+      if (requestId != _requestId) return;
+
+      _bills.addAll(pageBills);
       _hasMore = rows.length == pageSize;
       _error = null;
     } catch (e) {
@@ -339,9 +412,12 @@ class BillsProvider with ChangeNotifier {
           .eq('household_id', configProvider.householdId!)
           .order('date', ascending: false);
 
+      final loadedBills =
+          await _withRecoveredTotals(rows.map(Bill.fromMap).toList());
+
       _allBills
         ..clear()
-        ..addAll(rows.map((row) => Bill.fromMap(row)));
+        ..addAll(loadedBills);
       _error = null;
     } catch (e) {
       _error = 'Failed to load bills: $e';
@@ -468,7 +544,18 @@ class BillsProvider with ChangeNotifier {
     Bill saved;
     try {
       final row = await _updateBillRow(id, updatedBill.toMap());
-      saved = Bill.fromMap(row);
+      // Editing a bill's own fields never touches its recovered amounts,
+      // but the row from _updateBillRow has none of its own (not a `bills`
+      // column) - fetch the authoritative total rather than trusting
+      // whatever _allBills happens to have cached locally, which can be
+      // stale relative to a recovered amount added/deleted elsewhere
+      // (another device, or a screen that skipped a refetch via
+      // hasLoadedAllBillsForHousehold).
+      final breakdown = await _fetchRecoveredBreakdown(billIds: [id]);
+      saved = Bill.fromMap(row).copyWith(
+        recoveredAmount: _sumRecovered(breakdown[id]),
+        recoveredByReceiver: breakdown[id] ?? const {},
+      );
     } catch (e) {
       _error = 'Failed to update bill: $e';
       _isLoading = false;

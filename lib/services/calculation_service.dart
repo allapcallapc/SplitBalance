@@ -205,11 +205,11 @@ class CalculationService {
         continue;
       }
 
-      // Track who paid
+      // Track who paid, net of anything recovered against this bill.
       if (isPaidByPerson1) {
-        person1Paid += bill.amount;
+        person1Paid += bill.netAmount;
       } else {
-        person2Paid += bill.amount;
+        person2Paid += bill.netAmount;
       }
 
       // Find matching payment split
@@ -235,8 +235,8 @@ class CalculationService {
       var person1Share = 0.0;
       var person2Share = 0.0;
       if (matchingSplit != null) {
-        person1Share = bill.amount * matchingSplit.person1Percentage / 100;
-        person2Share = bill.amount * matchingSplit.person2Percentage / 100;
+        person1Share = bill.netAmount * matchingSplit.person1Percentage / 100;
+        person2Share = bill.netAmount * matchingSplit.person2Percentage / 100;
 
         person1Expected += person1Share;
         person2Expected += person2Share;
@@ -246,9 +246,9 @@ class CalculationService {
       categoryBalancesMap[categoryKey] = CategoryBalance(
         category: categoryKey,
         person1Paid:
-            catBalance.person1Paid + (isPaidByPerson1 ? bill.amount : 0),
+            catBalance.person1Paid + (isPaidByPerson1 ? bill.netAmount : 0),
         person2Paid:
-            catBalance.person2Paid + (isPaidByPerson2 ? bill.amount : 0),
+            catBalance.person2Paid + (isPaidByPerson2 ? bill.netAmount : 0),
         person1Expected: catBalance.person1Expected + person1Share,
         person2Expected: catBalance.person2Expected + person2Share,
       );

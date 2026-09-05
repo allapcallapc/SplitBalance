@@ -20,8 +20,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:splitbalance/models/app_config.dart';
 import 'package:splitbalance/models/category.dart';
+import 'package:splitbalance/models/recovered_amount.dart';
+import 'package:splitbalance/providers/bills_provider.dart';
+import 'package:splitbalance/providers/config_provider.dart';
+import 'package:splitbalance/providers/recovered_amounts_provider.dart';
 import 'package:splitbalance/services/aggregated_calculation_service.dart';
+import 'package:splitbalance/utils/spend_chart_data.dart';
 
 void main() {
   late SupabaseClient admin;
@@ -333,5 +339,637 @@ void main() {
       },
       timeout: const Timeout(Duration(minutes: 3)),
     );
+  });
+
+  group('AggregatedCalculationService - recovered amounts (real Supabase '
+      'queries)', () {
+    // seedHousehold's billRows path doesn't hand back generated ids, and
+    // bill_recovered_amounts needs a real bill_id to link against - so these
+    // tests seed bills directly instead, capturing the inserted row.
+    test('a recovered amount reduces the payer\'s total and the household '
+        'total, without changing the 50/50 split ratio', () async {
+      final household =
+          await admin.from('households').insert({}).select().single();
+      final householdId = household['id'] as String;
+      createdHouseholdIds.add(householdId);
+
+      await admin.from('categories').insert({
+        'household_id': householdId,
+        'name': 'Food',
+      });
+      final bill = await admin
+          .from('bills')
+          .insert({
+            'household_id': householdId,
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Alice',
+            'category': 'Food',
+          })
+          .select()
+          .single();
+      await admin.from('payment_splits').insert({
+        'household_id': householdId,
+        'category': 'Food',
+        'person1': 'Alice',
+        'person1_percentage': 50.0,
+        'person2': 'Bob',
+        'person2_percentage': 50.0,
+      });
+      await admin.from('bill_recovered_amounts').insert({
+        'household_id': householdId,
+        'bill_id': bill['id'],
+        'date': '2024-01-20',
+        'amount': 30.0,
+        'received_by': 'Alice',
+      });
+
+      final service = AggregatedCalculationService();
+      final result = await service.calculateBalances(
+        householdId: householdId,
+        categories: [Category(name: 'Food')],
+        person1Name: 'Alice',
+        person2Name: 'Bob',
+      );
+
+      // Net cost is 70 (100 - 30), split ratio unchanged at 50/50.
+      expect(result.person1Paid, closeTo(70.0, 0.01));
+      expect(result.person2Paid, closeTo(0.0, 0.01));
+      expect(result.person1Expected, closeTo(35.0, 0.01));
+      expect(result.person2Expected, closeTo(35.0, 0.01));
+
+      final foodBalance = result.categoryBalances['Food'];
+      expect(foodBalance, isNotNull);
+      expect(foodBalance!.person1Paid, closeTo(70.0, 0.01));
+
+      final totals = await service.fetchHouseholdTotals(householdId: householdId);
+      expect(totals.billCount, 1); // recovered amounts aren't bills
+      expect(totals.totalAmount, closeTo(70.0, 0.01));
+    });
+
+    test('a recovered amount on one payer\'s bill does not leak into the '
+        'other payer\'s total when both received their own recovered '
+        'amount', () async {
+      final household =
+          await admin.from('households').insert({}).select().single();
+      final householdId = household['id'] as String;
+      createdHouseholdIds.add(householdId);
+
+      await admin.from('categories').insert({
+        'household_id': householdId,
+        'name': 'Food',
+      });
+      final aliceBill = await admin
+          .from('bills')
+          .insert({
+            'household_id': householdId,
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Alice',
+            'category': 'Food',
+          })
+          .select()
+          .single();
+      await admin.from('bills').insert({
+        'household_id': householdId,
+        'date': '2024-01-15',
+        'amount': 100.0,
+        'paid_by': 'Bob',
+        'category': 'Food',
+      });
+      // Only Alice's bill has a recovered amount.
+      await admin.from('bill_recovered_amounts').insert({
+        'household_id': householdId,
+        'bill_id': aliceBill['id'],
+        'date': '2024-01-20',
+        'amount': 40.0,
+        'received_by': 'Alice',
+      });
+
+      final service = AggregatedCalculationService();
+      final result = await service.calculateBalances(
+        householdId: householdId,
+        categories: [Category(name: 'Food')],
+        person1Name: 'Alice',
+        person2Name: 'Bob',
+      );
+
+      expect(result.person1Paid, closeTo(60.0, 0.01)); // 100 - 40
+      expect(result.person2Paid, closeTo(100.0, 0.01)); // untouched
+    });
+
+    test('deleting a recovered amount restores the bill\'s full amount to '
+        'the calculation', () async {
+      final household =
+          await admin.from('households').insert({}).select().single();
+      final householdId = household['id'] as String;
+      createdHouseholdIds.add(householdId);
+
+      await admin.from('categories').insert({
+        'household_id': householdId,
+        'name': 'Food',
+      });
+      final bill = await admin
+          .from('bills')
+          .insert({
+            'household_id': householdId,
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Alice',
+            'category': 'Food',
+          })
+          .select()
+          .single();
+      final recoveredAmountRow = await admin
+          .from('bill_recovered_amounts')
+          .insert({
+            'household_id': householdId,
+            'bill_id': bill['id'],
+            'date': '2024-01-20',
+            'amount': 25.0,
+            'received_by': 'Alice',
+          })
+          .select()
+          .single();
+
+      final service = AggregatedCalculationService();
+      final recoveredResult = await service.calculateBalances(
+        householdId: householdId,
+        categories: [Category(name: 'Food')],
+        person1Name: 'Alice',
+        person2Name: 'Bob',
+      );
+      expect(recoveredResult.person1Paid, closeTo(75.0, 0.01));
+
+      await admin
+          .from('bill_recovered_amounts')
+          .delete()
+          .eq('id', recoveredAmountRow['id']);
+
+      final restoredResult = await service.calculateBalances(
+        householdId: householdId,
+        categories: [Category(name: 'Food')],
+        person1Name: 'Alice',
+        person2Name: 'Bob',
+      );
+      expect(restoredResult.person1Paid, closeTo(100.0, 0.01));
+    });
+
+    test('a recovered amount received by the *other* person shifts the '
+        'debt to include that amount, on top of their normal split share',
+        () async {
+      // Alice pays a $100 bill, but the $50 recovered amount is received by
+      // Bob instead of Alice (e.g. an insurance payout landed in his
+      // account). Bob is now holding $50 that belongs against Alice's
+      // outlay, plus he still owes his normal 50/50 share of the $50 net
+      // cost ($25) - so he owes Alice $75 total, not just $25.
+      final household =
+          await admin.from('households').insert({}).select().single();
+      final householdId = household['id'] as String;
+      createdHouseholdIds.add(householdId);
+
+      await admin.from('categories').insert({
+        'household_id': householdId,
+        'name': 'Food',
+      });
+      final bill = await admin
+          .from('bills')
+          .insert({
+            'household_id': householdId,
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Alice',
+            'category': 'Food',
+          })
+          .select()
+          .single();
+      await admin.from('payment_splits').insert({
+        'household_id': householdId,
+        'category': 'Food',
+        'person1': 'Alice',
+        'person1_percentage': 50.0,
+        'person2': 'Bob',
+        'person2_percentage': 50.0,
+      });
+      await admin.from('bill_recovered_amounts').insert({
+        'household_id': householdId,
+        'bill_id': bill['id'],
+        'date': '2024-01-20',
+        'amount': 50.0,
+        'received_by': 'Bob',
+      });
+
+      final service = AggregatedCalculationService();
+      final result = await service.calculateBalances(
+        householdId: householdId,
+        categories: [Category(name: 'Food')],
+        person1Name: 'Alice',
+        person2Name: 'Bob',
+      );
+
+      // Alice is still out her full $100 - she never got any of it back.
+      expect(result.person1Paid, closeTo(100.0, 0.01));
+      // Bob's total goes negative: he holds $50 he didn't spend.
+      expect(result.person2Paid, closeTo(-50.0, 0.01));
+      // Expected shares are still based on the $50 net cost, 50/50.
+      expect(result.person1Expected, closeTo(25.0, 0.01));
+      expect(result.person2Expected, closeTo(25.0, 0.01));
+      // netBalance = person1Expected - person1Paid = 25 - 100 = -75, i.e.
+      // person2 (Bob) owes person1 (Alice) $75.
+      expect(result.netBalance, closeTo(-75.0, 0.01));
+    });
+
+    test(
+        'a recovered amount on a bill paid by someone no longer tracked '
+        'does not offset either current household member\'s total (a stale '
+        'paid_by left behind by a household member rename)', () async {
+      // Simulates renaming a household member after a bill was recorded:
+      // the old bill still has paid_by: 'Charlie' even though the household
+      // is now tracking Alice/Bob, and a recovered amount against that bill
+      // was received by Alice. Since Charlie's bill was never counted in
+      // anyone's paid total (only bills paid_by Alice or Bob are), the
+      // recovered amount must not reduce Alice's total either - otherwise
+      // she'd show a reduction with no corresponding paid amount behind it.
+      final household =
+          await admin.from('households').insert({}).select().single();
+      final householdId = household['id'] as String;
+      createdHouseholdIds.add(householdId);
+
+      await admin.from('categories').insert({
+        'household_id': householdId,
+        'name': 'Food',
+      });
+      final charlieBill = await admin
+          .from('bills')
+          .insert({
+            'household_id': householdId,
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Charlie',
+            'category': 'Food',
+          })
+          .select()
+          .single();
+      await admin.from('bills').insert({
+        'household_id': householdId,
+        'date': '2024-01-15',
+        'amount': 60.0,
+        'paid_by': 'Alice',
+        'category': 'Food',
+      });
+      await admin.from('payment_splits').insert({
+        'household_id': householdId,
+        'category': 'Food',
+        'person1': 'Alice',
+        'person1_percentage': 50.0,
+        'person2': 'Bob',
+        'person2_percentage': 50.0,
+      });
+      await admin.from('bill_recovered_amounts').insert({
+        'household_id': householdId,
+        'bill_id': charlieBill['id'],
+        'date': '2024-01-20',
+        'amount': 40.0,
+        'received_by': 'Alice',
+      });
+
+      final service = AggregatedCalculationService();
+      final result = await service.calculateBalances(
+        householdId: householdId,
+        categories: [Category(name: 'Food')],
+        person1Name: 'Alice',
+        person2Name: 'Bob',
+      );
+
+      // Alice's total is just her own $60 bill - the $40 recovered against
+      // Charlie's untracked bill must not reduce it (it would be 20.0 if
+      // the recovered amount leaked through).
+      expect(result.person1Paid, closeTo(60.0, 0.01));
+      expect(result.person2Paid, closeTo(0.0, 0.01));
+
+      final foodBalance = result.categoryBalances['Food'];
+      expect(foodBalance, isNotNull);
+      expect(foodBalance!.person1Paid, closeTo(60.0, 0.01));
+    });
+  });
+
+  group('BillsProvider / RecoveredAmountsProvider - real Supabase defaults',
+      () {
+    // Neither provider's own default fetch/insert/delete methods have an
+    // injection seam - every other test in this repo supplies a fake, so
+    // this is the only place these actually run against a real backend.
+    // Uses Supabase.instance.client the same way AggregatedCalculationService
+    // above does (initialized with the service-role key in setUpAll).
+
+    test('BillsProvider merges a real bill_recovered_amounts row into the '
+        'loaded bill', () async {
+      final householdId = await seedHousehold(
+        categoryRows: [
+          {'name': 'Food'},
+        ],
+        billRows: [
+          {
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Alice',
+            'category': 'Food',
+          },
+        ],
+        splitRows: const [],
+      );
+      final bill =
+          await admin.from('bills').select().eq('household_id', householdId).single();
+      await admin.from('bill_recovered_amounts').insert({
+        'household_id': householdId,
+        'bill_id': bill['id'],
+        'date': '2024-01-20',
+        'amount': 30.0,
+        'received_by': 'Alice',
+      });
+
+      final billsProvider = BillsProvider();
+      await billsProvider.loadBillsForHousehold(householdId);
+
+      expect(billsProvider.error, isNull);
+      expect(billsProvider.bills, hasLength(1));
+      expect(billsProvider.bills.single.recoveredAmount, closeTo(30.0, 0.01));
+      expect(billsProvider.bills.single.netAmount, closeTo(70.0, 0.01));
+    });
+
+    test(
+      'BillsProvider pages through more than max_rows worth of '
+      'recovered amounts on a single bill without truncating the total',
+      () async {
+        // _defaultFetchRecoveredBreakdown pages in chunks of 1000 - this seeds
+        // more than that for one bill so the "page came back full, fetch the
+        // next one" branch (rows.length == chunkSize, so keep going instead
+        // of breaking) actually runs, the same way the existing "more bills
+        // than max_rows" test above does for AggregatedCalculationService.
+        const recoveredAmountCount = 1200;
+        final householdId = await seedHousehold(
+          categoryRows: [
+            {'name': 'Food'},
+          ],
+          billRows: [
+            {
+              'date': '2024-01-15',
+              'amount': 10000.0,
+              'paid_by': 'Alice',
+              'category': 'Food',
+            },
+          ],
+          splitRows: const [],
+        );
+        final bill = await admin
+            .from('bills')
+            .select()
+            .eq('household_id', householdId)
+            .single();
+        final billId = bill['id'] as String;
+
+        const batchSize = 500;
+        for (var start = 0; start < recoveredAmountCount; start += batchSize) {
+          final end = (start + batchSize < recoveredAmountCount)
+              ? start + batchSize
+              : recoveredAmountCount;
+          await admin.from('bill_recovered_amounts').insert(List.generate(
+                end - start,
+                (_) => {
+                  'household_id': householdId,
+                  'bill_id': billId,
+                  'date': '2024-01-20',
+                  'amount': 1.0,
+                  'received_by': 'Alice',
+                },
+              ));
+        }
+
+        final billsProvider = BillsProvider();
+        await billsProvider.loadBillsForHousehold(householdId);
+
+        expect(billsProvider.error, isNull);
+        expect(billsProvider.bills, hasLength(1));
+        expect(
+          billsProvider.bills.single.recoveredAmount,
+          closeTo(recoveredAmountCount.toDouble(), 0.01),
+        );
+      },
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
+
+    test('BillsProvider.loadAllBills merges recovered totals into the '
+        'unpaginated bill set', () async {
+      // loadAllBills() has no injection seam of its own (it calls
+      // Supabase.instance.client directly, gated only by ConfigProvider),
+      // so - unlike loadBillsForHousehold/loadMoreBillsForHousehold, which
+      // have @visibleForTesting *ForHousehold entry points - it can only be
+      // exercised end-to-end against a real Supabase instance, which is
+      // exactly what this suite provides.
+      final householdId = await seedHousehold(
+        categoryRows: [
+          {'name': 'Food'},
+        ],
+        billRows: [
+          {
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Alice',
+            'category': 'Food',
+          },
+        ],
+        splitRows: const [],
+      );
+      final bill =
+          await admin.from('bills').select().eq('household_id', householdId).single();
+      await admin.from('bill_recovered_amounts').insert({
+        'household_id': householdId,
+        'bill_id': bill['id'],
+        'date': '2024-01-20',
+        'amount': 25.0,
+        'received_by': 'Alice',
+      });
+
+      final billsProvider = BillsProvider();
+      final configProvider = ConfigProvider.forTesting(
+        isSignedIn: true,
+        config: AppConfig(
+          householdId: householdId,
+          person1Name: 'Alice',
+          person2Name: 'Bob',
+        ),
+      );
+
+      await billsProvider.loadAllBills(configProvider);
+
+      expect(billsProvider.error, isNull);
+      expect(billsProvider.allBills, hasLength(1));
+      expect(
+          billsProvider.allBills.single.recoveredAmount, closeTo(25.0, 0.01));
+      expect(billsProvider.allBills.single.netAmount, closeTo(75.0, 0.01));
+      expect(
+          billsProvider.hasLoadedAllBillsForHousehold(householdId), isTrue);
+    });
+
+    // Regression test for a live user report: the Summary screen's monthly/
+    // cumulative spend charts (CategoryDetailScreen, TotalDetailScreen) read
+    // computeMonthlySpend(billsProvider.allBills, ...) - so it's not enough
+    // for that function to use netAmount (see spend_chart_data_test.dart),
+    // allBills itself has to actually carry the recovered amount. This
+    // chains loadAllBills all the way through to computeMonthlySpend's
+    // output against a real backend, since loadAllBills has no injection
+    // seam to exercise this any other way.
+    test('a bill\'s recovered amount is reflected in computeMonthlySpend '
+        'once allBills is (re)loaded', () async {
+      final householdId = await seedHousehold(
+        categoryRows: [
+          {'name': 'Food'},
+        ],
+        billRows: [
+          {
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Alice',
+            'category': 'Food',
+          },
+        ],
+        splitRows: const [],
+      );
+      final bill =
+          await admin.from('bills').select().eq('household_id', householdId).single();
+      await admin.from('bill_recovered_amounts').insert({
+        'household_id': householdId,
+        'bill_id': bill['id'],
+        'date': '2024-01-20',
+        'amount': 50.0,
+        'received_by': 'Alice',
+      });
+
+      final billsProvider = BillsProvider();
+      final configProvider = ConfigProvider.forTesting(
+        isSignedIn: true,
+        config: AppConfig(
+          householdId: householdId,
+          person1Name: 'Alice',
+          person2Name: 'Bob',
+        ),
+      );
+
+      await billsProvider.loadAllBills(configProvider);
+
+      final months = computeMonthlySpend(
+          billsProvider.allBills, 'Alice', 'Bob');
+
+      expect(months, hasLength(1));
+      expect(months.single.total, closeTo(50.0, 0.01)); // 100 - 50, not 100
+      expect(months.single.person1Amount, closeTo(50.0, 0.01));
+    });
+
+    // Companion to the test above, and to the reimbursement-received-by-
+    // the-other-person AggregatedCalculationService test further up this
+    // file: proves computeMonthlySpend agrees with the Summary screen's
+    // balance for the exact same bill, rather than always crediting the
+    // reduction to the payer regardless of who actually received it.
+    test('a recovered amount received by the *other* person is reflected '
+        'in computeMonthlySpend the same way it shifts the balance',
+        () async {
+      final householdId = await seedHousehold(
+        categoryRows: [
+          {'name': 'Food'},
+        ],
+        billRows: [
+          {
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Alice',
+            'category': 'Food',
+          },
+        ],
+        splitRows: const [],
+      );
+      final bill =
+          await admin.from('bills').select().eq('household_id', householdId).single();
+      await admin.from('bill_recovered_amounts').insert({
+        'household_id': householdId,
+        'bill_id': bill['id'],
+        'date': '2024-01-20',
+        'amount': 50.0,
+        'received_by': 'Bob',
+      });
+
+      final billsProvider = BillsProvider();
+      final configProvider = ConfigProvider.forTesting(
+        isSignedIn: true,
+        config: AppConfig(
+          householdId: householdId,
+          person1Name: 'Alice',
+          person2Name: 'Bob',
+        ),
+      );
+
+      await billsProvider.loadAllBills(configProvider);
+
+      final months = computeMonthlySpend(
+          billsProvider.allBills, 'Alice', 'Bob');
+
+      expect(months, hasLength(1));
+      // Net household cost is still 50, but attributed like the balance
+      // calc: Alice's full $100 outlay, Bob's total pulled to -$50 by the
+      // money he received (not $0, and not $50 that Alice never saw back).
+      expect(months.single.total, closeTo(50.0, 0.01));
+      expect(months.single.person1Amount, closeTo(100.0, 0.01));
+      expect(months.single.person2Amount, closeTo(-50.0, 0.01));
+    });
+
+    test('RecoveredAmountsProvider add/load/delete round-trips through the '
+        'real bill_recovered_amounts table', () async {
+      final householdId = await seedHousehold(
+        categoryRows: [
+          {'name': 'Food'},
+        ],
+        billRows: [
+          {
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Alice',
+            'category': 'Food',
+          },
+        ],
+        splitRows: const [],
+      );
+      final bill =
+          await admin.from('bills').select().eq('household_id', householdId).single();
+      final billId = bill['id'] as String;
+
+      final recoveredAmountsProvider = RecoveredAmountsProvider();
+
+      final added = await recoveredAmountsProvider.addRecoveredAmount(
+        RecoveredAmount(
+          billId: billId,
+          date: DateTime(2024, 1, 20),
+          amount: 25.0,
+          receivedBy: 'Alice',
+          note: 'refund',
+        ),
+        householdId,
+      );
+      expect(added, isTrue);
+      expect(recoveredAmountsProvider.error, isNull);
+      expect(recoveredAmountsProvider.recoveredAmounts, hasLength(1));
+      final recoveredAmountId =
+          recoveredAmountsProvider.recoveredAmounts.single.id!;
+
+      // A fresh load should see the same row that addRecoveredAmount just
+      // inserted via the real client.
+      await recoveredAmountsProvider.loadForBill(billId);
+      expect(recoveredAmountsProvider.error, isNull);
+      expect(recoveredAmountsProvider.recoveredAmounts, hasLength(1));
+      expect(recoveredAmountsProvider.totalRecovered, closeTo(25.0, 0.01));
+
+      final deleted = await recoveredAmountsProvider
+          .deleteRecoveredAmount(recoveredAmountId);
+      expect(deleted, isTrue);
+      expect(recoveredAmountsProvider.error, isNull);
+      expect(recoveredAmountsProvider.recoveredAmounts, isEmpty);
+    });
   });
 }

@@ -657,4 +657,42 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get grantInstallPermission => 'Grant Install Permission';
+
+  @override
+  String get recoveredAmounts => 'Recovered Amounts';
+
+  @override
+  String get addRecoveredAmount => 'Add Recovered Amount';
+
+  @override
+  String get receivedBy => 'Received by';
+
+  @override
+  String get selectWhoReceived => 'Please select who received the money';
+
+  @override
+  String get saveRecoveredAmount => 'Save Recovered Amount';
+
+  @override
+  String get deleteRecoveredAmount => 'Delete Recovered Amount';
+
+  @override
+  String get areYouSureDeleteRecoveredAmount =>
+      'Are you sure you want to delete this recovered amount?';
+
+  @override
+  String get noRecoveredAmountsYet => 'No recovered amounts yet';
+
+  @override
+  String get recoveredAmountExceedsRemaining =>
+      'Amount exceeds the remaining bill balance';
+
+  @override
+  String get totalRecovered => 'Total recovered';
+
+  @override
+  String get remainingAmount => 'Remaining';
+
+  @override
+  String get originalAmount => 'Original amount';
 }

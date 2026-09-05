@@ -30,7 +30,12 @@ void main() {
     return AggregatedCalculationService(
       fetchSplits: fetchSplits ?? ({required householdId}) async => [],
       fetchPersonPaidTotal: fetchPersonPaidTotal ??
-          ({required householdId, required paidBy}) async => 0.0,
+          ({
+            required householdId,
+            required paidBy,
+            required trackedPersonNames,
+          }) async =>
+              0.0,
       fetchPersonBillCount: fetchPersonBillCount ??
           ({required householdId, required paidBy}) async => 0,
       fetchCategoryPeriodPersonPaid: fetchCategoryPeriodPersonPaid ??
@@ -40,6 +45,7 @@ void main() {
             required periodStart,
             required periodEnd,
             required paidBy,
+            required trackedPersonNames,
           }) async =>
               0.0,
       fetchHouseholdTotals: fetchHouseholdTotals ??
@@ -73,7 +79,11 @@ void main() {
         'counts on success', (tester) async {
       final provider = CalculationProvider(
         aggregatedCalculationService: serviceWith(
-          fetchPersonPaidTotal: ({required householdId, required paidBy}) async =>
+          fetchPersonPaidTotal: ({
+            required householdId,
+            required paidBy,
+            required trackedPersonNames,
+          }) async =>
               paidBy == person1 ? 120.0 : 80.0,
           fetchPersonBillCount: ({required householdId, required paidBy}) async =>
               paidBy == person1 ? 4 : 2,
@@ -136,7 +146,11 @@ void main() {
         'not as an unhandled exception', (tester) async {
       final provider = CalculationProvider(
         aggregatedCalculationService: serviceWith(
-          fetchPersonPaidTotal: ({required householdId, required paidBy}) async =>
+          fetchPersonPaidTotal: ({
+            required householdId,
+            required paidBy,
+            required trackedPersonNames,
+          }) async =>
               throw Exception('network error'),
         ),
       );
@@ -176,7 +190,11 @@ void main() {
     testWidgets('clearError clears a prior error', (tester) async {
       final provider = CalculationProvider(
         aggregatedCalculationService: serviceWith(
-          fetchPersonPaidTotal: ({required householdId, required paidBy}) async =>
+          fetchPersonPaidTotal: ({
+            required householdId,
+            required paidBy,
+            required trackedPersonNames,
+          }) async =>
               throw Exception('network error'),
         ),
       );
@@ -193,7 +211,11 @@ void main() {
         (tester) async {
       final provider = CalculationProvider(
         aggregatedCalculationService: serviceWith(
-          fetchPersonPaidTotal: ({required householdId, required paidBy}) async =>
+          fetchPersonPaidTotal: ({
+            required householdId,
+            required paidBy,
+            required trackedPersonNames,
+          }) async =>
               10.0,
         ),
       );
@@ -217,7 +239,11 @@ void main() {
       var callCount = 0;
       final provider = CalculationProvider(
         aggregatedCalculationService: serviceWith(
-          fetchPersonPaidTotal: ({required householdId, required paidBy}) async {
+          fetchPersonPaidTotal: ({
+            required householdId,
+            required paidBy,
+            required trackedPersonNames,
+          }) async {
             callCount++;
             return callCount <= 2 ? 10.0 : 999.0;
           },

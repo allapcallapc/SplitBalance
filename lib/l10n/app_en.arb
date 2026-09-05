@@ -886,5 +886,53 @@
   "grantInstallPermission": "Grant Install Permission",
   "@grantInstallPermission": {
     "description": "Button label to open system settings for the install-unknown-apps permission"
+  },
+  "recoveredAmounts": "Recovered Amounts",
+  "@recoveredAmounts": {
+    "description": "Label for a bill's recovered amounts menu item/screen title"
+  },
+  "addRecoveredAmount": "Add Recovered Amount",
+  "@addRecoveredAmount": {
+    "description": "Button/sheet title for adding a recovered amount to a bill"
+  },
+  "receivedBy": "Received by",
+  "@receivedBy": {
+    "description": "Label for who received a recovered amount"
+  },
+  "selectWhoReceived": "Please select who received the money",
+  "@selectWhoReceived": {
+    "description": "Validation message when no one is selected as the recipient of a recovered amount"
+  },
+  "saveRecoveredAmount": "Save Recovered Amount",
+  "@saveRecoveredAmount": {
+    "description": "Button label to save a new recovered amount"
+  },
+  "deleteRecoveredAmount": "Delete Recovered Amount",
+  "@deleteRecoveredAmount": {
+    "description": "Title for delete recovered amount confirmation dialog"
+  },
+  "areYouSureDeleteRecoveredAmount": "Are you sure you want to delete this recovered amount?",
+  "@areYouSureDeleteRecoveredAmount": {
+    "description": "Confirmation message for deleting a recovered amount"
+  },
+  "noRecoveredAmountsYet": "No recovered amounts yet",
+  "@noRecoveredAmountsYet": {
+    "description": "Empty state message on the bill recovered amounts screen"
+  },
+  "recoveredAmountExceedsRemaining": "Amount exceeds the remaining bill balance",
+  "@recoveredAmountExceedsRemaining": {
+    "description": "Validation message when a recovered amount is more than what's left on the bill"
+  },
+  "totalRecovered": "Total recovered",
+  "@totalRecovered": {
+    "description": "Label for the sum of a bill's recovered amounts"
+  },
+  "remainingAmount": "Remaining",
+  "@remainingAmount": {
+    "description": "Label for a bill's amount after recovered amounts are subtracted"
+  },
+  "originalAmount": "Original amount",
+  "@originalAmount": {
+    "description": "Label for a bill's amount before any recovered amounts are subtracted"
   }
 }

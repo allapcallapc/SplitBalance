@@ -19,23 +19,32 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:splitbalance/l10n/app_localizations.dart';
 import 'package:splitbalance/l10n/app_localizations_fr.dart';
+import 'package:splitbalance/models/app_config.dart';
 import 'package:splitbalance/providers/bills_provider.dart';
 import 'package:splitbalance/providers/categories_provider.dart';
 import 'package:splitbalance/providers/config_provider.dart';
 import 'package:splitbalance/providers/pending_payments_provider.dart';
+import 'package:splitbalance/providers/recovered_amounts_provider.dart';
+import 'package:splitbalance/screens/bill_recovered_amounts_screen.dart';
 import 'package:splitbalance/screens/bills_list_screen.dart';
 
 Future<void> pumpBillsListScreen(
   WidgetTester tester, {
   required BillsProvider billsProvider,
+  ConfigProvider? configProvider,
+  CategoriesProvider? categoriesProvider,
+  RecoveredAmountsProvider? recoveredAmountsProvider,
 }) async {
   await tester.pumpWidget(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ConfigProvider()),
-        ChangeNotifierProvider(create: (_) => CategoriesProvider()),
+        ChangeNotifierProvider.value(value: configProvider ?? ConfigProvider()),
+        ChangeNotifierProvider.value(
+            value: categoriesProvider ?? CategoriesProvider()),
         ChangeNotifierProvider(create: (_) => PendingPaymentsProvider()),
         ChangeNotifierProvider.value(value: billsProvider),
+        ChangeNotifierProvider.value(
+            value: recoveredAmountsProvider ?? RecoveredAmountsProvider()),
       ],
       child: const MaterialApp(
         localizationsDelegates: [
@@ -95,6 +104,133 @@ void main() {
     expect(find.text('No bills yet'), findsNothing);
     expect(find.text('Add Your First Bill'), findsNothing);
     expect(find.text('Clear filters'), findsOneWidget);
+  });
+
+  group('BillsListScreen - signed in with bills', () {
+    ConfigProvider signedInConfigProvider() => ConfigProvider.forTesting(
+          isSignedIn: true,
+          config: AppConfig(
+            householdId: 'household-1',
+            person1Name: 'Alice',
+            person2Name: 'Bob',
+          ),
+        );
+
+    Map<String, dynamic> billRow(
+      String id,
+      String date, {
+      double amount = 100.0,
+      String paidBy = 'Alice',
+      String category = 'Food',
+    }) {
+      return {
+        'id': id,
+        'date': date,
+        'amount': amount,
+        'paid_by': paidBy,
+        'category': category,
+        'details': '',
+      };
+    }
+
+    testWidgets(
+        'shows a plain amount for an unrecovered bill and a struck-through '
+        'original next to the net amount for one with a recovered amount',
+        (tester) async {
+      final billsProvider = BillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            [
+              billRow('plain', '2026-01-01', amount: 50.0),
+              billRow('recovered', '2026-01-02', amount: 100.0),
+            ],
+        fetchRecoveredBreakdown: ({required billIds}) async => {
+          'recovered': {'Alice': 30.0},
+        },
+      );
+
+      await pumpBillsListScreen(
+        tester,
+        billsProvider: billsProvider,
+        configProvider: signedInConfigProvider(),
+        categoriesProvider: CategoriesProvider(
+            fetchCategories: ({required householdId}) async => []),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Amount: \$50.00'), findsOneWidget);
+      expect(find.text('\$100.00'), findsOneWidget); // struck-through original
+      expect(find.text('\$70.00'), findsOneWidget); // net after recovery
+    });
+
+    testWidgets(
+        'tapping "Recovered Amounts" on a bill opens '
+        'BillRecoveredAmountsScreen', (tester) async {
+      final billsProvider = BillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            [billRow('bill-1', '2026-01-01', amount: 80.0)],
+        fetchRecoveredBreakdown: ({required billIds}) async => {},
+      );
+
+      await pumpBillsListScreen(
+        tester,
+        billsProvider: billsProvider,
+        configProvider: signedInConfigProvider(),
+        categoriesProvider: CategoriesProvider(
+            fetchCategories: ({required householdId}) async => []),
+        recoveredAmountsProvider: RecoveredAmountsProvider(
+          fetchRecoveredAmountsForBill: ({required billId}) async => [],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(PopupMenuButton));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Recovered Amounts'));
+      // The menu item's onTap fires after a 100ms Future.delayed.
+      await tester.pump(const Duration(milliseconds: 150));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(BillRecoveredAmountsScreen), findsOneWidget);
+      expect(find.text('Original amount'), findsOneWidget);
+      expect(find.text('\$80.00'), findsWidgets);
+
+      // Navigating back lets Navigator.push's returned Future resolve,
+      // reaching the post-push `await _loadData()` call - otherwise that
+      // line never runs, since push() only completes once its route pops.
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(BillRecoveredAmountsScreen), findsNothing);
+      // Recovered amounts are added/deleted through RecoveredAmountsProvider,
+      // which BillsProvider has no way to observe - returning here must
+      // force a fresh loadAllBills() (loadAllBills has no injection seam of
+      // its own, so hasLoadedAllBillsForHousehold flipping true, which its
+      // finally block sets unconditionally, is the only observable signal
+      // it ran) rather than leaving BillsProvider.allBills - and therefore
+      // the Summary screen's monthly/cumulative spend charts - stuck with
+      // whatever recovered totals were cached before this screen opened.
+      expect(billsProvider.hasLoadedAllBillsForHousehold('household-1'),
+          isTrue);
+    });
   });
 
   test(

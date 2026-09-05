@@ -1285,6 +1285,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Grant Install Permission'**
   String get grantInstallPermission;
+
+  /// Label for a bill's recovered amounts menu item/screen title
+  ///
+  /// In en, this message translates to:
+  /// **'Recovered Amounts'**
+  String get recoveredAmounts;
+
+  /// Button/sheet title for adding a recovered amount to a bill
+  ///
+  /// In en, this message translates to:
+  /// **'Add Recovered Amount'**
+  String get addRecoveredAmount;
+
+  /// Label for who received a recovered amount
+  ///
+  /// In en, this message translates to:
+  /// **'Received by'**
+  String get receivedBy;
+
+  /// Validation message when no one is selected as the recipient of a recovered amount
+  ///
+  /// In en, this message translates to:
+  /// **'Please select who received the money'**
+  String get selectWhoReceived;
+
+  /// Button label to save a new recovered amount
+  ///
+  /// In en, this message translates to:
+  /// **'Save Recovered Amount'**
+  String get saveRecoveredAmount;
+
+  /// Title for delete recovered amount confirmation dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Recovered Amount'**
+  String get deleteRecoveredAmount;
+
+  /// Confirmation message for deleting a recovered amount
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this recovered amount?'**
+  String get areYouSureDeleteRecoveredAmount;
+
+  /// Empty state message on the bill recovered amounts screen
+  ///
+  /// In en, this message translates to:
+  /// **'No recovered amounts yet'**
+  String get noRecoveredAmountsYet;
+
+  /// Validation message when a recovered amount is more than what's left on the bill
+  ///
+  /// In en, this message translates to:
+  /// **'Amount exceeds the remaining bill balance'**
+  String get recoveredAmountExceedsRemaining;
+
+  /// Label for the sum of a bill's recovered amounts
+  ///
+  /// In en, this message translates to:
+  /// **'Total recovered'**
+  String get totalRecovered;
+
+  /// Label for a bill's amount after recovered amounts are subtracted
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining'**
+  String get remainingAmount;
+
+  /// Label for a bill's amount before any recovered amounts are subtracted
+  ///
+  /// In en, this message translates to:
+  /// **'Original amount'**
+  String get originalAmount;
 }
 
 class _AppLocalizationsDelegate

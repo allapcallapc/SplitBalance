@@ -28,7 +28,11 @@ void main() {
           splitsCalls++;
           return [];
         },
-        fetchPersonPaidTotal: ({required householdId, required paidBy}) async {
+        fetchPersonPaidTotal: ({
+          required householdId,
+          required paidBy,
+          required trackedPersonNames,
+        }) async {
           paidCalls.add(paidBy);
           return paidBy == person1 ? 150.0 : 50.0;
         },
@@ -38,6 +42,7 @@ void main() {
           required periodStart,
           required periodEnd,
           required paidBy,
+          required trackedPersonNames,
         }) async =>
             0.0,
       );
@@ -61,7 +66,11 @@ void main() {
 
       final service = AggregatedCalculationService(
         fetchSplits: ({required householdId}) async => [],
-        fetchPersonPaidTotal: ({required householdId, required paidBy}) async =>
+        fetchPersonPaidTotal: ({
+          required householdId,
+          required paidBy,
+          required trackedPersonNames,
+        }) async =>
             0.0,
         fetchCategoryPeriodPersonPaid: ({
           required householdId,
@@ -69,6 +78,7 @@ void main() {
           required periodStart,
           required periodEnd,
           required paidBy,
+          required trackedPersonNames,
         }) async {
           categoryPeriodCalls++;
           return 0.0;
@@ -93,7 +103,11 @@ void main() {
 
       final service = AggregatedCalculationService(
         fetchSplits: ({required householdId}) async => [],
-        fetchPersonPaidTotal: ({required householdId, required paidBy}) async =>
+        fetchPersonPaidTotal: ({
+          required householdId,
+          required paidBy,
+          required trackedPersonNames,
+        }) async =>
             0.0,
         fetchCategoryPeriodPersonPaid: ({
           required householdId,
@@ -101,6 +115,7 @@ void main() {
           required periodStart,
           required periodEnd,
           required paidBy,
+          required trackedPersonNames,
         }) async {
           requestedPeriods.add('$category|$periodStart|$periodEnd|$paidBy');
           return 0.0;
@@ -139,7 +154,11 @@ void main() {
 
       final service = AggregatedCalculationService(
         fetchSplits: ({required householdId}) async => splits,
-        fetchPersonPaidTotal: ({required householdId, required paidBy}) async =>
+        fetchPersonPaidTotal: ({
+          required householdId,
+          required paidBy,
+          required trackedPersonNames,
+        }) async =>
             paidBy == person1 ? 100.0 : 0.0,
         // The lone split only covers dates up to 2024-01-01, so every
         // period after that has no matching split - simulate a bill
@@ -150,6 +169,7 @@ void main() {
           required periodStart,
           required periodEnd,
           required paidBy,
+          required trackedPersonNames,
         }) async {
           if (periodEnd == null && paidBy == person1) return 100.0;
           return 0.0;
@@ -178,7 +198,11 @@ void main() {
         'created', () async {
       final service = AggregatedCalculationService(
         fetchSplits: ({required householdId}) async => [],
-        fetchPersonPaidTotal: ({required householdId, required paidBy}) async =>
+        fetchPersonPaidTotal: ({
+          required householdId,
+          required paidBy,
+          required trackedPersonNames,
+        }) async =>
             0.0,
         fetchCategoryPeriodPersonPaid: ({
           required householdId,
@@ -186,6 +210,7 @@ void main() {
           required periodStart,
           required periodEnd,
           required paidBy,
+          required trackedPersonNames,
         }) async =>
             0.0,
       );
@@ -200,11 +225,54 @@ void main() {
       expect(result.categoryBalances, isEmpty);
     });
 
+    test(
+        'a bill fully offset by a recovered amount takes this same '
+        'zero-paid skip - a documented divergence from CalculationService, '
+        'which always includes a bill\'s category regardless of its net '
+        'amount', () async {
+      // fetchCategoryPeriodPersonPaid returns the *net* (recovered-amount-
+      // subtracted) amount in production - a fully recovered bill with no
+      // other activity in its category/period looks identical here to a
+      // slot with no bill at all, so it's indistinguishable from the
+      // generic zero-paid case above.
+      final service = AggregatedCalculationService(
+        fetchSplits: ({required householdId}) async => [],
+        fetchPersonPaidTotal: ({
+          required householdId,
+          required paidBy,
+          required trackedPersonNames,
+        }) async =>
+            0.0,
+        fetchCategoryPeriodPersonPaid: ({
+          required householdId,
+          required category,
+          required periodStart,
+          required periodEnd,
+          required paidBy,
+          required trackedPersonNames,
+        }) async =>
+            0.0, // a $75 bill fully offset by a $75 recovered amount nets to 0
+      );
+
+      final result = await service.calculateBalances(
+        householdId: householdId,
+        categories: categories(['Food']),
+        person1Name: person1,
+        person2Name: person2,
+      );
+
+      expect(result.categoryBalances.containsKey('Food'), isFalse);
+    });
+
     test('a fetcher throwing surfaces as an error on calculateBalances',
         () async {
       final service = AggregatedCalculationService(
         fetchSplits: ({required householdId}) async => [],
-        fetchPersonPaidTotal: ({required householdId, required paidBy}) async =>
+        fetchPersonPaidTotal: ({
+          required householdId,
+          required paidBy,
+          required trackedPersonNames,
+        }) async =>
             throw Exception('network error'),
         fetchCategoryPeriodPersonPaid: ({
           required householdId,
@@ -212,6 +280,7 @@ void main() {
           required periodStart,
           required periodEnd,
           required paidBy,
+          required trackedPersonNames,
         }) async =>
             0.0,
       );
@@ -241,7 +310,11 @@ void main() {
 
       final service = AggregatedCalculationService(
         fetchSplits: ({required householdId}) async => splits,
-        fetchPersonPaidTotal: ({required householdId, required paidBy}) async =>
+        fetchPersonPaidTotal: ({
+          required householdId,
+          required paidBy,
+          required trackedPersonNames,
+        }) async =>
             0.0,
         fetchCategoryPeriodPersonPaid: ({
           required householdId,
@@ -249,6 +322,7 @@ void main() {
           required periodStart,
           required periodEnd,
           required paidBy,
+          required trackedPersonNames,
         }) async =>
             0.0,
       );
@@ -277,6 +351,56 @@ void main() {
 
       expect(totals.billCount, 7);
       expect(totals.totalAmount, 543.21);
+    });
+
+    test(
+        'passes both tracked person names to fetchPersonPaidTotal and '
+        'fetchCategoryPeriodPersonPaid, regardless of which one is the '
+        'current paidBy (needed so the default fetchers can confirm a '
+        'recovered amount\'s underlying bill was paid by a currently '
+        'tracked person - see aggregated_calculation_service.dart)',
+        () async {
+      final personPaidTrackedNames = <List<String>>[];
+      final categoryPeriodTrackedNames = <List<String>>[];
+
+      final service = AggregatedCalculationService(
+        fetchSplits: ({required householdId}) async => [],
+        fetchPersonPaidTotal: ({
+          required householdId,
+          required paidBy,
+          required trackedPersonNames,
+        }) async {
+          personPaidTrackedNames.add(trackedPersonNames);
+          return 0.0;
+        },
+        fetchCategoryPeriodPersonPaid: ({
+          required householdId,
+          required category,
+          required periodStart,
+          required periodEnd,
+          required paidBy,
+          required trackedPersonNames,
+        }) async {
+          categoryPeriodTrackedNames.add(trackedPersonNames);
+          return 0.0;
+        },
+      );
+
+      await service.calculateBalances(
+        householdId: householdId,
+        categories: categories(['Food']),
+        person1Name: person1,
+        person2Name: person2,
+      );
+
+      expect(personPaidTrackedNames, [
+        [person1, person2],
+        [person1, person2],
+      ]);
+      expect(categoryPeriodTrackedNames, [
+        [person1, person2],
+        [person1, person2],
+      ]);
     });
 
     test('fetchPersonBillCount passes through to the injected fetcher',

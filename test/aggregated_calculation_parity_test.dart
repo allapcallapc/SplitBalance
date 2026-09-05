@@ -344,6 +344,80 @@ void main() {
     });
   });
 
+  group('Parity - recovered amounts', () {
+    // CalculationService nets out bill.recoveredAmount via netAmount, and
+    // InMemoryBillSource's fetch functions do the same - proving the two
+    // calculators still agree once recovered amounts are in the mix, the
+    // same way the rest of this suite does for the un-recovered case.
+    test('a partially recovered bill', () async {
+      await expectParity(
+        bills: [
+          Bill(
+              date: baseDate,
+              amount: 100.0,
+              paidBy: person1,
+              category: 'Food',
+              recoveredAmount: 30.0),
+          Bill(date: baseDate, amount: 100.0, paidBy: person2, category: 'Food'),
+        ],
+        splits: [
+          PaymentSplit(
+            category: 'all',
+            person1: person1,
+            person1Percentage: 50.0,
+            person2: person2,
+            person2Percentage: 50.0,
+          ),
+        ],
+        categoryNames: ['Food'],
+      );
+    });
+
+    test('recovered amounts spread across categories and date periods',
+        () async {
+      await expectParity(
+        bills: [
+          Bill(
+              date: DateTime(2024, 1, 10),
+              amount: 200.0,
+              paidBy: person1,
+              category: 'Rent',
+              recoveredAmount: 50.0),
+          // Partially, not fully, recovered: a bill that nets to exactly 0
+          // with nothing else in its category/period is a known, documented
+          // divergence (AggregatedCalculationService omits that category
+          // entirely - see the comment on the `p1 == 0 && p2 == 0` skip in
+          // calculateBalances) rather than something this parity suite
+          // should assert agreement on.
+          Bill(
+              date: DateTime(2024, 2, 15),
+              amount: 75.0,
+              paidBy: person2,
+              category: 'Food',
+              recoveredAmount: 40.0),
+        ],
+        splits: [
+          PaymentSplit(
+            endDate: DateTime(2024, 1, 31),
+            category: 'all',
+            person1: person1,
+            person1Percentage: 60.0,
+            person2: person2,
+            person2Percentage: 40.0,
+          ),
+          PaymentSplit(
+            category: 'all',
+            person1: person1,
+            person1Percentage: 50.0,
+            person2: person2,
+            person2Percentage: 50.0,
+          ),
+        ],
+        categoryNames: ['Rent', 'Food'],
+      );
+    });
+  });
+
   group('Parity - endDate+1 ambiguous boundary day', () {
     // The single calendar day right after a split's endDate is ambiguous
     // under PaymentSplit.containsDate, and which split wins depends on the

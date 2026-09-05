@@ -12,6 +12,7 @@ import '../models/bill.dart';
 import '../utils/category_icons.dart';
 import '../widgets/app_bar_action_icon_button.dart';
 import 'add_edit_bill_screen.dart';
+import 'bill_recovered_amounts_screen.dart';
 import 'pending_payments_screen.dart';
 
 class BillsListScreen extends StatefulWidget {
@@ -677,8 +678,32 @@ class _BillsListScreenState extends State<BillsListScreen>
                             const SizedBox(height: 4),
                             Text(
                                 '${l10n.date}: ${dateFormat.format(bill.date)}'),
-                            Text(
-                                '${l10n.amount}: ${currencyFormat.format(bill.amount)}'),
+                            if (bill.recoveredAmount > 0)
+                              Row(
+                                children: [
+                                  Text(
+                                    '${l10n.amount}: ',
+                                  ),
+                                  Text(
+                                    currencyFormat.format(bill.amount),
+                                    style: const TextStyle(
+                                      decoration: TextDecoration.lineThrough,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    currencyFormat.format(bill.netAmount),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green[700],
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else
+                              Text(
+                                  '${l10n.amount}: ${currencyFormat.format(bill.amount)}'),
                             Text('${l10n.paidBy}: ${bill.paidBy}'),
                             Text('${l10n.category}: ${bill.category}'),
                           ],
@@ -690,7 +715,10 @@ class _BillsListScreenState extends State<BillsListScreen>
                                 children: [
                                   const Icon(Icons.edit, size: 20),
                                   const SizedBox(width: 8),
-                                  Text(l10n.edit),
+                                  Flexible(
+                                    child: Text(l10n.edit,
+                                        overflow: TextOverflow.ellipsis),
+                                  ),
                                 ],
                               ),
                               onTap: () {
@@ -717,12 +745,65 @@ class _BillsListScreenState extends State<BillsListScreen>
                             PopupMenuItem(
                               child: Row(
                                 children: [
+                                  const Icon(Icons.currency_exchange,
+                                      size: 20),
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(l10n.recoveredAmounts,
+                                        overflow: TextOverflow.ellipsis),
+                                  ),
+                                ],
+                              ),
+                              onTap: () {
+                                Future.delayed(
+                                  const Duration(milliseconds: 100),
+                                  () async {
+                                    if (!context.mounted) return;
+                                    await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            BillRecoveredAmountsScreen(
+                                                bill: bill),
+                                      ),
+                                    );
+                                    if (context.mounted) {
+                                      // Recovered amounts are added/deleted
+                                      // through RecoveredAmountsProvider,
+                                      // which BillsProvider knows nothing
+                                      // about - _loadData() below only
+                                      // refreshes the paginated `bills` list,
+                                      // so force a fresh allBills fetch too,
+                                      // otherwise the Summary screen's
+                                      // monthly/cumulative spend charts
+                                      // (which read allBills, cached since
+                                      // it's normally only refetched on bill
+                                      // add/edit/delete) keep showing
+                                      // pre-recovery totals until something
+                                      // else happens to invalidate that
+                                      // cache.
+                                      final configProvider =
+                                          context.read<ConfigProvider>();
+                                      await billsProvider
+                                          .loadAllBills(configProvider);
+                                      await _loadData();
+                                    }
+                                  },
+                                );
+                              },
+                            ),
+                            PopupMenuItem(
+                              child: Row(
+                                children: [
                                   const Icon(Icons.delete,
                                       size: 20, color: Colors.red),
                                   const SizedBox(width: 8),
-                                  Text(l10n.delete,
-                                      style:
-                                          const TextStyle(color: Colors.red)),
+                                  Flexible(
+                                    child: Text(l10n.delete,
+                                        style: const TextStyle(
+                                            color: Colors.red),
+                                        overflow: TextOverflow.ellipsis),
+                                  ),
                                 ],
                               ),
                               onTap: () {
