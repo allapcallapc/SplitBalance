@@ -1,8 +1,9 @@
 // Widget-level coverage for the searchable category icon picker added to
 // PaymentSplitsScreen's "Add Category" dialog (_CategoryIconPicker in
-// lib/screens/payment_splits_screen.dart), which replaced a flat Wrap of a
-// curated ~25-icon subset with a search box over the full generated
-// categoryIconOptions map (2000+ entries) rendered in a GridView.builder.
+// lib/screens/payment_splits_screen.dart): a small default set
+// (commonCategoryIconKeys) shown in a Wrap, with a search field that
+// filters across the full generated categoryIconOptions map (2000+
+// entries, capped to the picker's _maxSearchResults per query).
 //
 // Same not-signed-in setup as test/bills_list_screen_test.dart: ConfigProvider
 // talks directly to Supabase.instance.client with no DI seam, so
@@ -60,9 +61,9 @@ Future<void> openAddCategoryDialog(WidgetTester tester) async {
 }
 
 int iconGridChildCount(WidgetTester tester) {
-  final gridView = tester.widget<GridView>(find.byType(GridView));
-  final delegate = gridView.childrenDelegate as SliverChildBuilderDelegate;
-  return delegate.childCount!;
+  final grid =
+      tester.widget<Wrap>(find.byKey(const Key('categoryIconGrid')));
+  return grid.children.length;
 }
 
 void main() {
@@ -77,12 +78,13 @@ void main() {
     );
   });
 
-  testWidgets('icon picker starts with every option and narrows as you type',
+  testWidgets(
+      'icon picker starts with the common icon set and narrows as you type',
       (tester) async {
     await pumpPaymentSplitsScreen(tester);
     await openAddCategoryDialog(tester);
 
-    expect(iconGridChildCount(tester), categoryIconOptions.length);
+    expect(iconGridChildCount(tester), commonCategoryIconKeys.length);
 
     await tester.enterText(
         find.byKey(const Key('categoryIconSearchField')), 'zoom_out_map');
@@ -101,7 +103,7 @@ void main() {
         find.byKey(const Key('categoryIconSearchField')), 'zzznotarealicon');
     await tester.pumpAndSettle();
 
-    expect(find.byType(GridView), findsNothing);
+    expect(find.byKey(const Key('categoryIconGrid')), findsNothing);
     expect(find.text('No icons found'), findsOneWidget);
   });
 

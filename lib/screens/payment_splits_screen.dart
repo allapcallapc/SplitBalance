@@ -2068,8 +2068,14 @@ class _CategoriesTab extends StatelessWidget {
 // wherever the category's icon is displayed - see Category.iconData.
 //
 // categoryIconOptions covers Flutter's full built-in icon set (2000+
-// entries), so this filters by a search field and renders in a
-// fixed-height, independently scrolling grid rather than an unbounded Wrap.
+// entries). Rather than a GridView/ListView over the whole set - which,
+// nested in this dialog's own scrollable content, has been observed to
+// crash the Flutter framework on unrelated interactions once the item
+// count gets into the thousands - this shows a small default set
+// (commonCategoryIconKeys) in an unbounded Wrap (matching the original,
+// pre-search picker) and only computes/renders a (capped) filtered list
+// once the user searches, growing the outer dialog's own scroll area
+// exactly like the original did.
 class _CategoryIconPicker extends StatefulWidget {
   final String? selectedIcon;
   final ValueChanged<String> onSelected;
@@ -2084,6 +2090,10 @@ class _CategoryIconPicker extends StatefulWidget {
 }
 
 class _CategoryIconPickerState extends State<_CategoryIconPicker> {
+  // Search results are capped so a broad query (e.g. a single common
+  // letter) can't dump thousands of tiles into the Wrap at once.
+  static const int _maxSearchResults = 60;
+
   final _searchController = TextEditingController();
   String _query = '';
 
@@ -2099,9 +2109,12 @@ class _CategoryIconPickerState extends State<_CategoryIconPicker> {
     final colorScheme = Theme.of(context).colorScheme;
     final query = _query.trim().toLowerCase().replaceAll(' ', '_');
     final entries = query.isEmpty
-        ? categoryIconOptions.entries.toList()
+        ? commonCategoryIconKeys
+            .map((key) => MapEntry(key, categoryIconOptions[key]!))
+            .toList()
         : categoryIconOptions.entries
             .where((entry) => entry.key.contains(query))
+            .take(_maxSearchResults)
             .toList();
 
     return Column(
@@ -2119,52 +2132,51 @@ class _CategoryIconPickerState extends State<_CategoryIconPicker> {
           onChanged: (value) => setState(() => _query = value),
         ),
         const SizedBox(height: 8),
-        SizedBox(
-          height: 240,
-          child: entries.isEmpty
-              ? Center(child: Text(l10n.noIconsFound))
-              : GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 52,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                  ),
-                  itemCount: entries.length,
-                  itemBuilder: (context, index) {
-                    final key = entries[index].key;
-                    final iconData = entries[index].value;
-                    final isSelected = widget.selectedIcon == key ||
-                        (widget.selectedIcon == null && key == 'category');
+        if (entries.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: Text(l10n.noIconsFound)),
+          )
+        else
+          Wrap(
+            key: const Key('categoryIconGrid'),
+            spacing: 8,
+            runSpacing: 8,
+            children: entries.map((entry) {
+              final key = entry.key;
+              final iconData = entry.value;
+              final isSelected = widget.selectedIcon == key ||
+                  (widget.selectedIcon == null && key == 'category');
 
-                    return InkWell(
-                      onTap: () => widget.onSelected(key),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? colorScheme.primaryContainer
-                              : colorScheme.surfaceContainerHighest
-                                  .withValues(alpha: 0.4),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isSelected
-                                ? colorScheme.primary
-                                : Colors.transparent,
-                            width: 2,
-                          ),
-                        ),
-                        child: Icon(
-                          iconData,
-                          color: isSelected
-                              ? colorScheme.primary
-                              : colorScheme.onSurface,
-                        ),
-                      ),
-                    );
-                  },
+              return InkWell(
+                onTap: () => widget.onSelected(key),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? colorScheme.primaryContainer
+                        : colorScheme.surfaceContainerHighest
+                            .withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color:
+                          isSelected ? colorScheme.primary : Colors.transparent,
+                      width: 2,
+                    ),
+                  ),
+                  child: Icon(
+                    iconData,
+                    color: isSelected
+                        ? colorScheme.primary
+                        : colorScheme.onSurface,
+                  ),
                 ),
-        ),
+              );
+            }).toList(),
+          ),
       ],
     );
   }

@@ -4,6 +4,41 @@ import 'package:flutter/material.dart';
 /// isn't recognized by this version of the app).
 const IconData defaultCategoryIcon = Icons.category;
 
+/// A small set of commonly-used keys shown by default in the category icon
+/// picker before the user searches (see _CategoryIconPicker in
+/// payment_splits_screen.dart) - rendering all of [categoryIconOptions] at
+/// once there has been observed to crash the Flutter framework on unrelated
+/// interactions once the dialog's item count gets into the thousands. All
+/// must exist in [categoryIconOptions].
+const List<String> commonCategoryIconKeys = [
+  'category',
+  'restaurant',
+  'local_grocery_store',
+  'home',
+  'directions_car',
+  'lightbulb',
+  'water_drop',
+  'wifi',
+  'phone_android',
+  'medical_services',
+  'school',
+  'child_care',
+  'pets',
+  'fitness_center',
+  'sports_esports',
+  'movie',
+  'coffee',
+  'local_bar',
+  'shopping_cart',
+  'card_giftcard',
+  'flight',
+  'hotel',
+  'build',
+  'savings',
+  'receipt_long',
+  'more_horiz',
+];
+
 /// Maps a serializable icon key (stored on [Category.icon] / the Supabase
 /// `categories.icon` column) to the [IconData] used to render it.
 ///
