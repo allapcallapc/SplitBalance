@@ -1,9 +1,12 @@
 import 'package:intl/intl.dart';
 
-// A record of money that came back against part of a bill - an insurance
-// payout, a store refund, a friend paying back their share directly, etc.
-// See Bill.netAmount for how these reduce a bill's effective cost.
-class Reimbursement {
+// A record of money that came back against part of a bill - a store refund,
+// an insurance payout, a friend or outside party paying back their share
+// directly, etc. Deliberately not called "reimbursement": that word reads as
+// a payment between the two household members themselves, whereas this is
+// always money recovered from outside the household. See Bill.netAmount for
+// how these reduce a bill's effective cost.
+class RecoveredAmount {
   final String? id;
   final String billId;
   final DateTime date;
@@ -11,7 +14,7 @@ class Reimbursement {
   final String receivedBy;
   final String note;
 
-  Reimbursement({
+  RecoveredAmount({
     this.id,
     required this.billId,
     required this.date,
@@ -33,8 +36,8 @@ class Reimbursement {
     };
   }
 
-  factory Reimbursement.fromMap(Map<String, dynamic> map) {
-    return Reimbursement(
+  factory RecoveredAmount.fromMap(Map<String, dynamic> map) {
+    return RecoveredAmount(
       id: map['id'] as String,
       billId: map['bill_id'] as String,
       date: DateTime.parse(map['date'] as String),

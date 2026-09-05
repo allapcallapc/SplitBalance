@@ -3,39 +3,40 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../l10n/app_localizations.dart';
 import '../models/bill.dart';
-import '../models/reimbursement.dart';
+import '../models/recovered_amount.dart';
 import '../providers/config_provider.dart';
-import '../providers/reimbursements_provider.dart';
+import '../providers/recovered_amounts_provider.dart';
 
 // Lets a household record that part of [bill] came back (an insurance
-// payout, a store refund, a friend paying back their share directly, etc),
-// and shows the running list of those reimbursements against the bill's
-// original amount. Balance calculations pick this up on their own (see
-// AggregatedCalculationService/Bill.netAmount) - this screen only manages
-// the underlying bill_reimbursements rows.
-class BillReimbursementsScreen extends StatefulWidget {
+// payout, a store refund, a friend or outside party paying back their share
+// directly, etc), and shows the running list of those recovered amounts
+// against the bill's original amount. Balance calculations pick this up on
+// their own (see AggregatedCalculationService/Bill.netAmount) - this screen
+// only manages the underlying bill_recovered_amounts rows.
+class BillRecoveredAmountsScreen extends StatefulWidget {
   final Bill bill;
 
-  const BillReimbursementsScreen({super.key, required this.bill});
+  const BillRecoveredAmountsScreen({super.key, required this.bill});
 
   @override
-  State<BillReimbursementsScreen> createState() =>
-      _BillReimbursementsScreenState();
+  State<BillRecoveredAmountsScreen> createState() =>
+      _BillRecoveredAmountsScreenState();
 }
 
-class _BillReimbursementsScreenState extends State<BillReimbursementsScreen> {
+class _BillRecoveredAmountsScreenState
+    extends State<BillRecoveredAmountsScreen> {
   // Cached in didChangeDependencies rather than looked up via context.read
   // inside dispose(): by the time dispose runs, this element can already be
   // deactivated (e.g. during widget-tree teardown at the end of a test),
   // and walking up to an ancestor provider at that point throws "Looking up
   // a deactivated widget's ancestor is unsafe" - same pattern
   // BillsListScreen uses for _configProvider.
-  ReimbursementsProvider? _reimbursementsProvider;
+  RecoveredAmountsProvider? _recoveredAmountsProvider;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _reimbursementsProvider = context.read<ReimbursementsProvider>();
+    _recoveredAmountsProvider = context.read<RecoveredAmountsProvider>();
   }
 
   @override
@@ -44,7 +45,7 @@ class _BillReimbursementsScreenState extends State<BillReimbursementsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final billId = widget.bill.id;
       if (billId != null) {
-        _reimbursementsProvider?.loadForBill(billId);
+        _recoveredAmountsProvider?.loadForBill(billId);
       }
     });
   }
@@ -61,22 +62,22 @@ class _BillReimbursementsScreenState extends State<BillReimbursementsScreen> {
     // provider after this widget is gone - reset() only touches the
     // ChangeNotifier itself, not this element/context.
     //
-    // Avoids a stale reimbursement list briefly flashing if this screen (or
-    // one for a different bill) is opened again later.
-    final provider = _reimbursementsProvider;
+    // Avoids a stale recovered-amounts list briefly flashing if this screen
+    // (or one for a different bill) is opened again later.
+    final provider = _recoveredAmountsProvider;
     if (provider != null) {
       Future.microtask(provider.reset);
     }
     super.dispose();
   }
 
-  Future<void> _showAddReimbursementSheet(
+  Future<void> _showAddRecoveredAmountSheet(
     BuildContext context,
     double remaining,
   ) async {
     final l10n = AppLocalizations.of(context)!;
     final configProvider = context.read<ConfigProvider>();
-    final reimbursementsProvider = context.read<ReimbursementsProvider>();
+    final recoveredAmountsProvider = context.read<RecoveredAmountsProvider>();
     final formKey = GlobalKey<FormState>();
     final amountController = TextEditingController();
     final noteController = TextEditingController();
@@ -110,7 +111,7 @@ class _BillReimbursementsScreenState extends State<BillReimbursementsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      l10n.addReimbursement,
+                      l10n.addRecoveredAmount,
                       style: Theme.of(sheetContext).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 16),
@@ -130,7 +131,7 @@ class _BillReimbursementsScreenState extends State<BillReimbursementsScreen> {
                           return l10n.enterValidAmount;
                         }
                         if (amount > remaining + 0.01) {
-                          return l10n.reimbursementExceedsRemaining;
+                          return l10n.recoveredAmountExceedsRemaining;
                         }
                         return null;
                       },
@@ -196,9 +197,9 @@ class _BillReimbursementsScreenState extends State<BillReimbursementsScreen> {
                         final householdId = configProvider.householdId;
                         if (billId == null || householdId == null) return;
 
-                        final success =
-                            await reimbursementsProvider.addReimbursement(
-                          Reimbursement(
+                        final success = await recoveredAmountsProvider
+                            .addRecoveredAmount(
+                          RecoveredAmount(
                             billId: billId,
                             date: selectedDate,
                             amount: double.parse(amountController.text.trim()),
@@ -213,18 +214,18 @@ class _BillReimbursementsScreenState extends State<BillReimbursementsScreen> {
                             Navigator.pop(sheetContext);
                           }
                         } else if (sheetContext.mounted &&
-                            reimbursementsProvider.error != null) {
+                            recoveredAmountsProvider.error != null) {
                           ScaffoldMessenger.of(sheetContext).showSnackBar(
                             SnackBar(
-                                content:
-                                    Text(reimbursementsProvider.error!)),
+                                content: Text(
+                                    recoveredAmountsProvider.error!)),
                           );
                         }
                       },
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      child: Text(l10n.saveReimbursement),
+                      child: Text(l10n.saveRecoveredAmount),
                     ),
                   ],
                 ),
@@ -236,16 +237,16 @@ class _BillReimbursementsScreenState extends State<BillReimbursementsScreen> {
     );
   }
 
-  Future<void> _deleteReimbursement(
+  Future<void> _deleteRecoveredAmount(
     BuildContext context,
-    Reimbursement reimbursement,
+    RecoveredAmount recoveredAmount,
   ) async {
     final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.deleteReimbursement),
-        content: Text(l10n.areYouSureDeleteReimbursement),
+        title: Text(l10n.deleteRecoveredAmount),
+        content: Text(l10n.areYouSureDeleteRecoveredAmount),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -260,13 +261,16 @@ class _BillReimbursementsScreenState extends State<BillReimbursementsScreen> {
       ),
     );
 
-    if (confirmed == true && reimbursement.id != null && context.mounted) {
-      final reimbursementsProvider = context.read<ReimbursementsProvider>();
-      final success =
-          await reimbursementsProvider.deleteReimbursement(reimbursement.id!);
-      if (!success && context.mounted && reimbursementsProvider.error != null) {
+    if (confirmed == true && recoveredAmount.id != null && context.mounted) {
+      final recoveredAmountsProvider =
+          context.read<RecoveredAmountsProvider>();
+      final success = await recoveredAmountsProvider
+          .deleteRecoveredAmount(recoveredAmount.id!);
+      if (!success &&
+          context.mounted &&
+          recoveredAmountsProvider.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(reimbursementsProvider.error!)),
+          SnackBar(content: Text(recoveredAmountsProvider.error!)),
         );
       }
     }
@@ -279,11 +283,11 @@ class _BillReimbursementsScreenState extends State<BillReimbursementsScreen> {
     final dateFormat = DateFormat('yyyy-MM-dd');
 
     return Scaffold(
-        appBar: AppBar(title: Text(l10n.reimbursements)),
-        body: Consumer<ReimbursementsProvider>(
-          builder: (context, reimbursementsProvider, child) {
-            final totalReimbursed = reimbursementsProvider.totalReimbursed;
-            final remaining = widget.bill.amount - totalReimbursed;
+        appBar: AppBar(title: Text(l10n.recoveredAmounts)),
+        body: Consumer<RecoveredAmountsProvider>(
+          builder: (context, recoveredAmountsProvider, child) {
+            final totalRecovered = recoveredAmountsProvider.totalRecovered;
+            final remaining = widget.bill.amount - totalRecovered;
 
             return Column(
               children: [
@@ -300,8 +304,8 @@ class _BillReimbursementsScreenState extends State<BillReimbursementsScreen> {
                         ),
                         const SizedBox(height: 8),
                         _summaryRow(
-                          l10n.totalReimbursed,
-                          '-${currencyFormat.format(totalReimbursed)}',
+                          l10n.totalRecovered,
+                          '-${currencyFormat.format(totalRecovered)}',
                         ),
                         const Divider(height: 24),
                         _summaryRow(
@@ -314,23 +318,24 @@ class _BillReimbursementsScreenState extends State<BillReimbursementsScreen> {
                   ),
                 ),
                 Expanded(
-                  child: reimbursementsProvider.isLoading
+                  child: recoveredAmountsProvider.isLoading
                       ? const Center(child: CircularProgressIndicator())
-                      : reimbursementsProvider.reimbursements.isEmpty
+                      : recoveredAmountsProvider.recoveredAmounts.isEmpty
                           ? Center(
                               child: Text(
-                                l10n.noReimbursementsYet,
+                                l10n.noRecoveredAmountsYet,
                                 style: const TextStyle(color: Colors.grey),
                               ),
                             )
                           : ListView.builder(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8),
-                              itemCount:
-                                  reimbursementsProvider.reimbursements.length,
+                              itemCount: recoveredAmountsProvider
+                                  .recoveredAmounts.length,
                               itemBuilder: (context, index) {
-                                final reimbursement = reimbursementsProvider
-                                    .reimbursements[index];
+                                final recoveredAmount =
+                                    recoveredAmountsProvider
+                                        .recoveredAmounts[index];
                                 return Card(
                                   margin: const EdgeInsets.symmetric(
                                       vertical: 4),
@@ -338,21 +343,22 @@ class _BillReimbursementsScreenState extends State<BillReimbursementsScreen> {
                                     leading: const Icon(
                                         Icons.currency_exchange),
                                     title: Text(currencyFormat
-                                        .format(reimbursement.amount)),
+                                        .format(recoveredAmount.amount)),
                                     subtitle: Text(
                                       [
                                         dateFormat
-                                            .format(reimbursement.date),
-                                        reimbursement.receivedBy,
-                                        if (reimbursement.note.isNotEmpty)
-                                          reimbursement.note,
+                                            .format(recoveredAmount.date),
+                                        recoveredAmount.receivedBy,
+                                        if (recoveredAmount.note.isNotEmpty)
+                                          recoveredAmount.note,
                                       ].join(' · '),
                                     ),
                                     trailing: IconButton(
                                       icon: const Icon(Icons.delete,
                                           color: Colors.red),
-                                      onPressed: () => _deleteReimbursement(
-                                          context, reimbursement),
+                                      onPressed: () =>
+                                          _deleteRecoveredAmount(
+                                              context, recoveredAmount),
                                     ),
                                   ),
                                 );
@@ -363,15 +369,16 @@ class _BillReimbursementsScreenState extends State<BillReimbursementsScreen> {
             );
           },
         ),
-        floatingActionButton: Consumer<ReimbursementsProvider>(
-          builder: (context, reimbursementsProvider, child) {
-            final remaining =
-                widget.bill.amount - reimbursementsProvider.totalReimbursed;
+        floatingActionButton: Consumer<RecoveredAmountsProvider>(
+          builder: (context, recoveredAmountsProvider, child) {
+            final remaining = widget.bill.amount -
+                recoveredAmountsProvider.totalRecovered;
             if (remaining <= 0.01) return const SizedBox.shrink();
             return FloatingActionButton.extended(
-              onPressed: () => _showAddReimbursementSheet(context, remaining),
+              onPressed: () =>
+                  _showAddRecoveredAmountSheet(context, remaining),
               icon: const Icon(Icons.add),
-              label: Text(l10n.addReimbursement),
+              label: Text(l10n.addRecoveredAmount),
             );
           },
         ),

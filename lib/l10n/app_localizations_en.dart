@@ -659,37 +659,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get grantInstallPermission => 'Grant Install Permission';
 
   @override
-  String get reimbursements => 'Reimbursements';
+  String get recoveredAmounts => 'Recovered Amounts';
 
   @override
-  String get addReimbursement => 'Add Reimbursement';
+  String get addRecoveredAmount => 'Add Recovered Amount';
 
   @override
   String get receivedBy => 'Received by';
 
   @override
-  String get selectWhoReceived =>
-      'Please select who received the reimbursement';
+  String get selectWhoReceived => 'Please select who received the money';
 
   @override
-  String get saveReimbursement => 'Save Reimbursement';
+  String get saveRecoveredAmount => 'Save Recovered Amount';
 
   @override
-  String get deleteReimbursement => 'Delete Reimbursement';
+  String get deleteRecoveredAmount => 'Delete Recovered Amount';
 
   @override
-  String get areYouSureDeleteReimbursement =>
-      'Are you sure you want to delete this reimbursement?';
+  String get areYouSureDeleteRecoveredAmount =>
+      'Are you sure you want to delete this recovered amount?';
 
   @override
-  String get noReimbursementsYet => 'No reimbursements yet';
+  String get noRecoveredAmountsYet => 'No recovered amounts yet';
 
   @override
-  String get reimbursementExceedsRemaining =>
+  String get recoveredAmountExceedsRemaining =>
       'Amount exceeds the remaining bill balance';
 
   @override
-  String get totalReimbursed => 'Total reimbursed';
+  String get totalRecovered => 'Total recovered';
 
   @override
   String get remainingAmount => 'Remaining';

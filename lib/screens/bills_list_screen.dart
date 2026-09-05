@@ -12,7 +12,7 @@ import '../models/bill.dart';
 import '../utils/category_icons.dart';
 import '../widgets/app_bar_action_icon_button.dart';
 import 'add_edit_bill_screen.dart';
-import 'bill_reimbursements_screen.dart';
+import 'bill_recovered_amounts_screen.dart';
 import 'pending_payments_screen.dart';
 
 class BillsListScreen extends StatefulWidget {
@@ -678,7 +678,7 @@ class _BillsListScreenState extends State<BillsListScreen>
                             const SizedBox(height: 4),
                             Text(
                                 '${l10n.date}: ${dateFormat.format(bill.date)}'),
-                            if (bill.reimbursedAmount > 0)
+                            if (bill.recoveredAmount > 0)
                               Row(
                                 children: [
                                   Text(
@@ -745,7 +745,7 @@ class _BillsListScreenState extends State<BillsListScreen>
                                   const Icon(Icons.currency_exchange,
                                       size: 20),
                                   const SizedBox(width: 8),
-                                  Text(l10n.reimbursements),
+                                  Text(l10n.recoveredAmounts),
                                 ],
                               ),
                               onTap: () {
@@ -757,24 +757,25 @@ class _BillsListScreenState extends State<BillsListScreen>
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) =>
-                                            BillReimbursementsScreen(
+                                            BillRecoveredAmountsScreen(
                                                 bill: bill),
                                       ),
                                     );
                                     if (context.mounted) {
-                                      // Reimbursements are added/deleted
-                                      // through ReimbursementsProvider, which
-                                      // BillsProvider knows nothing about -
-                                      // _loadData() below only refreshes the
-                                      // paginated `bills` list, so force a
-                                      // fresh allBills fetch too, otherwise
-                                      // the Summary screen's monthly/
-                                      // cumulative spend charts (which read
-                                      // allBills, cached since it's normally
-                                      // only refetched on bill add/edit/
-                                      // delete) keep showing pre-reimbursement
-                                      // totals until something else happens
-                                      // to invalidate that cache.
+                                      // Recovered amounts are added/deleted
+                                      // through RecoveredAmountsProvider,
+                                      // which BillsProvider knows nothing
+                                      // about - _loadData() below only
+                                      // refreshes the paginated `bills` list,
+                                      // so force a fresh allBills fetch too,
+                                      // otherwise the Summary screen's
+                                      // monthly/cumulative spend charts
+                                      // (which read allBills, cached since
+                                      // it's normally only refetched on bill
+                                      // add/edit/delete) keep showing
+                                      // pre-recovery totals until something
+                                      // else happens to invalidate that
+                                      // cache.
                                       final configProvider =
                                           context.read<ConfigProvider>();
                                       await billsProvider

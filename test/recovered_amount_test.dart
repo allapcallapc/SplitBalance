@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:splitbalance/models/reimbursement.dart';
+import 'package:splitbalance/models/recovered_amount.dart';
 
 void main() {
-  group('Reimbursement.toMap', () {
+  group('RecoveredAmount.toMap', () {
     test('formats the date as yyyy-MM-dd and omits id/household_id '
         '(assigned by the caller/database)', () {
-      final reimbursement = Reimbursement(
+      final recoveredAmount = RecoveredAmount(
         billId: 'bill-1',
         date: DateTime(2024, 3, 5),
         amount: 30.0,
@@ -13,7 +13,7 @@ void main() {
         note: 'insurance payout',
       );
 
-      final map = reimbursement.toMap();
+      final map = recoveredAmount.toMap();
 
       expect(map['bill_id'], 'bill-1');
       expect(map['date'], '2024-03-05');
@@ -25,21 +25,21 @@ void main() {
     });
 
     test('note defaults to an empty string', () {
-      final reimbursement = Reimbursement(
+      final recoveredAmount = RecoveredAmount(
         billId: 'bill-1',
         date: DateTime(2024, 3, 5),
         amount: 30.0,
         receivedBy: 'Alice',
       );
 
-      expect(reimbursement.toMap()['note'], '');
+      expect(recoveredAmount.toMap()['note'], '');
     });
   });
 
-  group('Reimbursement.fromMap', () {
+  group('RecoveredAmount.fromMap', () {
     test('round-trips a full row', () {
       final row = {
-        'id': 'reimb-1',
+        'id': 'recovered-1',
         'bill_id': 'bill-1',
         'date': '2024-03-05',
         'amount': 30.0,
@@ -47,38 +47,38 @@ void main() {
         'note': 'insurance payout',
       };
 
-      final reimbursement = Reimbursement.fromMap(row);
+      final recoveredAmount = RecoveredAmount.fromMap(row);
 
-      expect(reimbursement.id, 'reimb-1');
-      expect(reimbursement.billId, 'bill-1');
-      expect(reimbursement.date, DateTime(2024, 3, 5));
-      expect(reimbursement.amount, 30.0);
-      expect(reimbursement.receivedBy, 'Alice');
-      expect(reimbursement.note, 'insurance payout');
+      expect(recoveredAmount.id, 'recovered-1');
+      expect(recoveredAmount.billId, 'bill-1');
+      expect(recoveredAmount.date, DateTime(2024, 3, 5));
+      expect(recoveredAmount.amount, 30.0);
+      expect(recoveredAmount.receivedBy, 'Alice');
+      expect(recoveredAmount.note, 'insurance payout');
     });
 
     test('defaults note to an empty string when the row omits it', () {
       final row = {
-        'id': 'reimb-1',
+        'id': 'recovered-1',
         'bill_id': 'bill-1',
         'date': '2024-03-05',
         'amount': 30.0,
         'received_by': 'Alice',
       };
 
-      expect(Reimbursement.fromMap(row).note, '');
+      expect(RecoveredAmount.fromMap(row).note, '');
     });
 
     test('reads an integer amount (num) the same as a double', () {
       final row = {
-        'id': 'reimb-1',
+        'id': 'recovered-1',
         'bill_id': 'bill-1',
         'date': '2024-03-05',
         'amount': 30,
         'received_by': 'Alice',
       };
 
-      expect(Reimbursement.fromMap(row).amount, 30.0);
+      expect(RecoveredAmount.fromMap(row).amount, 30.0);
     });
   });
 }

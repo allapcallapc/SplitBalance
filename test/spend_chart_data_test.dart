@@ -83,15 +83,15 @@ void main() {
       expect(computeMonthlySpend([], person1, person2), isEmpty);
     });
 
-    test('buckets by netAmount, not amount, when a bill has reimbursements',
-        () {
+    test('buckets by netAmount, not amount, when a bill has a recovered '
+        'amount', () {
       final bills = [
         Bill(
             date: DateTime(2024, 1, 5),
             amount: 100.0,
             paidBy: person1,
             category: 'Food',
-            reimbursedAmount: 40.0),
+            recoveredAmount: 40.0),
       ];
 
       final months = computeMonthlySpend(bills, person1, person2);
@@ -156,15 +156,15 @@ void main() {
       expect(computeCumulativeSpend([], person1, person2), isEmpty);
     });
 
-    test('accumulates netAmount, not amount, when a bill has reimbursements',
-        () {
+    test('accumulates netAmount, not amount, when a bill has a recovered '
+        'amount', () {
       final bills = [
         Bill(
             date: DateTime(2024, 1, 1),
             amount: 100.0,
             paidBy: person1,
             category: 'Food',
-            reimbursedAmount: 25.0),
+            recoveredAmount: 25.0),
         Bill(
             date: DateTime(2024, 1, 2),
             amount: 50.0,

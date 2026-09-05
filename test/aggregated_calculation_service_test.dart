@@ -201,12 +201,12 @@ void main() {
     });
 
     test(
-        'a bill fully offset by reimbursements takes this same zero-paid '
-        'skip - a documented divergence from CalculationService, which '
-        'always includes a bill\'s category regardless of its net amount',
-        () async {
-      // fetchCategoryPeriodPersonPaid returns the *net* (reimbursement-
-      // subtracted) amount in production - a fully reimbursed bill with no
+        'a bill fully offset by a recovered amount takes this same '
+        'zero-paid skip - a documented divergence from CalculationService, '
+        'which always includes a bill\'s category regardless of its net '
+        'amount', () async {
+      // fetchCategoryPeriodPersonPaid returns the *net* (recovered-amount-
+      // subtracted) amount in production - a fully recovered bill with no
       // other activity in its category/period looks identical here to a
       // slot with no bill at all, so it's indistinguishable from the
       // generic zero-paid case above.
@@ -221,7 +221,7 @@ void main() {
           required periodEnd,
           required paidBy,
         }) async =>
-            0.0, // a $75 bill fully offset by a $75 reimbursement nets to 0
+            0.0, // a $75 bill fully offset by a $75 recovered amount nets to 0
       );
 
       final result = await service.calculateBalances(

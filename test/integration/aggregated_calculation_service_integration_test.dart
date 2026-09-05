@@ -22,10 +22,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:splitbalance/models/app_config.dart';
 import 'package:splitbalance/models/category.dart';
-import 'package:splitbalance/models/reimbursement.dart';
+import 'package:splitbalance/models/recovered_amount.dart';
 import 'package:splitbalance/providers/bills_provider.dart';
 import 'package:splitbalance/providers/config_provider.dart';
-import 'package:splitbalance/providers/reimbursements_provider.dart';
+import 'package:splitbalance/providers/recovered_amounts_provider.dart';
 import 'package:splitbalance/services/aggregated_calculation_service.dart';
 import 'package:splitbalance/utils/spend_chart_data.dart';
 
@@ -341,12 +341,12 @@ void main() {
     );
   });
 
-  group('AggregatedCalculationService - reimbursements (real Supabase '
+  group('AggregatedCalculationService - recovered amounts (real Supabase '
       'queries)', () {
     // seedHousehold's billRows path doesn't hand back generated ids, and
-    // bill_reimbursements needs a real bill_id to link against - so these
+    // bill_recovered_amounts needs a real bill_id to link against - so these
     // tests seed bills directly instead, capturing the inserted row.
-    test('a reimbursement reduces the payer\'s total and the household '
+    test('a recovered amount reduces the payer\'s total and the household '
         'total, without changing the 50/50 split ratio', () async {
       final household =
           await admin.from('households').insert({}).select().single();
@@ -376,7 +376,7 @@ void main() {
         'person2': 'Bob',
         'person2_percentage': 50.0,
       });
-      await admin.from('bill_reimbursements').insert({
+      await admin.from('bill_recovered_amounts').insert({
         'household_id': householdId,
         'bill_id': bill['id'],
         'date': '2024-01-20',
@@ -403,13 +403,13 @@ void main() {
       expect(foodBalance!.person1Paid, closeTo(70.0, 0.01));
 
       final totals = await service.fetchHouseholdTotals(householdId: householdId);
-      expect(totals.billCount, 1); // reimbursements aren't bills
+      expect(totals.billCount, 1); // recovered amounts aren't bills
       expect(totals.totalAmount, closeTo(70.0, 0.01));
     });
 
-    test('a reimbursement on one payer\'s bill does not leak into the '
-        'other payer\'s total when both received their own reimbursement',
-        () async {
+    test('a recovered amount on one payer\'s bill does not leak into the '
+        'other payer\'s total when both received their own recovered '
+        'amount', () async {
       final household =
           await admin.from('households').insert({}).select().single();
       final householdId = household['id'] as String;
@@ -437,8 +437,8 @@ void main() {
         'paid_by': 'Bob',
         'category': 'Food',
       });
-      // Only Alice's bill is reimbursed.
-      await admin.from('bill_reimbursements').insert({
+      // Only Alice's bill has a recovered amount.
+      await admin.from('bill_recovered_amounts').insert({
         'household_id': householdId,
         'bill_id': aliceBill['id'],
         'date': '2024-01-20',
@@ -458,8 +458,8 @@ void main() {
       expect(result.person2Paid, closeTo(100.0, 0.01)); // untouched
     });
 
-    test('deleting a reimbursement restores the bill\'s full amount to the '
-        'calculation', () async {
+    test('deleting a recovered amount restores the bill\'s full amount to '
+        'the calculation', () async {
       final household =
           await admin.from('households').insert({}).select().single();
       final householdId = household['id'] as String;
@@ -480,8 +480,8 @@ void main() {
           })
           .select()
           .single();
-      final reimbursement = await admin
-          .from('bill_reimbursements')
+      final recoveredAmountRow = await admin
+          .from('bill_recovered_amounts')
           .insert({
             'household_id': householdId,
             'bill_id': bill['id'],
@@ -493,18 +493,18 @@ void main() {
           .single();
 
       final service = AggregatedCalculationService();
-      final reimbursedResult = await service.calculateBalances(
+      final recoveredResult = await service.calculateBalances(
         householdId: householdId,
         categories: [Category(name: 'Food')],
         person1Name: 'Alice',
         person2Name: 'Bob',
       );
-      expect(reimbursedResult.person1Paid, closeTo(75.0, 0.01));
+      expect(recoveredResult.person1Paid, closeTo(75.0, 0.01));
 
       await admin
-          .from('bill_reimbursements')
+          .from('bill_recovered_amounts')
           .delete()
-          .eq('id', reimbursement['id']);
+          .eq('id', recoveredAmountRow['id']);
 
       final restoredResult = await service.calculateBalances(
         householdId: householdId,
@@ -515,10 +515,10 @@ void main() {
       expect(restoredResult.person1Paid, closeTo(100.0, 0.01));
     });
 
-    test('a reimbursement received by the *other* person shifts the debt '
-        'to include the reimbursed amount, on top of their normal split '
-        'share', () async {
-      // Alice pays a $100 bill, but the $50 reimbursement is received by
+    test('a recovered amount received by the *other* person shifts the '
+        'debt to include that amount, on top of their normal split share',
+        () async {
+      // Alice pays a $100 bill, but the $50 recovered amount is received by
       // Bob instead of Alice (e.g. an insurance payout landed in his
       // account). Bob is now holding $50 that belongs against Alice's
       // outlay, plus he still owes his normal 50/50 share of the $50 net
@@ -551,7 +551,7 @@ void main() {
         'person2': 'Bob',
         'person2_percentage': 50.0,
       });
-      await admin.from('bill_reimbursements').insert({
+      await admin.from('bill_recovered_amounts').insert({
         'household_id': householdId,
         'bill_id': bill['id'],
         'date': '2024-01-20',
@@ -580,7 +580,7 @@ void main() {
     });
   });
 
-  group('BillsProvider / ReimbursementsProvider - real Supabase defaults',
+  group('BillsProvider / RecoveredAmountsProvider - real Supabase defaults',
       () {
     // Neither provider's own default fetch/insert/delete methods have an
     // injection seam - every other test in this repo supplies a fake, so
@@ -588,7 +588,7 @@ void main() {
     // Uses Supabase.instance.client the same way AggregatedCalculationService
     // above does (initialized with the service-role key in setUpAll).
 
-    test('BillsProvider merges a real bill_reimbursements row into the '
+    test('BillsProvider merges a real bill_recovered_amounts row into the '
         'loaded bill', () async {
       final householdId = await seedHousehold(
         categoryRows: [
@@ -606,7 +606,7 @@ void main() {
       );
       final bill =
           await admin.from('bills').select().eq('household_id', householdId).single();
-      await admin.from('bill_reimbursements').insert({
+      await admin.from('bill_recovered_amounts').insert({
         'household_id': householdId,
         'bill_id': bill['id'],
         'date': '2024-01-20',
@@ -619,20 +619,20 @@ void main() {
 
       expect(billsProvider.error, isNull);
       expect(billsProvider.bills, hasLength(1));
-      expect(billsProvider.bills.single.reimbursedAmount, closeTo(30.0, 0.01));
+      expect(billsProvider.bills.single.recoveredAmount, closeTo(30.0, 0.01));
       expect(billsProvider.bills.single.netAmount, closeTo(70.0, 0.01));
     });
 
     test(
       'BillsProvider pages through more than max_rows worth of '
-      'reimbursements on a single bill without truncating the total',
+      'recovered amounts on a single bill without truncating the total',
       () async {
-        // _defaultFetchReimbursedTotals pages in chunks of 1000 - this seeds
+        // _defaultFetchRecoveredTotals pages in chunks of 1000 - this seeds
         // more than that for one bill so the "page came back full, fetch the
         // next one" branch (rows.length == chunkSize, so keep going instead
         // of breaking) actually runs, the same way the existing "more bills
         // than max_rows" test above does for AggregatedCalculationService.
-        const reimbursementCount = 1200;
+        const recoveredAmountCount = 1200;
         final householdId = await seedHousehold(
           categoryRows: [
             {'name': 'Food'},
@@ -655,11 +655,11 @@ void main() {
         final billId = bill['id'] as String;
 
         const batchSize = 500;
-        for (var start = 0; start < reimbursementCount; start += batchSize) {
-          final end = (start + batchSize < reimbursementCount)
+        for (var start = 0; start < recoveredAmountCount; start += batchSize) {
+          final end = (start + batchSize < recoveredAmountCount)
               ? start + batchSize
-              : reimbursementCount;
-          await admin.from('bill_reimbursements').insert(List.generate(
+              : recoveredAmountCount;
+          await admin.from('bill_recovered_amounts').insert(List.generate(
                 end - start,
                 (_) => {
                   'household_id': householdId,
@@ -677,14 +677,14 @@ void main() {
         expect(billsProvider.error, isNull);
         expect(billsProvider.bills, hasLength(1));
         expect(
-          billsProvider.bills.single.reimbursedAmount,
-          closeTo(reimbursementCount.toDouble(), 0.01),
+          billsProvider.bills.single.recoveredAmount,
+          closeTo(recoveredAmountCount.toDouble(), 0.01),
         );
       },
       timeout: const Timeout(Duration(minutes: 3)),
     );
 
-    test('BillsProvider.loadAllBills merges reimbursed totals into the '
+    test('BillsProvider.loadAllBills merges recovered totals into the '
         'unpaginated bill set', () async {
       // loadAllBills() has no injection seam of its own (it calls
       // Supabase.instance.client directly, gated only by ConfigProvider),
@@ -708,7 +708,7 @@ void main() {
       );
       final bill =
           await admin.from('bills').select().eq('household_id', householdId).single();
-      await admin.from('bill_reimbursements').insert({
+      await admin.from('bill_recovered_amounts').insert({
         'household_id': householdId,
         'bill_id': bill['id'],
         'date': '2024-01-20',
@@ -731,7 +731,7 @@ void main() {
       expect(billsProvider.error, isNull);
       expect(billsProvider.allBills, hasLength(1));
       expect(
-          billsProvider.allBills.single.reimbursedAmount, closeTo(25.0, 0.01));
+          billsProvider.allBills.single.recoveredAmount, closeTo(25.0, 0.01));
       expect(billsProvider.allBills.single.netAmount, closeTo(75.0, 0.01));
       expect(
           billsProvider.hasLoadedAllBillsForHousehold(householdId), isTrue);
@@ -741,12 +741,12 @@ void main() {
     // cumulative spend charts (CategoryDetailScreen, TotalDetailScreen) read
     // computeMonthlySpend(billsProvider.allBills, ...) - so it's not enough
     // for that function to use netAmount (see spend_chart_data_test.dart),
-    // allBills itself has to actually carry the reimbursement. This chains
-    // loadAllBills all the way through to computeMonthlySpend's output
-    // against a real backend, since loadAllBills has no injection seam to
-    // exercise this any other way.
-    test('a bill\'s reimbursement is reflected in computeMonthlySpend once '
-        'allBills is (re)loaded', () async {
+    // allBills itself has to actually carry the recovered amount. This
+    // chains loadAllBills all the way through to computeMonthlySpend's
+    // output against a real backend, since loadAllBills has no injection
+    // seam to exercise this any other way.
+    test('a bill\'s recovered amount is reflected in computeMonthlySpend '
+        'once allBills is (re)loaded', () async {
       final householdId = await seedHousehold(
         categoryRows: [
           {'name': 'Food'},
@@ -763,7 +763,7 @@ void main() {
       );
       final bill =
           await admin.from('bills').select().eq('household_id', householdId).single();
-      await admin.from('bill_reimbursements').insert({
+      await admin.from('bill_recovered_amounts').insert({
         'household_id': householdId,
         'bill_id': bill['id'],
         'date': '2024-01-20',
@@ -791,8 +791,8 @@ void main() {
       expect(months.single.person1Amount, closeTo(50.0, 0.01));
     });
 
-    test('ReimbursementsProvider add/load/delete round-trips through the '
-        'real bill_reimbursements table', () async {
+    test('RecoveredAmountsProvider add/load/delete round-trips through the '
+        'real bill_recovered_amounts table', () async {
       final householdId = await seedHousehold(
         categoryRows: [
           {'name': 'Food'},
@@ -811,10 +811,10 @@ void main() {
           await admin.from('bills').select().eq('household_id', householdId).single();
       final billId = bill['id'] as String;
 
-      final reimbursementsProvider = ReimbursementsProvider();
+      final recoveredAmountsProvider = RecoveredAmountsProvider();
 
-      final added = await reimbursementsProvider.addReimbursement(
-        Reimbursement(
+      final added = await recoveredAmountsProvider.addRecoveredAmount(
+        RecoveredAmount(
           billId: billId,
           date: DateTime(2024, 1, 20),
           amount: 25.0,
@@ -824,22 +824,23 @@ void main() {
         householdId,
       );
       expect(added, isTrue);
-      expect(reimbursementsProvider.error, isNull);
-      expect(reimbursementsProvider.reimbursements, hasLength(1));
-      final reimbursementId = reimbursementsProvider.reimbursements.single.id!;
+      expect(recoveredAmountsProvider.error, isNull);
+      expect(recoveredAmountsProvider.recoveredAmounts, hasLength(1));
+      final recoveredAmountId =
+          recoveredAmountsProvider.recoveredAmounts.single.id!;
 
-      // A fresh load should see the same row that addReimbursement just
+      // A fresh load should see the same row that addRecoveredAmount just
       // inserted via the real client.
-      await reimbursementsProvider.loadForBill(billId);
-      expect(reimbursementsProvider.error, isNull);
-      expect(reimbursementsProvider.reimbursements, hasLength(1));
-      expect(reimbursementsProvider.totalReimbursed, closeTo(25.0, 0.01));
+      await recoveredAmountsProvider.loadForBill(billId);
+      expect(recoveredAmountsProvider.error, isNull);
+      expect(recoveredAmountsProvider.recoveredAmounts, hasLength(1));
+      expect(recoveredAmountsProvider.totalRecovered, closeTo(25.0, 0.01));
 
-      final deleted =
-          await reimbursementsProvider.deleteReimbursement(reimbursementId);
+      final deleted = await recoveredAmountsProvider
+          .deleteRecoveredAmount(recoveredAmountId);
       expect(deleted, isTrue);
-      expect(reimbursementsProvider.error, isNull);
-      expect(reimbursementsProvider.reimbursements, isEmpty);
+      expect(recoveredAmountsProvider.error, isNull);
+      expect(recoveredAmountsProvider.recoveredAmounts, isEmpty);
     });
   });
 }

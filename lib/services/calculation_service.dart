@@ -205,7 +205,7 @@ class CalculationService {
         continue;
       }
 
-      // Track who paid, net of anything reimbursed against this bill.
+      // Track who paid, net of anything recovered against this bill.
       if (isPaidByPerson1) {
         person1Paid += bill.netAmount;
       } else {

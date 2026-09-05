@@ -24,8 +24,8 @@ import 'package:splitbalance/providers/bills_provider.dart';
 import 'package:splitbalance/providers/categories_provider.dart';
 import 'package:splitbalance/providers/config_provider.dart';
 import 'package:splitbalance/providers/pending_payments_provider.dart';
-import 'package:splitbalance/providers/reimbursements_provider.dart';
-import 'package:splitbalance/screens/bill_reimbursements_screen.dart';
+import 'package:splitbalance/providers/recovered_amounts_provider.dart';
+import 'package:splitbalance/screens/bill_recovered_amounts_screen.dart';
 import 'package:splitbalance/screens/bills_list_screen.dart';
 
 Future<void> pumpBillsListScreen(
@@ -33,7 +33,7 @@ Future<void> pumpBillsListScreen(
   required BillsProvider billsProvider,
   ConfigProvider? configProvider,
   CategoriesProvider? categoriesProvider,
-  ReimbursementsProvider? reimbursementsProvider,
+  RecoveredAmountsProvider? recoveredAmountsProvider,
 }) async {
   await tester.pumpWidget(
     MultiProvider(
@@ -44,7 +44,7 @@ Future<void> pumpBillsListScreen(
         ChangeNotifierProvider(create: (_) => PendingPaymentsProvider()),
         ChangeNotifierProvider.value(value: billsProvider),
         ChangeNotifierProvider.value(
-            value: reimbursementsProvider ?? ReimbursementsProvider()),
+            value: recoveredAmountsProvider ?? RecoveredAmountsProvider()),
       ],
       child: const MaterialApp(
         localizationsDelegates: [
@@ -134,8 +134,8 @@ void main() {
     }
 
     testWidgets(
-        'shows a plain amount for an unreimbursed bill and a struck-through '
-        'original next to the net amount for a reimbursed one',
+        'shows a plain amount for an unrecovered bill and a struck-through '
+        'original next to the net amount for one with a recovered amount',
         (tester) async {
       final billsProvider = BillsProvider(
         fetchBillsPage: ({
@@ -149,10 +149,10 @@ void main() {
         }) async =>
             [
               billRow('plain', '2026-01-01', amount: 50.0),
-              billRow('reimbursed', '2026-01-02', amount: 100.0),
+              billRow('recovered', '2026-01-02', amount: 100.0),
             ],
-        fetchReimbursedTotals: ({required billIds}) async =>
-            {'reimbursed': 30.0},
+        fetchRecoveredTotals: ({required billIds}) async =>
+            {'recovered': 30.0},
       );
 
       await pumpBillsListScreen(
@@ -167,12 +167,12 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Amount: \$50.00'), findsOneWidget);
       expect(find.text('\$100.00'), findsOneWidget); // struck-through original
-      expect(find.text('\$70.00'), findsOneWidget); // net after reimbursement
+      expect(find.text('\$70.00'), findsOneWidget); // net after recovery
     });
 
     testWidgets(
-        'tapping "Reimbursements" on a bill opens BillReimbursementsScreen',
-        (tester) async {
+        'tapping "Recovered Amounts" on a bill opens '
+        'BillRecoveredAmountsScreen', (tester) async {
       final billsProvider = BillsProvider(
         fetchBillsPage: ({
           required String householdId,
@@ -184,7 +184,7 @@ void main() {
           required int limit,
         }) async =>
             [billRow('bill-1', '2026-01-01', amount: 80.0)],
-        fetchReimbursedTotals: ({required billIds}) async => {},
+        fetchRecoveredTotals: ({required billIds}) async => {},
       );
 
       await pumpBillsListScreen(
@@ -193,21 +193,21 @@ void main() {
         configProvider: signedInConfigProvider(),
         categoriesProvider: CategoriesProvider(
             fetchCategories: ({required householdId}) async => []),
-        reimbursementsProvider: ReimbursementsProvider(
-          fetchReimbursementsForBill: ({required billId}) async => [],
+        recoveredAmountsProvider: RecoveredAmountsProvider(
+          fetchRecoveredAmountsForBill: ({required billId}) async => [],
         ),
       );
       await tester.pumpAndSettle();
 
       await tester.tap(find.byType(PopupMenuButton));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Reimbursements'));
+      await tester.tap(find.text('Recovered Amounts'));
       // The menu item's onTap fires after a 100ms Future.delayed.
       await tester.pump(const Duration(milliseconds: 150));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.byType(BillReimbursementsScreen), findsOneWidget);
+      expect(find.byType(BillRecoveredAmountsScreen), findsOneWidget);
       expect(find.text('Original amount'), findsOneWidget);
       expect(find.text('\$80.00'), findsWidgets);
 
@@ -218,15 +218,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.byType(BillReimbursementsScreen), findsNothing);
-      // Reimbursements are added/deleted through ReimbursementsProvider,
+      expect(find.byType(BillRecoveredAmountsScreen), findsNothing);
+      // Recovered amounts are added/deleted through RecoveredAmountsProvider,
       // which BillsProvider has no way to observe - returning here must
       // force a fresh loadAllBills() (loadAllBills has no injection seam of
       // its own, so hasLoadedAllBillsForHousehold flipping true, which its
       // finally block sets unconditionally, is the only observable signal
       // it ran) rather than leaving BillsProvider.allBills - and therefore
       // the Summary screen's monthly/cumulative spend charts - stuck with
-      // whatever reimbursement totals were cached before this screen opened.
+      // whatever recovered totals were cached before this screen opened.
       expect(billsProvider.hasLoadedAllBillsForHousehold('household-1'),
           isTrue);
     });

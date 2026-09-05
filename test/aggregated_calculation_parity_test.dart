@@ -344,12 +344,12 @@ void main() {
     });
   });
 
-  group('Parity - reimbursements', () {
-    // CalculationService nets out bill.reimbursedAmount via netAmount, and
+  group('Parity - recovered amounts', () {
+    // CalculationService nets out bill.recoveredAmount via netAmount, and
     // InMemoryBillSource's fetch functions do the same - proving the two
-    // calculators still agree once reimbursements are in the mix, the same
-    // way the rest of this suite does for the un-reimbursed case.
-    test('a partially reimbursed bill', () async {
+    // calculators still agree once recovered amounts are in the mix, the
+    // same way the rest of this suite does for the un-recovered case.
+    test('a partially recovered bill', () async {
       await expectParity(
         bills: [
           Bill(
@@ -357,7 +357,7 @@ void main() {
               amount: 100.0,
               paidBy: person1,
               category: 'Food',
-              reimbursedAmount: 30.0),
+              recoveredAmount: 30.0),
           Bill(date: baseDate, amount: 100.0, paidBy: person2, category: 'Food'),
         ],
         splits: [
@@ -373,7 +373,7 @@ void main() {
       );
     });
 
-    test('reimbursements spread across categories and date periods',
+    test('recovered amounts spread across categories and date periods',
         () async {
       await expectParity(
         bills: [
@@ -382,8 +382,8 @@ void main() {
               amount: 200.0,
               paidBy: person1,
               category: 'Rent',
-              reimbursedAmount: 50.0),
-          // Partially, not fully, reimbursed: a bill that nets to exactly 0
+              recoveredAmount: 50.0),
+          // Partially, not fully, recovered: a bill that nets to exactly 0
           // with nothing else in its category/period is a known, documented
           // divergence (AggregatedCalculationService omits that category
           // entirely - see the comment on the `p1 == 0 && p2 == 0` skip in
@@ -394,7 +394,7 @@ void main() {
               amount: 75.0,
               paidBy: person2,
               category: 'Food',
-              reimbursedAmount: 40.0),
+              recoveredAmount: 40.0),
         ],
         splits: [
           PaymentSplit(

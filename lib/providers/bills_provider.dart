@@ -34,10 +34,10 @@ typedef UpdateBillRow = Future<Map<String, dynamic>> Function(
 // Deletes the row with the given id.
 typedef DeleteBillRow = Future<void> Function(String id);
 
-// Sums bill_reimbursements.amount for each of [billIds], keyed by bill id.
-// Bills with no reimbursements are simply absent from the result (treated as
-// 0 by the caller) rather than present with a 0 entry.
-typedef FetchReimbursedTotals = Future<Map<String, double>> Function({
+// Sums bill_recovered_amounts.amount for each of [billIds], keyed by bill
+// id. Bills with nothing recovered are simply absent from the result
+// (treated as 0 by the caller) rather than present with a 0 entry.
+typedef FetchRecoveredTotals = Future<Map<String, double>> Function({
   required List<String> billIds,
 });
 
@@ -47,13 +47,13 @@ class BillsProvider with ChangeNotifier {
     InsertBillRow? insertBillRow,
     UpdateBillRow? updateBillRow,
     DeleteBillRow? deleteBillRow,
-    FetchReimbursedTotals? fetchReimbursedTotals,
+    FetchRecoveredTotals? fetchRecoveredTotals,
   })  : _fetchBillsPage = fetchBillsPage ?? _defaultFetchBillsPage,
         _insertBillRow = insertBillRow ?? _defaultInsertBillRow,
         _updateBillRow = updateBillRow ?? _defaultUpdateBillRow,
         _deleteBillRow = deleteBillRow ?? _defaultDeleteBillRow,
-        _fetchReimbursedTotals =
-            fetchReimbursedTotals ?? _defaultFetchReimbursedTotals;
+        _fetchRecoveredTotals =
+            fetchRecoveredTotals ?? _defaultFetchRecoveredTotals;
 
   static const int pageSize = 25;
 
@@ -61,7 +61,7 @@ class BillsProvider with ChangeNotifier {
   final InsertBillRow _insertBillRow;
   final UpdateBillRow _updateBillRow;
   final DeleteBillRow _deleteBillRow;
-  final FetchReimbursedTotals _fetchReimbursedTotals;
+  final FetchRecoveredTotals _fetchRecoveredTotals;
 
   // Paginated, server-filtered bills backing the bills list screen.
   final List<Bill> _bills = [];
@@ -227,7 +227,7 @@ class BillsProvider with ChangeNotifier {
     await Supabase.instance.client.from('bills').delete().eq('id', id);
   }
 
-  static Future<Map<String, double>> _defaultFetchReimbursedTotals({
+  static Future<Map<String, double>> _defaultFetchRecoveredTotals({
     required List<String> billIds,
   }) async {
     if (billIds.isEmpty) return {};
@@ -240,7 +240,7 @@ class BillsProvider with ChangeNotifier {
     var start = 0;
     while (true) {
       final rows = await Supabase.instance.client
-          .from('bill_reimbursements')
+          .from('bill_recovered_amounts')
           .select('bill_id, amount')
           .inFilter('bill_id', billIds)
           .order('id')
@@ -256,18 +256,18 @@ class BillsProvider with ChangeNotifier {
     return totals;
   }
 
-  // Fetches reimbursed totals for [bills] and returns them with
-  // reimbursedAmount populated, for display (list badges, category/summary
+  // Fetches recovered totals for [bills] and returns them with
+  // recoveredAmount populated, for display (list badges, category/summary
   // charts) - not consulted by balance calculations, which subtract
-  // reimbursements at the query level (see AggregatedCalculationService).
-  Future<List<Bill>> _withReimbursedTotals(List<Bill> bills) async {
+  // recovered amounts at the query level (see AggregatedCalculationService).
+  Future<List<Bill>> _withRecoveredTotals(List<Bill> bills) async {
     final ids = [for (final b in bills) if (b.id != null) b.id!];
     if (ids.isEmpty) return bills;
-    final totals = await _fetchReimbursedTotals(billIds: ids);
+    final totals = await _fetchRecoveredTotals(billIds: ids);
     if (totals.isEmpty) return bills;
     return [
       for (final bill in bills)
-        bill.copyWith(reimbursedAmount: totals[bill.id] ?? 0),
+        bill.copyWith(recoveredAmount: totals[bill.id] ?? 0),
     ];
   }
 
@@ -311,7 +311,7 @@ class BillsProvider with ChangeNotifier {
       if (requestId != _requestId) return;
 
       final pageBills =
-          await _withReimbursedTotals(rows.map(Bill.fromMap).toList());
+          await _withRecoveredTotals(rows.map(Bill.fromMap).toList());
       if (requestId != _requestId) return;
 
       _bills
@@ -365,7 +365,7 @@ class BillsProvider with ChangeNotifier {
       if (requestId != _requestId) return;
 
       final pageBills =
-          await _withReimbursedTotals(rows.map(Bill.fromMap).toList());
+          await _withRecoveredTotals(rows.map(Bill.fromMap).toList());
       if (requestId != _requestId) return;
 
       _bills.addAll(pageBills);
@@ -403,7 +403,7 @@ class BillsProvider with ChangeNotifier {
           .order('date', ascending: false);
 
       final loadedBills =
-          await _withReimbursedTotals(rows.map(Bill.fromMap).toList());
+          await _withRecoveredTotals(rows.map(Bill.fromMap).toList());
 
       _allBills
         ..clear()
@@ -534,14 +534,14 @@ class BillsProvider with ChangeNotifier {
     Bill saved;
     try {
       final row = await _updateBillRow(id, updatedBill.toMap());
-      // Editing a bill's own fields never touches its reimbursements, so
+      // Editing a bill's own fields never touches its recovered amounts, so
       // carry forward whatever total was already known locally rather than
-      // resetting it to 0 (the row from _updateBillRow has no reimbursed
+      // resetting it to 0 (the row from _updateBillRow has no recovered
       // total of its own - it's not a `bills` column).
-      final previousReimbursed = _allBills
+      final previousRecovered = _allBills
               .firstWhere((b) => b.id == id, orElse: () => updatedBill)
-              .reimbursedAmount;
-      saved = Bill.fromMap(row).copyWith(reimbursedAmount: previousReimbursed);
+              .recoveredAmount;
+      saved = Bill.fromMap(row).copyWith(recoveredAmount: previousRecovered);
     } catch (e) {
       _error = 'Failed to update bill: $e';
       _isLoading = false;

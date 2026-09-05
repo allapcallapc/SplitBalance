@@ -130,16 +130,16 @@ class AggregatedCalculationService {
     return total;
   }
 
-  // A reimbursement reduces whoever *received* the money's paid total, not
-  // necessarily the bill's original payer - money can be reimbursed back to
+  // A recovered amount reduces whoever *received* the money's paid total,
+  // not necessarily the bill's original payer - money can come back to
   // either household member regardless of who fronted the bill (see
-  // Reimbursement.receivedBy). When a reimbursement's receiver differs from
-  // the bill's payer, this correctly shifts the debt: the payer's total
-  // stays at the bill's full amount (they're still out that cash) while the
-  // receiver's total goes negative by the reimbursed amount (they're now
-  // holding money that belongs to the payer), on top of whatever they
-  // separately owe from the split itself. bill_reimbursements.household_id
-  // is denormalized from the linked bill, so no join is needed here.
+  // RecoveredAmount.receivedBy). When the receiver differs from the bill's
+  // payer, this correctly shifts the debt: the payer's total stays at the
+  // bill's full amount (they're still out that cash) while the receiver's
+  // total goes negative by the recovered amount (they're now holding money
+  // that belongs to the payer), on top of whatever they separately owe from
+  // the split itself. bill_recovered_amounts.household_id is denormalized
+  // from the linked bill, so no join is needed here.
   static Future<double> _defaultFetchPersonPaidTotal({
     required String householdId,
     required String paidBy,
@@ -151,7 +151,7 @@ class AggregatedCalculationService {
           .eq('household_id', householdId)
           .eq('paid_by', paidBy)),
       _sumAmounts(() => Supabase.instance.client
-          .from('bill_reimbursements')
+          .from('bill_recovered_amounts')
           .select('amount')
           .eq('household_id', householdId)
           .eq('received_by', paidBy)),
@@ -203,11 +203,11 @@ class AggregatedCalculationService {
       }),
       // Scoped to this (category, period) slot via the linked bill's own
       // category/date (a PostgREST embed, bills!inner(...)), but attributed
-      // to whoever *received* the reimbursement rather than the bill's payer
-      // - see _defaultFetchPersonPaidTotal.
+      // to whoever *received* the money rather than the bill's payer - see
+      // _defaultFetchPersonPaidTotal.
       _sumAmounts(() {
         var query = Supabase.instance.client
-            .from('bill_reimbursements')
+            .from('bill_recovered_amounts')
             .select('amount, bills!inner(category, date)')
             .eq('household_id', householdId)
             .eq('bills.category', category)
@@ -230,7 +230,7 @@ class AggregatedCalculationService {
     // Future.wait<num> (not the usual Future<T>.wait) so the differently
     // typed count (int) and sum (double) queries can run in parallel from
     // one call, the same way the two-fetch shape below fires in parallel.
-    // bill_reimbursements carries its own household_id (denormalized from
+    // bill_recovered_amounts carries its own household_id (denormalized from
     // its linked bill), so this total needs no join - unlike the per-payer
     // fetchers above, which need paid_by off the bill itself.
     final results = await Future.wait<num>([
@@ -243,7 +243,7 @@ class AggregatedCalculationService {
           .select('amount')
           .eq('household_id', householdId)),
       _sumAmounts(() => Supabase.instance.client
-          .from('bill_reimbursements')
+          .from('bill_recovered_amounts')
           .select('amount')
           .eq('household_id', householdId)),
     ]);
@@ -272,12 +272,12 @@ class AggregatedCalculationService {
   // told about), whereas the old path throws for that case. Tracked in
   // https://github.com/allapcallapc/SplitBalance/issues/49.
   //
-  // A second, deliberate divergence: when a reimbursement's receivedBy
+  // A second, deliberate divergence: when a recovered amount's receivedBy
   // differs from its bill's paidBy, this service attributes the reduction
   // to whoever actually received the money (see _defaultFetchPersonPaidTotal)
   // - so the receiver's total goes negative by that amount on top of their
   // own split share, correctly shifting the debt to them. CalculationService
-  // can't do this: Bill.reimbursedAmount is a single pre-aggregated scalar
+  // can't do this: Bill.recoveredAmount is a single pre-aggregated scalar
   // with no per-receiver breakdown, so it always nets the reduction against
   // the bill's own payer regardless of who actually received it.
   Future<BalanceResult> calculateBalances({
@@ -350,7 +350,7 @@ class AggregatedCalculationService {
       final p2 = paidAmounts[i + 1];
       // Known, accepted divergence from CalculationService (see this
       // class's doc comment for the other one): a bill fully offset by its
-      // own reimbursements nets to exactly 0 here, indistinguishable from
+      // own recovered amounts nets to exactly 0 here, indistinguishable from
       // "no bill exists in this slot at all" - so its category can be
       // silently omitted from categoryBalances if nothing else in that
       // category/period contributes a nonzero net amount. CalculationService

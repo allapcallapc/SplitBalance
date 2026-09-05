@@ -11,25 +11,25 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:splitbalance/models/bill.dart';
 import 'package:splitbalance/providers/bills_provider.dart';
 
-// Most of these tests don't care about reimbursements, so this wrapper
-// defaults to a no-op fetchReimbursedTotals - otherwise every
+// Most of these tests don't care about recovered amounts, so this wrapper
+// defaults to a no-op fetchRecoveredTotals - otherwise every
 // loadBillsForHousehold call below would fall through to BillsProvider's
 // real-Supabase default and fail outside a signed-in session. Tests that DO
-// care (see the "reimbursed totals" group) pass their own.
+// care (see the "recovered totals" group) pass their own.
 BillsProvider testBillsProvider({
   FetchBillsPage? fetchBillsPage,
   InsertBillRow? insertBillRow,
   UpdateBillRow? updateBillRow,
   DeleteBillRow? deleteBillRow,
-  FetchReimbursedTotals? fetchReimbursedTotals,
+  FetchRecoveredTotals? fetchRecoveredTotals,
 }) {
   return BillsProvider(
     fetchBillsPage: fetchBillsPage,
     insertBillRow: insertBillRow,
     updateBillRow: updateBillRow,
     deleteBillRow: deleteBillRow,
-    fetchReimbursedTotals:
-        fetchReimbursedTotals ?? ({required billIds}) async => {},
+    fetchRecoveredTotals:
+        fetchRecoveredTotals ?? ({required billIds}) async => {},
   );
 }
 
@@ -62,17 +62,17 @@ void main() {
     );
   });
 
-  group('BillsProvider - reimbursed totals default (real Supabase client)',
+  group('BillsProvider - recovered totals default (real Supabase client)',
       () {
     test(
-        'omitting fetchReimbursedTotals falls through to the real default, '
+        'omitting fetchRecoveredTotals falls through to the real default, '
         'which surfaces a network failure as a provider error rather than '
         'throwing', () async {
-      // No fetchReimbursedTotals override, so _withReimbursedTotals falls
-      // through to _defaultFetchReimbursedTotals - which has no injection
+      // No fetchRecoveredTotals override, so _withRecoveredTotals falls
+      // through to _defaultFetchRecoveredTotals - which has no injection
       // seam of its own and hits Supabase.instance.client directly. Against
       // the fake project url configured in setUpAll, that request fails,
-      // proving the fallback wiring itself (the `?? _defaultFetchReimbursedTotals`
+      // proving the fallback wiring itself (the `?? _defaultFetchRecoveredTotals`
       // in BillsProvider's constructor) actually runs and that failure
       // doesn't propagate uncaught.
       final provider = BillsProvider(
@@ -505,11 +505,11 @@ void main() {
     });
   });
 
-  group('BillsProvider - reimbursed totals', () {
+  group('BillsProvider - recovered totals', () {
     test(
-        'loadBillsForHousehold with no bills never calls fetchReimbursedTotals',
+        'loadBillsForHousehold with no bills never calls fetchRecoveredTotals',
         () async {
-      var fetchReimbursedTotalsCalled = false;
+      var fetchRecoveredTotalsCalled = false;
       final provider = testBillsProvider(
         fetchBillsPage: ({
           required String householdId,
@@ -521,15 +521,15 @@ void main() {
           required int limit,
         }) async =>
             const [],
-        fetchReimbursedTotals: ({required billIds}) async {
-          fetchReimbursedTotalsCalled = true;
+        fetchRecoveredTotals: ({required billIds}) async {
+          fetchRecoveredTotalsCalled = true;
           return {};
         },
       );
 
       await provider.loadBillsForHousehold('household-1');
 
-      expect(fetchReimbursedTotalsCalled, isFalse);
+      expect(fetchRecoveredTotalsCalled, isFalse);
       expect(provider.bills, isEmpty);
       expect(provider.error, isNull);
     });
@@ -537,8 +537,8 @@ void main() {
     test(
         'a stale loadBillsForHousehold response is dropped even when it '
         'only becomes stale after fetchBillsPage already resolved - i.e. '
-        'while still waiting on fetchReimbursedTotals', () async {
-      final reimbursedCompleter = Completer<Map<String, double>>();
+        'while still waiting on fetchRecoveredTotals', () async {
+      final recoveredCompleter = Completer<Map<String, double>>();
       var fetchBillsPageCalls = 0;
       final provider = testBillsProvider(
         fetchBillsPage: ({
@@ -554,27 +554,27 @@ void main() {
           return [billRow('bill-$fetchBillsPageCalls', '2026-01-01')];
         },
         // Shared by both calls below - resolving it once resolves both
-        // loads' pending _withReimbursedTotals at the same time, so which
+        // loads' pending _withRecoveredTotals at the same time, so which
         // one is stale is decided purely by the requestId guard.
-        fetchReimbursedTotals: ({required billIds}) => reimbursedCompleter.future,
+        fetchRecoveredTotals: ({required billIds}) => recoveredCompleter.future,
       );
 
       final firstLoad = provider.loadBillsForHousehold('household-1');
-      // Let fetchBillsPage resolve and fetchReimbursedTotals get called
+      // Let fetchBillsPage resolve and fetchRecoveredTotals get called
       // (and start waiting on the completer) for the first load.
       await Future<void>.delayed(Duration.zero);
 
-      // A second load starts before the first's reimbursed-totals fetch
+      // A second load starts before the first's recovered-totals fetch
       // ever resolves - simulating a fast second filter change.
       final secondLoad = provider.loadBillsForHousehold('household-1');
       await Future<void>.delayed(Duration.zero);
 
-      reimbursedCompleter.complete({});
+      recoveredCompleter.complete({});
       await firstLoad;
       await secondLoad;
 
       // Only the second (current) load's bill made it into _bills - the
-      // first's result was discarded by the post-fetchReimbursedTotals
+      // first's result was discarded by the post-fetchRecoveredTotals
       // requestId check, not just the earlier post-fetchBillsPage one.
       expect(provider.bills.map((b) => b.id), ['bill-2']);
       expect(provider.error, isNull);
@@ -582,9 +582,9 @@ void main() {
 
     test(
         'a stale loadMoreBillsForHousehold response is dropped even when it '
-        'only becomes stale while waiting on fetchReimbursedTotals',
+        'only becomes stale while waiting on fetchRecoveredTotals',
         () async {
-      final reimbursedCompleter = Completer<Map<String, double>>();
+      final recoveredCompleter = Completer<Map<String, double>>();
       final provider = testBillsProvider(
         fetchBillsPage: ({
           required String householdId,
@@ -604,25 +604,25 @@ void main() {
           }
           return [billRow('p2-0', '2026-01-02')];
         },
-        fetchReimbursedTotals: ({required billIds}) async {
+        fetchRecoveredTotals: ({required billIds}) async {
           // The first page's own totals fetch resolves immediately; only
           // the "load more" page's totals fetch waits on the completer.
-          if (billIds.contains('p2-0')) return reimbursedCompleter.future;
+          if (billIds.contains('p2-0')) return recoveredCompleter.future;
           return {};
         },
       );
 
       await provider.loadBillsForHousehold('household-1');
       final moreLoad = provider.loadMoreBillsForHousehold('household-1');
-      // Let fetchBillsPage resolve and fetchReimbursedTotals start waiting.
+      // Let fetchBillsPage resolve and fetchRecoveredTotals start waiting.
       await Future<void>.delayed(Duration.zero);
 
       // A fresh page-1 load (e.g. the filter changed) resets state while
-      // "load more" is still waiting on its reimbursed-totals fetch.
+      // "load more" is still waiting on its recovered-totals fetch.
       final resetLoad = provider.loadBillsForHousehold('household-1');
       await Future<void>.delayed(Duration.zero);
 
-      reimbursedCompleter.complete({});
+      recoveredCompleter.complete({});
       await moreLoad;
       await resetLoad;
 
@@ -631,7 +631,7 @@ void main() {
       expect(provider.isLoadingMore, isFalse);
     });
 
-    test('loadBillsForHousehold merges reimbursedAmount into each bill',
+    test('loadBillsForHousehold merges recoveredAmount into each bill',
         () async {
       final provider = testBillsProvider(
         fetchBillsPage: ({
@@ -647,7 +647,7 @@ void main() {
               billRow('bill-1', '2026-01-01'),
               billRow('bill-2', '2026-01-02'),
             ],
-        fetchReimbursedTotals: ({required billIds}) async {
+        fetchRecoveredTotals: ({required billIds}) async {
           expect(billIds, unorderedEquals(['bill-1', 'bill-2']));
           return {'bill-1': 4.0};
         },
@@ -657,14 +657,14 @@ void main() {
 
       final bill1 = provider.bills.firstWhere((b) => b.id == 'bill-1');
       final bill2 = provider.bills.firstWhere((b) => b.id == 'bill-2');
-      expect(bill1.reimbursedAmount, 4.0);
+      expect(bill1.recoveredAmount, 4.0);
       expect(bill1.netAmount, 6.0); // billRow's default amount is 10.0
       // bill-2 has no entry in the fetcher's result - stays at 0, not
       // dropped or errored.
-      expect(bill2.reimbursedAmount, 0.0);
+      expect(bill2.recoveredAmount, 0.0);
     });
 
-    test('loadMoreBillsForHousehold merges reimbursedAmount into the '
+    test('loadMoreBillsForHousehold merges recoveredAmount into the '
         'appended page too', () async {
       final provider = testBillsProvider(
         fetchBillsPage: ({
@@ -684,7 +684,7 @@ void main() {
           }
           return [billRow('p2-0', '2026-01-02')];
         },
-        fetchReimbursedTotals: ({required billIds}) async {
+        fetchRecoveredTotals: ({required billIds}) async {
           if (billIds.contains('p2-0')) return {'p2-0': 2.5};
           return {};
         },
@@ -694,18 +694,18 @@ void main() {
       await provider.loadMoreBillsForHousehold('household-1');
 
       final appended = provider.bills.firstWhere((b) => b.id == 'p2-0');
-      expect(appended.reimbursedAmount, 2.5);
+      expect(appended.recoveredAmount, 2.5);
     });
 
     // loadAllBills has no injection seam for its own bill-row query (it
     // calls Supabase.instance.client directly - see BillsProvider._supabase),
     // so it can't be exercised against fake data in a plain unit test; its
-    // use of the same _withReimbursedTotals merge helper is covered here via
+    // use of the same _withRecoveredTotals merge helper is covered here via
     // loadBillsForHousehold/loadMoreBillsForHousehold above, and end-to-end
     // against a real database by the integration suite.
 
     test('updateBillById carries forward the previously known '
-        'reimbursedAmount instead of resetting it to 0', () async {
+        'recoveredAmount instead of resetting it to 0', () async {
       final provider = testBillsProvider(
         updateBillRow: (id, data) async => {
           'id': id,
@@ -718,10 +718,10 @@ void main() {
       );
 
       // Seed _allBills with an entry that already carries a known
-      // reimbursedAmount: since this id isn't in _allBills yet,
+      // recoveredAmount: since this id isn't in _allBills yet,
       // updateBillById's orElse fallback uses the incoming Bill argument's
-      // own reimbursedAmount - standing in here for a bill that was
-      // originally populated by loadAllBills with its real reimbursed total
+      // own recoveredAmount - standing in here for a bill that was
+      // originally populated by loadAllBills with its real recovered total
       // already merged in. householdId is null so this skips the refetch
       // and only exercises the _allBills merge itself.
       await provider.updateBillById(
@@ -732,14 +732,14 @@ void main() {
           amount: 10.0,
           paidBy: 'Alice',
           category: 'Groceries',
-          reimbursedAmount: 12.0,
+          recoveredAmount: 12.0,
         ),
         null,
       );
-      expect(provider.allBills.single.reimbursedAmount, 12.0);
+      expect(provider.allBills.single.recoveredAmount, 12.0);
 
-      // Editing the bill's category shouldn't touch its reimbursements. The
-      // second updatedBill below has no reimbursedAmount of its own
+      // Editing the bill's category shouldn't touch its recovered amounts.
+      // The second updatedBill below has no recoveredAmount of its own
       // (matching AddEditBillScreen, which never sets it) and
       // _updateBillRow's response has none either (it's not a `bills`
       // column) - so updateBillById must carry the existing _allBills total
@@ -757,7 +757,7 @@ void main() {
       );
 
       expect(provider.allBills.single.category, 'Rent');
-      expect(provider.allBills.single.reimbursedAmount, 12.0);
+      expect(provider.allBills.single.recoveredAmount, 12.0);
     });
   });
 }

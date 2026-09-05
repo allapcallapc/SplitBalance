@@ -1426,7 +1426,7 @@ void main() {
     });
   });
 
-  group('CalculationService - Reimbursements', () {
+  group('CalculationService - Recovered Amounts', () {
     const String person1 = 'Alice';
     const String person2 = 'Bob';
     final DateTime baseDate = DateTime(2024, 1, 15);
@@ -1447,15 +1447,15 @@ void main() {
       ),
     ];
 
-    test('a reimbursed bill reduces both paid and expected amounts, '
-        'preserving the split ratio', () {
+    test('a bill with a recovered amount reduces both paid and expected '
+        'amounts, preserving the split ratio', () {
       final bills = [
         Bill(
           date: baseDate,
           amount: 100.0,
           paidBy: person1,
           category: 'Food',
-          reimbursedAmount: 30.0,
+          recoveredAmount: 30.0,
         ),
       ];
 
@@ -1480,8 +1480,8 @@ void main() {
       expect(foodBalance.person2Expected, 35.0);
     });
 
-    test('a bill with no reimbursements behaves exactly as before '
-        '(reimbursedAmount defaults to 0)', () {
+    test('a bill with no recovered amount behaves exactly as before '
+        '(recoveredAmount defaults to 0)', () {
       final bills = [
         Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
       ];
@@ -1499,7 +1499,7 @@ void main() {
       expect(result.person2Expected, 50.0);
     });
 
-    test('a fully reimbursed bill contributes nothing to paid or expected',
+    test('a fully recovered bill contributes nothing to paid or expected',
         () {
       final bills = [
         Bill(
@@ -1507,7 +1507,7 @@ void main() {
           amount: 100.0,
           paidBy: person1,
           category: 'Food',
-          reimbursedAmount: 100.0,
+          recoveredAmount: 100.0,
         ),
       ];
 
@@ -1524,10 +1524,10 @@ void main() {
       expect(result.person2Expected, 0.0);
     });
 
-    test('reimbursements exceeding the bill amount are allowed to go '
+    test('a recovered amount exceeding the bill amount is allowed to go '
         'negative rather than clamp at zero', () {
-      // Deliberately over-reimbursed (e.g. a race condition, or a manual DB
-      // edit outside the app's own add-reimbursement validation, which
+      // Deliberately over-recovered (e.g. a race condition, or a manual DB
+      // edit outside the app's own add-recovered-amount validation, which
       // itself blocks this in the normal flow). netAmount is defined as a
       // plain subtraction with no floor, so this bill acts as a small
       // credit rather than being treated as free.
@@ -1537,7 +1537,7 @@ void main() {
           amount: 100.0,
           paidBy: person1,
           category: 'Food',
-          reimbursedAmount: 120.0,
+          recoveredAmount: 120.0,
         ),
       ];
 
@@ -1556,7 +1556,7 @@ void main() {
       expect(result.person2Expected, -10.0);
     });
 
-    test('reimbursements on multiple bills across categories net out '
+    test('recovered amounts on multiple bills across categories net out '
         'independently', () {
       final bills = [
         Bill(
@@ -1564,14 +1564,14 @@ void main() {
           amount: 200.0,
           paidBy: person1,
           category: 'Rent',
-          reimbursedAmount: 50.0,
+          recoveredAmount: 50.0,
         ),
         Bill(
           date: baseDate,
           amount: 60.0,
           paidBy: person2,
           category: 'Food',
-          reimbursedAmount: 10.0,
+          recoveredAmount: 10.0,
         ),
       ];
 

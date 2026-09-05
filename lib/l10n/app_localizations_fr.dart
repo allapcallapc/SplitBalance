@@ -669,37 +669,36 @@ class AppLocalizationsFr extends AppLocalizations {
   String get grantInstallPermission => 'Autoriser l\'installation';
 
   @override
-  String get reimbursements => 'Remboursements';
+  String get recoveredAmounts => 'Montants récupérés';
 
   @override
-  String get addReimbursement => 'Ajouter un remboursement';
+  String get addRecoveredAmount => 'Ajouter un montant récupéré';
 
   @override
   String get receivedBy => 'Reçu par';
 
   @override
-  String get selectWhoReceived =>
-      'Veuillez sélectionner qui a reçu le remboursement';
+  String get selectWhoReceived => 'Veuillez sélectionner qui a reçu l\'argent';
 
   @override
-  String get saveReimbursement => 'Enregistrer le remboursement';
+  String get saveRecoveredAmount => 'Enregistrer le montant récupéré';
 
   @override
-  String get deleteReimbursement => 'Supprimer le remboursement';
+  String get deleteRecoveredAmount => 'Supprimer le montant récupéré';
 
   @override
-  String get areYouSureDeleteReimbursement =>
-      'Êtes-vous sûr de vouloir supprimer ce remboursement ?';
+  String get areYouSureDeleteRecoveredAmount =>
+      'Êtes-vous sûr de vouloir supprimer ce montant récupéré ?';
 
   @override
-  String get noReimbursementsYet => 'Aucun remboursement pour le moment';
+  String get noRecoveredAmountsYet => 'Aucun montant récupéré pour le moment';
 
   @override
-  String get reimbursementExceedsRemaining =>
+  String get recoveredAmountExceedsRemaining =>
       'Le montant dépasse le solde restant de la facture';
 
   @override
-  String get totalReimbursed => 'Total remboursé';
+  String get totalRecovered => 'Total récupéré';
 
   @override
   String get remainingAmount => 'Restant';
