@@ -25,7 +25,7 @@ jobs:
           STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 \
             "$URL/rest/v1/" -H "apikey: $KEY") || STATUS=000
           echo "Response status: $STATUS"
-          if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 500 ] || [ "$STATUS" = "000" ]; then
+          if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
             echo "::error::Unexpected status '$STATUS' pinging staging Supabase project - it may be paused or unreachable"
             exit 1
           fi
