@@ -2081,6 +2081,9 @@ class _CategoriesTab extends StatelessWidget {
 // the picker doesn't own a scrollable of its own - see _onAmbientScroll)
 // loads another page, and the "Showing X of Y" caption above the grid makes
 // it clear there's more to find by scrolling or narrowing the search.
+// Before a search, commonCategoryIconKeys are ordered first so what's
+// visible before scrolling is actually recognizable - see _matches() -
+// and every tile carries a Tooltip with its (unlabeled) icon's name.
 class _CategoryIconPicker extends StatefulWidget {
   final String? selectedIcon;
   final ValueChanged<String> onSelected;
@@ -2138,7 +2141,18 @@ class _CategoryIconPickerState extends State<_CategoryIconPicker> {
 
   List<MapEntry<String, IconData>> _matches() {
     final query = _query.trim().toLowerCase().replaceAll(' ', '_');
-    if (query.isEmpty) return categoryIconOptions.entries.toList();
+    if (query.isEmpty) {
+      // commonCategoryIconKeys first (relevant, recognizable at a glance),
+      // then the rest of the set alphabetically for infinite scroll to
+      // reach - rather than the full set's own alphabetical order, which
+      // starts on unrelated icons like 'abc' and 'ac_unit'.
+      final commonKeys = commonCategoryIconKeys.toSet();
+      final common = commonCategoryIconKeys
+          .map((key) => MapEntry(key, categoryIconOptions[key]!));
+      final rest = categoryIconOptions.entries
+          .where((entry) => !commonKeys.contains(entry.key));
+      return [...common, ...rest];
+    }
     return categoryIconOptions.entries
         .where((entry) => entry.key.contains(query))
         .toList();
@@ -2192,30 +2206,34 @@ class _CategoryIconPickerState extends State<_CategoryIconPicker> {
               final isSelected = widget.selectedIcon == key ||
                   (widget.selectedIcon == null && key == 'category');
 
-              return InkWell(
-                onTap: () => widget.onSelected(key),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? colorScheme.primaryContainer
-                        : colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color:
-                          isSelected ? colorScheme.primary : Colors.transparent,
-                      width: 2,
+              return Tooltip(
+                message: key.replaceAll('_', ' '),
+                child: InkWell(
+                  onTap: () => widget.onSelected(key),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? colorScheme.primaryContainer
+                          : colorScheme.surfaceContainerHighest
+                              .withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isSelected
+                            ? colorScheme.primary
+                            : Colors.transparent,
+                        width: 2,
+                      ),
                     ),
-                  ),
-                  child: Icon(
-                    iconData,
-                    color: isSelected
-                        ? colorScheme.primary
-                        : colorScheme.onSurface,
+                    child: Icon(
+                      iconData,
+                      color: isSelected
+                          ? colorScheme.primary
+                          : colorScheme.onSurface,
+                    ),
                   ),
                 ),
               );

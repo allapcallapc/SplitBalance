@@ -4,6 +4,41 @@ import 'package:flutter/material.dart';
 /// isn't recognized by this version of the app).
 const IconData defaultCategoryIcon = Icons.category;
 
+/// Icons relevant to typical shared-bill categories (groceries, rent,
+/// utilities, etc.), shown first - ahead of the rest of [categoryIconOptions]
+/// - in the category icon picker's default (unsearched) view, so what's
+/// visible before scrolling or searching is actually recognizable rather
+/// than wherever the full set happens to start alphabetically ('abc',
+/// 'ac_unit', 'access_alarm', ...). All must exist in [categoryIconOptions].
+const List<String> commonCategoryIconKeys = [
+  'category',
+  'restaurant',
+  'local_grocery_store',
+  'home',
+  'directions_car',
+  'lightbulb',
+  'water_drop',
+  'wifi',
+  'phone_android',
+  'medical_services',
+  'school',
+  'child_care',
+  'pets',
+  'fitness_center',
+  'sports_esports',
+  'movie',
+  'coffee',
+  'local_bar',
+  'shopping_cart',
+  'card_giftcard',
+  'flight',
+  'hotel',
+  'build',
+  'savings',
+  'receipt_long',
+  'more_horiz',
+];
+
 /// Maps a serializable icon key (stored on [Category.icon] / the Supabase
 /// `categories.icon` column) to the [IconData] used to render it.
 ///
