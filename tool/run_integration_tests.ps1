@@ -1,8 +1,8 @@
 <#
 .SYNOPSIS
-    Runs the local-Supabase integration suite
-    (test/integration/aggregated_calculation_service_integration_test.dart)
-    against a real, local Postgres/PostgREST stack.
+    Runs the local-Supabase integration suite (every test/integration/*.dart
+    file tagged 'integration') against a real, local Postgres/PostgREST
+    stack.
 
 .DESCRIPTION
     Starts the Supabase CLI's local dev stack (Docker), resets it to a clean

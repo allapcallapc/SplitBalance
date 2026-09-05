@@ -1387,6 +1387,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Original amount'**
   String get originalAmount;
+
+  /// Title for the dialog warning that a bill with the same date and amount already exists
+  ///
+  /// In en, this message translates to:
+  /// **'Possible Duplicate Bill'**
+  String get possibleDuplicateBillTitle;
+
+  /// Explanation shown above the conflicting bill(s) in the duplicate-bill confirmation dialog
+  ///
+  /// In en, this message translates to:
+  /// **'A bill with the same date and amount already exists:'**
+  String get possibleDuplicateBillMessage;
+
+  /// Button label to save a bill despite a potential duplicate warning
+  ///
+  /// In en, this message translates to:
+  /// **'Save Anyway'**
+  String get saveAnyway;
+
+  /// Banner message showing count of bills that are potential duplicates
+  ///
+  /// In en, this message translates to:
+  /// **'{count} potential duplicate bill(s) found'**
+  String duplicateBillsBannerMessage(int count);
+
+  /// Title for the duplicate bills review screen
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate Bills'**
+  String get duplicateBills;
+
+  /// Message when there are no potential duplicate bills
+  ///
+  /// In en, this message translates to:
+  /// **'No duplicate bills found'**
+  String get noDuplicateBills;
+
+  /// Explanation shown when the duplicate bills queue is empty
+  ///
+  /// In en, this message translates to:
+  /// **'Bills with the same date and amount will show up here for you to review.'**
+  String get noDuplicateBillsMessage;
 }
 
 class _AppLocalizationsDelegate

@@ -722,4 +722,29 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get originalAmount => 'Montant initial';
+
+  @override
+  String get possibleDuplicateBillTitle => 'Facture potentiellement en double';
+
+  @override
+  String get possibleDuplicateBillMessage =>
+      'Une facture avec la même date et le même montant existe déjà :';
+
+  @override
+  String get saveAnyway => 'Enregistrer quand même';
+
+  @override
+  String duplicateBillsBannerMessage(int count) {
+    return '$count facture(s) potentiellement en double trouvée(s)';
+  }
+
+  @override
+  String get duplicateBills => 'Factures en double';
+
+  @override
+  String get noDuplicateBills => 'Aucune facture en double trouvée';
+
+  @override
+  String get noDuplicateBillsMessage =>
+      'Les factures ayant la même date et le même montant apparaîtront ici pour que vous puissiez les vérifier.';
 }

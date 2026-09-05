@@ -329,5 +329,12 @@
   "recoveredAmountExceedsRemaining": "Le montant dépasse le solde restant de la facture",
   "totalRecovered": "Total récupéré",
   "remainingAmount": "Restant",
-  "originalAmount": "Montant initial"
+  "originalAmount": "Montant initial",
+  "possibleDuplicateBillTitle": "Facture potentiellement en double",
+  "possibleDuplicateBillMessage": "Une facture avec la même date et le même montant existe déjà :",
+  "saveAnyway": "Enregistrer quand même",
+  "duplicateBillsBannerMessage": "{count} facture(s) potentiellement en double trouvée(s)",
+  "duplicateBills": "Factures en double",
+  "noDuplicateBills": "Aucune facture en double trouvée",
+  "noDuplicateBillsMessage": "Les factures ayant la même date et le même montant apparaîtront ici pour que vous puissiez les vérifier."
 }

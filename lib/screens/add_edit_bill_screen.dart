@@ -6,17 +6,16 @@ import '../models/bill.dart';
 import '../providers/bills_provider.dart';
 import '../providers/config_provider.dart';
 import '../providers/categories_provider.dart';
+import '../providers/duplicate_bills_provider.dart';
 
 class AddEditBillScreen extends StatefulWidget {
   final Bill? bill;
-  final int? index;
   final double? prefillAmount;
   final String? prefillDetails;
 
   const AddEditBillScreen({
     super.key,
     this.bill,
-    this.index,
     this.prefillAmount,
     this.prefillDetails,
   });
@@ -113,6 +112,20 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
 
     final configProvider = context.read<ConfigProvider>();
     final billsProvider = context.read<BillsProvider>();
+    final duplicateBillsProvider = context.read<DuplicateBillsProvider>();
+
+    final duplicateMatches = await duplicateBillsProvider.findMatches(
+      configProvider: configProvider,
+      date: _selectedDate,
+      amount: amount,
+      excludeId: widget.bill?.id,
+    );
+    if (duplicateMatches.isNotEmpty) {
+      if (!mounted) return;
+      final proceed = await _confirmSaveDespiteDuplicates(duplicateMatches);
+      if (proceed != true) return;
+    }
+    if (!mounted) return;
 
     final bill = Bill(
       date: _selectedDate,
@@ -123,8 +136,9 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
     );
 
     try {
-      if (widget.index != null) {
-        await billsProvider.updateBill(widget.index!, bill, configProvider);
+      if (widget.bill?.id != null) {
+        await billsProvider.updateBillById(
+            widget.bill!.id!, bill, configProvider.householdId);
       } else {
         await billsProvider.addBill(bill, configProvider);
       }
@@ -146,6 +160,52 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
         );
       }
     }
+  }
+
+  // Shows the conflicting bill(s) (date, amount, category, paid by) and
+  // requires an explicit "Save anyway" before letting the caller persist a
+  // bill that matches an existing one on date+amount (GH issue #20).
+  Future<bool?> _confirmSaveDespiteDuplicates(List<Bill> matches) {
+    final l10n = AppLocalizations.of(context)!;
+    final dateFormat = DateFormat('yyyy-MM-dd');
+    final currencyFormat = NumberFormat.currency(symbol: '\$');
+
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.possibleDuplicateBillTitle),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l10n.possibleDuplicateBillMessage),
+              const SizedBox(height: 12),
+              for (final match in matches)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    '${dateFormat.format(match.date)} · '
+                    '${currencyFormat.format(match.amount)}\n'
+                    '${l10n.category}: ${match.category} · '
+                    '${l10n.paidBy}: ${match.paidBy}',
+                  ),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l10n.saveAnyway),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

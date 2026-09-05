@@ -23,10 +23,13 @@ import 'package:splitbalance/models/app_config.dart';
 import 'package:splitbalance/providers/bills_provider.dart';
 import 'package:splitbalance/providers/categories_provider.dart';
 import 'package:splitbalance/providers/config_provider.dart';
+import 'package:splitbalance/providers/duplicate_bills_provider.dart';
 import 'package:splitbalance/providers/pending_payments_provider.dart';
 import 'package:splitbalance/providers/recovered_amounts_provider.dart';
 import 'package:splitbalance/screens/bill_recovered_amounts_screen.dart';
 import 'package:splitbalance/screens/bills_list_screen.dart';
+import 'package:splitbalance/screens/duplicate_bills_screen.dart';
+import 'package:splitbalance/services/duplicate_bills_service.dart';
 
 Future<void> pumpBillsListScreen(
   WidgetTester tester, {
@@ -34,6 +37,7 @@ Future<void> pumpBillsListScreen(
   ConfigProvider? configProvider,
   CategoriesProvider? categoriesProvider,
   RecoveredAmountsProvider? recoveredAmountsProvider,
+  DuplicateBillsProvider? duplicateBillsProvider,
 }) async {
   await tester.pumpWidget(
     MultiProvider(
@@ -42,6 +46,8 @@ Future<void> pumpBillsListScreen(
         ChangeNotifierProvider.value(
             value: categoriesProvider ?? CategoriesProvider()),
         ChangeNotifierProvider(create: (_) => PendingPaymentsProvider()),
+        ChangeNotifierProvider.value(
+            value: duplicateBillsProvider ?? DuplicateBillsProvider()),
         ChangeNotifierProvider.value(value: billsProvider),
         ChangeNotifierProvider.value(
             value: recoveredAmountsProvider ?? RecoveredAmountsProvider()),
@@ -331,6 +337,163 @@ void main() {
           isTrue);
     });
 
+    testWidgets('deleting a bill also reloads duplicate-bill detection',
+        (tester) async {
+      String? deletedId;
+      var duplicatesFetchCount = 0;
+      final billsProvider = BillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          DateTime? startDate,
+          DateTime? endDate,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            [billRow('bill-1', '2026-01-01', amount: 40.0)],
+        fetchRecoveredBreakdown: ({required billIds}) async => {},
+        deleteBillRow: (id) async => deletedId = id,
+      );
+      final duplicateBillsProvider = DuplicateBillsProvider(
+        service: DuplicateBillsService(
+          fetchHouseholdBillRows: ({required householdId}) async {
+            duplicatesFetchCount++;
+            return [];
+          },
+        ),
+      );
+
+      await pumpBillsListScreen(
+        tester,
+        billsProvider: billsProvider,
+        configProvider: signedInConfigProvider(),
+        categoriesProvider: CategoriesProvider(
+            fetchCategories: ({required householdId}) async => []),
+        duplicateBillsProvider: duplicateBillsProvider,
+      );
+      await tester.pumpAndSettle();
+
+      // The initial _loadData() already triggered one duplicate-detection
+      // fetch; deleting the bill below must trigger another.
+      final fetchesBeforeDelete = duplicatesFetchCount;
+      expect(fetchesBeforeDelete, greaterThan(0));
+
+      await tester.tap(find.byType(PopupMenuButton));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
+      // The menu item's onTap fires after a 100ms Future.delayed.
+      await tester.pump(const Duration(milliseconds: 150));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Bill'), findsOneWidget);
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(deletedId, 'bill-1');
+      expect(duplicatesFetchCount, greaterThan(fetchesBeforeDelete));
+    });
+
+    testWidgets(
+        'shows no duplicate-bills banner when there are no potential '
+        'duplicates', (tester) async {
+      final duplicateBillsProvider = DuplicateBillsProvider(
+        service: DuplicateBillsService(
+          fetchHouseholdBillRows: ({required householdId}) async => [],
+        ),
+      );
+
+      await pumpBillsListScreen(
+        tester,
+        billsProvider: BillsProvider(
+          fetchBillsPage: ({
+            required String householdId,
+            String? paidBy,
+            String? category,
+            DateTime? startDate,
+            DateTime? endDate,
+            required BillSortField sortField,
+            required bool sortAscending,
+            required int offset,
+            required int limit,
+          }) async =>
+              const [],
+          fetchRecoveredBreakdown: ({required billIds}) async => {},
+        ),
+        configProvider: signedInConfigProvider(),
+        categoriesProvider: CategoriesProvider(
+            fetchCategories: ({required householdId}) async => []),
+        duplicateBillsProvider: duplicateBillsProvider,
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(MaterialBanner), findsNothing);
+    });
+
+    testWidgets(
+        'shows a duplicate-bills banner with the count, and "Review" opens '
+        'DuplicateBillsScreen and reloads on return', (tester) async {
+      var billsFetchCount = 0;
+      final duplicateBillsProvider = DuplicateBillsProvider(
+        service: DuplicateBillsService(
+          fetchHouseholdBillRows: ({required householdId}) async => [
+            billRow('bill-1', '2026-01-01', amount: 40.0),
+            billRow('bill-2', '2026-01-01', amount: 40.0),
+          ],
+        ),
+      );
+
+      await pumpBillsListScreen(
+        tester,
+        billsProvider: BillsProvider(
+          fetchBillsPage: ({
+            required String householdId,
+            String? paidBy,
+            String? category,
+            DateTime? startDate,
+            DateTime? endDate,
+            required BillSortField sortField,
+            required bool sortAscending,
+            required int offset,
+            required int limit,
+          }) async {
+            billsFetchCount++;
+            return const [];
+          },
+          fetchRecoveredBreakdown: ({required billIds}) async => {},
+        ),
+        configProvider: signedInConfigProvider(),
+        categoriesProvider: CategoriesProvider(
+            fetchCategories: ({required householdId}) async => []),
+        duplicateBillsProvider: duplicateBillsProvider,
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('2 potential duplicate bill(s) found'),
+          findsOneWidget);
+
+      await tester.tap(find.text('Review'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(DuplicateBillsScreen), findsOneWidget);
+
+      final fetchesBeforeReturn = billsFetchCount;
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(DuplicateBillsScreen), findsNothing);
+      // Returning from the Duplicate Bills screen must reload the bills
+      // list, in case something was edited/deleted from there.
+      expect(billsFetchCount, greaterThan(fetchesBeforeReturn));
+    });
+
     testWidgets(
         'tapping the date range field opens the picker, and confirming the '
         'suggested range (today, when no filter is active yet) applies it',
@@ -471,5 +634,24 @@ void main() {
       'getters directly)', () {
     expect(AppLocalizationsFr().filterByDateRange, 'Plage de dates');
     expect(AppLocalizationsFr().anyDate, 'Toutes les dates');
+  });
+
+  test(
+      'AppLocalizationsFr provides French translations for the '
+      'duplicate-bill strings (no widget test exercises the fr locale, so '
+      'this covers the getters directly)', () {
+    final fr = AppLocalizationsFr();
+    expect(fr.possibleDuplicateBillTitle, 'Facture potentiellement en double');
+    expect(fr.possibleDuplicateBillMessage,
+        'Une facture avec la même date et le même montant existe déjà :');
+    expect(fr.saveAnyway, 'Enregistrer quand même');
+    expect(fr.duplicateBillsBannerMessage(3),
+        '3 facture(s) potentiellement en double trouvée(s)');
+    expect(fr.duplicateBills, 'Factures en double');
+    expect(fr.noDuplicateBills, 'Aucune facture en double trouvée');
+    expect(
+        fr.noDuplicateBillsMessage,
+        'Les factures ayant la même date et le même montant apparaîtront '
+        'ici pour que vous puissiez les vérifier.');
   });
 }
