@@ -284,6 +284,18 @@ abstract class AppLocalizations {
   /// **'All Categories'**
   String get allCategories;
 
+  /// Label for the filter field to filter bills by a date or date range
+  ///
+  /// In en, this message translates to:
+  /// **'Date range'**
+  String get filterByDateRange;
+
+  /// Option to clear the date filter and show bills from any date
+  ///
+  /// In en, this message translates to:
+  /// **'Any date'**
+  String get anyDate;
+
   /// Button to reset all active bill list filters
   ///
   /// In en, this message translates to:

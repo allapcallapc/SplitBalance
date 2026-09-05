@@ -106,6 +106,31 @@ void main() {
     expect(find.text('Clear filters'), findsOneWidget);
   });
 
+  testWidgets(
+      'the filter modal shows the active date range and clearing it resets '
+      'the filter', (tester) async {
+    final billsProvider = BillsProvider();
+    await billsProvider.setDateRangeFilter(
+        DateTime(2026, 1, 1), DateTime(2026, 1, 31), ConfigProvider());
+    expect(billsProvider.hasActiveFilters, isTrue);
+
+    await pumpBillsListScreen(tester, billsProvider: billsProvider);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.filter_list));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('2026-01-01 – 2026-01-31'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.clear));
+    await tester.pumpAndSettle();
+
+    expect(billsProvider.filterStartDate, isNull);
+    expect(billsProvider.filterEndDate, isNull);
+    expect(find.text('Any date'), findsOneWidget);
+  });
+
   group('BillsListScreen - signed in with bills', () {
     ConfigProvider signedInConfigProvider() => ConfigProvider.forTesting(
           isSignedIn: true,
@@ -142,6 +167,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          DateTime? startDate,
+          DateTime? endDate,
           required BillSortField sortField,
           required bool sortAscending,
           required int offset,
@@ -179,6 +206,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          DateTime? startDate,
+          DateTime? endDate,
           required BillSortField sortField,
           required bool sortAscending,
           required int offset,

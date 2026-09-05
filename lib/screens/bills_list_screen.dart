@@ -130,6 +130,35 @@ class _BillsListScreenState extends State<BillsListScreen>
     return defaultCategoryIcon;
   }
 
+  // Opens a range picker seeded with the currently active date filter (or
+  // today, if none). Picking the same day for both start and end amounts to
+  // an exact-date search.
+  Future<void> _pickDateRange(
+    BuildContext context,
+    BillsProvider billsProvider,
+    ConfigProvider configProvider,
+  ) async {
+    final now = DateTime.now();
+    final initialRange =
+        (billsProvider.filterStartDate != null &&
+                billsProvider.filterEndDate != null)
+            ? DateTimeRange(
+                start: billsProvider.filterStartDate!,
+                end: billsProvider.filterEndDate!,
+              )
+            : DateTimeRange(start: now, end: now);
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      initialDateRange: initialRange,
+    );
+    if (picked != null) {
+      await billsProvider.setDateRangeFilter(
+          picked.start, picked.end, configProvider);
+    }
+  }
+
   // Filters live behind a single icon button in the app bar, which opens a
   // modal bottom sheet with the person/category dropdowns. Both filters are
   // independent and combinable; "All" (null) clears a given filter.
@@ -251,6 +280,32 @@ class _BillsListScreenState extends State<BillsListScreen>
                                 value, configProvider);
                           },
                         ),
+                        const SizedBox(height: 12),
+                        InkWell(
+                          onTap: () => _pickDateRange(
+                              context, billsProvider, configProvider),
+                          child: InputDecorator(
+                            decoration: InputDecoration(
+                              labelText: l10n.filterByDateRange,
+                              border: const OutlineInputBorder(),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              suffixIcon: (billsProvider.filterStartDate !=
+                                          null ||
+                                      billsProvider.filterEndDate != null)
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      tooltip: l10n.clearFilters,
+                                      onPressed: () =>
+                                          billsProvider.setDateRangeFilter(
+                                              null, null, configProvider),
+                                    )
+                                  : const Icon(Icons.calendar_today),
+                            ),
+                            child: Text(_dateRangeFilterLabel(
+                                l10n, billsProvider)),
+                          ),
+                        ),
                         const SizedBox(height: 16),
                       ],
                     );
@@ -262,6 +317,22 @@ class _BillsListScreenState extends State<BillsListScreen>
         );
       },
     );
+  }
+
+  // "Any date" when unset; a single formatted date when the filter's start
+  // and end fall on the same day (exact-date search); otherwise the
+  // formatted range.
+  String _dateRangeFilterLabel(
+      AppLocalizations l10n, BillsProvider billsProvider) {
+    final start = billsProvider.filterStartDate;
+    final end = billsProvider.filterEndDate;
+    if (start == null && end == null) return l10n.anyDate;
+    final dateFormat = DateFormat('yyyy-MM-dd');
+    if (start != null && end != null) {
+      if (start == end) return dateFormat.format(start);
+      return '${dateFormat.format(start)} – ${dateFormat.format(end)}';
+    }
+    return dateFormat.format((start ?? end)!);
   }
 
   // Sort lives behind a tonal chip in the app bar (next to the filter

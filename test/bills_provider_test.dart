@@ -8,8 +8,10 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:splitbalance/models/app_config.dart';
 import 'package:splitbalance/models/bill.dart';
 import 'package:splitbalance/providers/bills_provider.dart';
+import 'package:splitbalance/providers/config_provider.dart';
 
 // Most of these tests don't care about recovered amounts, so this wrapper
 // defaults to a no-op fetchRecoveredBreakdown - otherwise every
@@ -81,6 +83,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          DateTime? startDate,
+          DateTime? endDate,
           required BillSortField sortField,
           required bool sortAscending,
           required int offset,
@@ -112,6 +116,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          DateTime? startDate,
+          DateTime? endDate,
           required BillSortField sortField,
           required bool sortAscending,
           required int offset,
@@ -129,6 +135,127 @@ void main() {
     });
   });
 
+  group('BillsProvider - date range filter', () {
+    test('defaults to no date filter and no active filters', () {
+      final provider = testBillsProvider();
+      expect(provider.filterStartDate, isNull);
+      expect(provider.filterEndDate, isNull);
+      expect(provider.hasActiveFilters, isFalse);
+    });
+
+    test(
+        'setDateRangeFilter passes the active range through to '
+        'fetchBillsPage and marks filters active', () async {
+      DateTime? capturedStart;
+      DateTime? capturedEnd;
+      final provider = testBillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          DateTime? startDate,
+          DateTime? endDate,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async {
+          capturedStart = startDate;
+          capturedEnd = endDate;
+          return [billRow('b1', '2026-01-15')];
+        },
+      );
+
+      final start = DateTime(2026, 1, 1);
+      final end = DateTime(2026, 1, 31);
+      final configProvider = ConfigProvider.forTesting(
+        isSignedIn: true,
+        config: AppConfig(
+            householdId: 'household-1',
+            person1Name: 'Alice',
+            person2Name: 'Bob'),
+      );
+      await provider.setDateRangeFilter(start, end, configProvider);
+
+      expect(capturedStart, start);
+      expect(capturedEnd, end);
+      expect(provider.filterStartDate, start);
+      expect(provider.filterEndDate, end);
+      expect(provider.hasActiveFilters, isTrue);
+    });
+
+    test('clearFilters resets the date range along with the other filters',
+        () async {
+      final configProvider = ConfigProvider.forTesting(
+        isSignedIn: true,
+        config: AppConfig(
+            householdId: 'household-1',
+            person1Name: 'Alice',
+            person2Name: 'Bob'),
+      );
+      final provider = testBillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          DateTime? startDate,
+          DateTime? endDate,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            [billRow('b1', '2026-01-15')],
+      );
+
+      await provider.setDateRangeFilter(
+          DateTime(2026, 1, 1), DateTime(2026, 1, 31), configProvider);
+      expect(provider.hasActiveFilters, isTrue);
+
+      await provider.clearFilters(configProvider);
+
+      expect(provider.filterStartDate, isNull);
+      expect(provider.filterEndDate, isNull);
+      expect(provider.hasActiveFilters, isFalse);
+    });
+
+    test('setDateRangeFilter is a no-op when the range is unchanged',
+        () async {
+      var fetchCallCount = 0;
+      final configProvider = ConfigProvider.forTesting(
+        isSignedIn: true,
+        config: AppConfig(
+            householdId: 'household-1',
+            person1Name: 'Alice',
+            person2Name: 'Bob'),
+      );
+      final provider = testBillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          DateTime? startDate,
+          DateTime? endDate,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async {
+          fetchCallCount++;
+          return [billRow('b1', '2026-01-15')];
+        },
+      );
+
+      final start = DateTime(2026, 1, 1);
+      final end = DateTime(2026, 1, 31);
+      await provider.setDateRangeFilter(start, end, configProvider);
+      expect(fetchCallCount, 1);
+
+      await provider.setDateRangeFilter(start, end, configProvider);
+      expect(fetchCallCount, 1);
+    });
+  });
+
   group('BillsProvider - request id guard', () {
     test('a stale loadBillsForHousehold response is dropped', () async {
       final completers = <Completer<List<Map<String, dynamic>>>>[];
@@ -137,6 +264,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          DateTime? startDate,
+          DateTime? endDate,
           required BillSortField sortField,
           required bool sortAscending,
           required int offset,
@@ -181,6 +310,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          DateTime? startDate,
+          DateTime? endDate,
           required BillSortField sortField,
           required bool sortAscending,
           required int offset,
@@ -242,6 +373,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          DateTime? startDate,
+          DateTime? endDate,
           required BillSortField sortField,
           required bool sortAscending,
           required int offset,
@@ -287,6 +420,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          DateTime? startDate,
+          DateTime? endDate,
           required BillSortField sortField,
           required bool sortAscending,
           required int offset,
@@ -334,6 +469,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          DateTime? startDate,
+          DateTime? endDate,
           required BillSortField sortField,
           required bool sortAscending,
           required int offset,
@@ -386,6 +523,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          DateTime? startDate,
+          DateTime? endDate,
           required BillSortField sortField,
           required bool sortAscending,
           required int offset,
@@ -443,6 +582,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          DateTime? startDate,
+          DateTime? endDate,
           required BillSortField sortField,
           required bool sortAscending,
           required int offset,
@@ -480,6 +621,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          DateTime? startDate,
+          DateTime? endDate,
           required BillSortField sortField,
           required bool sortAscending,
           required int offset,
@@ -516,6 +659,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          DateTime? startDate,
+          DateTime? endDate,
           required BillSortField sortField,
           required bool sortAscending,
           required int offset,
@@ -546,6 +691,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          DateTime? startDate,
+          DateTime? endDate,
           required BillSortField sortField,
           required bool sortAscending,
           required int offset,
@@ -592,6 +739,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          DateTime? startDate,
+          DateTime? endDate,
           required BillSortField sortField,
           required bool sortAscending,
           required int offset,
@@ -640,6 +789,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          DateTime? startDate,
+          DateTime? endDate,
           required BillSortField sortField,
           required bool sortAscending,
           required int offset,
@@ -677,6 +828,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          DateTime? startDate,
+          DateTime? endDate,
           required BillSortField sortField,
           required bool sortAscending,
           required int offset,
@@ -813,6 +966,8 @@ void main() {
           required String householdId,
           String? paidBy,
           String? category,
+          DateTime? startDate,
+          DateTime? endDate,
           required BillSortField sortField,
           required bool sortAscending,
           required int offset,

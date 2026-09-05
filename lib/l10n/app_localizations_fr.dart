@@ -105,6 +105,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get allCategories => 'Toutes les catégories';
 
   @override
+  String get filterByDateRange => 'Plage de dates';
+
+  @override
+  String get anyDate => 'Toutes les dates';
+
+  @override
   String get clearFilters => 'Effacer les filtres';
 
   @override

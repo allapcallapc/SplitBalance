@@ -105,6 +105,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get allCategories => 'All Categories';
 
   @override
+  String get filterByDateRange => 'Date range';
+
+  @override
+  String get anyDate => 'Any date';
+
+  @override
   String get clearFilters => 'Clear filters';
 
   @override

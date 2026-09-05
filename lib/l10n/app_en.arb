@@ -129,6 +129,14 @@
   "@allCategories": {
     "description": "Option to clear the category filter and show bills in any category"
   },
+  "filterByDateRange": "Date range",
+  "@filterByDateRange": {
+    "description": "Label for the filter field to filter bills by a date or date range"
+  },
+  "anyDate": "Any date",
+  "@anyDate": {
+    "description": "Option to clear the date filter and show bills from any date"
+  },
   "clearFilters": "Clear filters",
   "@clearFilters": {
     "description": "Button to reset all active bill list filters"
