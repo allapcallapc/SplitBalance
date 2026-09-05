@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/bill.dart';
 import '../services/postgrest_paging.dart';
@@ -15,6 +16,8 @@ typedef FetchBillsPage = Future<List<Map<String, dynamic>>> Function({
   required String householdId,
   String? paidBy,
   String? category,
+  DateTime? startDate,
+  DateTime? endDate,
   required BillSortField sortField,
   required bool sortAscending,
   required int offset,
@@ -107,6 +110,11 @@ class BillsProvider with ChangeNotifier {
   // Active list filters. Null/empty means "no filter" (i.e. "All").
   String? _filterPaidBy;
   String? _filterCategory;
+  // Inclusive date-range filter. Either end may be set independently (e.g.
+  // "on or after" with no end, or "on or before" with no start); a single
+  // exact-date search sets both to the same day.
+  DateTime? _filterStartDate;
+  DateTime? _filterEndDate;
 
   // Active list sort. Defaults to newest-first by date, matching the
   // screen's behavior before sorting was configurable.
@@ -131,9 +139,13 @@ class BillsProvider with ChangeNotifier {
 
   String? get filterPaidBy => _filterPaidBy;
   String? get filterCategory => _filterCategory;
+  DateTime? get filterStartDate => _filterStartDate;
+  DateTime? get filterEndDate => _filterEndDate;
   bool get hasActiveFilters =>
       (_filterPaidBy != null && _filterPaidBy!.isNotEmpty) ||
-      (_filterCategory != null && _filterCategory!.isNotEmpty);
+      (_filterCategory != null && _filterCategory!.isNotEmpty) ||
+      _filterStartDate != null ||
+      _filterEndDate != null;
 
   BillSortField get sortField => _sortField;
   bool get sortAscending => _sortAscending;
@@ -158,11 +170,29 @@ class BillsProvider with ChangeNotifier {
     await loadBills(configProvider);
   }
 
-  // Reset both filters back to "All" and reload the first (unfiltered) page.
+  // Update the date-range filter and reload the first page with it applied
+  // server-side. Both bounds are inclusive; pass null for either to leave
+  // that side open-ended, or the same date for both to search a single day.
+  Future<void> setDateRangeFilter(DateTime? startDate, DateTime? endDate,
+      ConfigProvider configProvider) async {
+    if (startDate == _filterStartDate && endDate == _filterEndDate) return;
+    _filterStartDate = startDate;
+    _filterEndDate = endDate;
+    await loadBills(configProvider);
+  }
+
+  // Reset all filters back to "All" and reload the first (unfiltered) page.
   Future<void> clearFilters(ConfigProvider configProvider) async {
-    if (_filterPaidBy == null && _filterCategory == null) return;
+    if (_filterPaidBy == null &&
+        _filterCategory == null &&
+        _filterStartDate == null &&
+        _filterEndDate == null) {
+      return;
+    }
     _filterPaidBy = null;
     _filterCategory = null;
+    _filterStartDate = null;
+    _filterEndDate = null;
     await loadBills(configProvider);
   }
 
@@ -182,6 +212,8 @@ class BillsProvider with ChangeNotifier {
     required String householdId,
     String? paidBy,
     String? category,
+    DateTime? startDate,
+    DateTime? endDate,
     required BillSortField sortField,
     required bool sortAscending,
     required int offset,
@@ -197,6 +229,13 @@ class BillsProvider with ChangeNotifier {
     }
     if (category != null) {
       query = query.eq('category', category);
+    }
+    final dateFormat = DateFormat('yyyy-MM-dd');
+    if (startDate != null) {
+      query = query.gte('date', dateFormat.format(startDate));
+    }
+    if (endDate != null) {
+      query = query.lte('date', dateFormat.format(endDate));
     }
 
     final column = sortField == BillSortField.date ? 'date' : 'amount';
@@ -310,6 +349,8 @@ class BillsProvider with ChangeNotifier {
         householdId: householdId,
         paidBy: _filterPaidBy,
         category: _filterCategory,
+        startDate: _filterStartDate,
+        endDate: _filterEndDate,
         sortField: _sortField,
         sortAscending: _sortAscending,
         offset: 0,
@@ -363,6 +404,8 @@ class BillsProvider with ChangeNotifier {
         householdId: householdId,
         paidBy: _filterPaidBy,
         category: _filterCategory,
+        startDate: _filterStartDate,
+        endDate: _filterEndDate,
         sortField: _sortField,
         sortAscending: _sortAscending,
         offset: _bills.length,

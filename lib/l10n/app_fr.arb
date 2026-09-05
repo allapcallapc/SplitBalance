@@ -38,6 +38,8 @@
   "filterByCategory": "Catégorie",
   "allPeople": "Toutes les personnes",
   "allCategories": "Toutes les catégories",
+  "filterByDateRange": "Plage de dates",
+  "anyDate": "Toutes les dates",
   "clearFilters": "Effacer les filtres",
   "filters": "Filtres",
   "sortBy": "Trier par",
