@@ -109,12 +109,45 @@ void main() {
   testWidgets(
       'the filter modal shows the active date range and clearing it resets '
       'the filter', (tester) async {
-    final billsProvider = BillsProvider();
+    // Signed in (unlike the two tests above): clearing the filter here
+    // happens interactively, via a tap, after the screen has already been
+    // pumped - that goes through loadBills(), which only notifyListeners()
+    // (and thus rebuilds the modal) when signed in with a household. The
+    // GH issue #56 tests above only need the filter reflected in the
+    // *initial* build, so they can get away with an unsigned-in provider.
+    final configProvider = ConfigProvider.forTesting(
+      isSignedIn: true,
+      config: AppConfig(
+          householdId: 'household-1',
+          person1Name: 'Alice',
+          person2Name: 'Bob'),
+    );
+    final billsProvider = BillsProvider(
+      fetchBillsPage: ({
+        required String householdId,
+        String? paidBy,
+        String? category,
+        DateTime? startDate,
+        DateTime? endDate,
+        required BillSortField sortField,
+        required bool sortAscending,
+        required int offset,
+        required int limit,
+      }) async =>
+          const [],
+      fetchRecoveredBreakdown: ({required billIds}) async => {},
+    );
     await billsProvider.setDateRangeFilter(
-        DateTime(2026, 1, 1), DateTime(2026, 1, 31), ConfigProvider());
+        DateTime(2026, 1, 1), DateTime(2026, 1, 31), configProvider);
     expect(billsProvider.hasActiveFilters, isTrue);
 
-    await pumpBillsListScreen(tester, billsProvider: billsProvider);
+    await pumpBillsListScreen(
+      tester,
+      billsProvider: billsProvider,
+      configProvider: configProvider,
+      categoriesProvider: CategoriesProvider(
+          fetchCategories: ({required householdId}) async => []),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.filter_list));
