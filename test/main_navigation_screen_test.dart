@@ -25,6 +25,7 @@ import 'package:splitbalance/providers/bills_provider.dart';
 import 'package:splitbalance/providers/calculation_provider.dart';
 import 'package:splitbalance/providers/categories_provider.dart';
 import 'package:splitbalance/providers/config_provider.dart';
+import 'package:splitbalance/providers/duplicate_bills_provider.dart';
 import 'package:splitbalance/providers/payment_splits_provider.dart';
 import 'package:splitbalance/providers/pending_payments_provider.dart';
 import 'package:splitbalance/providers/tab_navigation_provider.dart';
@@ -79,6 +80,7 @@ Future<void> pumpMainNavigationScreen(
         ChangeNotifierProvider(create: (_) => CategoriesProvider()),
         ChangeNotifierProvider(create: (_) => CalculationProvider()),
         ChangeNotifierProvider(create: (_) => PendingPaymentsProvider()),
+        ChangeNotifierProvider(create: (_) => DuplicateBillsProvider()),
         ChangeNotifierProvider.value(
           value: tabNavigationProvider ?? TabNavigationProvider(),
         ),
