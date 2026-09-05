@@ -2108,6 +2108,7 @@ class _CategoryIconPickerState extends State<_CategoryIconPicker> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextField(
+          key: const Key('categoryIconSearchField'),
           controller: _searchController,
           decoration: InputDecoration(
             hintText: l10n.searchIcons,
