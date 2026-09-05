@@ -704,8 +704,15 @@ void main() {
     // loadBillsForHousehold/loadMoreBillsForHousehold above, and end-to-end
     // against a real database by the integration suite.
 
-    test('updateBillById carries forward the previously known '
-        'recoveredAmount instead of resetting it to 0', () async {
+    test('updateBillById fetches the authoritative recovered total instead '
+        'of trusting a stale _allBills cache', () async {
+      // Bug this guards against: _allBills can be stale relative to a
+      // recovered amount added/deleted elsewhere (another device, or a
+      // screen that skipped a refetch via hasLoadedAllBillsForHousehold) -
+      // updateBillById must ask _fetchRecoveredTotals for the current truth
+      // rather than carrying forward whatever _allBills happened to have
+      // cached for this id.
+      var recoveredTotalToReturn = 12.0;
       final provider = testBillsProvider(
         updateBillRow: (id, data) async => {
           'id': id,
@@ -715,15 +722,12 @@ void main() {
           'category': data['category'],
           'details': data['details'],
         },
+        fetchRecoveredTotals: ({required billIds}) async {
+          expect(billIds, ['bill-1']);
+          return {'bill-1': recoveredTotalToReturn};
+        },
       );
 
-      // Seed _allBills with an entry that already carries a known
-      // recoveredAmount: since this id isn't in _allBills yet,
-      // updateBillById's orElse fallback uses the incoming Bill argument's
-      // own recoveredAmount - standing in here for a bill that was
-      // originally populated by loadAllBills with its real recovered total
-      // already merged in. householdId is null so this skips the refetch
-      // and only exercises the _allBills merge itself.
       await provider.updateBillById(
         'bill-1',
         Bill(
@@ -732,18 +736,16 @@ void main() {
           amount: 10.0,
           paidBy: 'Alice',
           category: 'Groceries',
-          recoveredAmount: 12.0,
         ),
         null,
       );
       expect(provider.allBills.single.recoveredAmount, 12.0);
 
-      // Editing the bill's category shouldn't touch its recovered amounts.
-      // The second updatedBill below has no recoveredAmount of its own
-      // (matching AddEditBillScreen, which never sets it) and
-      // _updateBillRow's response has none either (it's not a `bills`
-      // column) - so updateBillById must carry the existing _allBills total
-      // forward rather than resetting it to 0.
+      // A recovered amount was added elsewhere since that first update -
+      // _allBills still has the stale 12.0 cached, but the fetcher now
+      // reports the true, updated total.
+      recoveredTotalToReturn = 30.0;
+
       await provider.updateBillById(
         'bill-1',
         Bill(
@@ -757,7 +759,37 @@ void main() {
       );
 
       expect(provider.allBills.single.category, 'Rent');
-      expect(provider.allBills.single.recoveredAmount, 12.0);
+      // Reflects the fresh fetch (30.0), not the stale cached value (12.0).
+      expect(provider.allBills.single.recoveredAmount, 30.0);
+    });
+
+    test('updateBillById defaults recoveredAmount to 0 when the fetcher has '
+        'no entry for this bill', () async {
+      final provider = testBillsProvider(
+        updateBillRow: (id, data) async => {
+          'id': id,
+          'date': data['date'],
+          'amount': data['amount'],
+          'paid_by': data['paid_by'],
+          'category': data['category'],
+          'details': data['details'],
+        },
+        fetchRecoveredTotals: ({required billIds}) async => {},
+      );
+
+      await provider.updateBillById(
+        'bill-1',
+        Bill(
+          id: 'bill-1',
+          date: DateTime.parse('2026-01-01'),
+          amount: 10.0,
+          paidBy: 'Alice',
+          category: 'Groceries',
+        ),
+        null,
+      );
+
+      expect(provider.allBills.single.recoveredAmount, 0.0);
     });
   });
 }

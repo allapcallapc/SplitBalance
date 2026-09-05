@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/bill.dart';
+import '../services/postgrest_paging.dart';
 import 'config_provider.dart';
 
 // Which bill field the list is ordered by.
@@ -232,28 +233,23 @@ class BillsProvider with ChangeNotifier {
   }) async {
     if (billIds.isEmpty) return {};
 
-    final totals = <String, double>{};
-    // Paginated the same way AggregatedCalculationService._sumAmounts is,
-    // in case a household's full bill set (loadAllBills) pushes this past
-    // PostgREST's max_rows cap.
-    const chunkSize = 1000;
-    var start = 0;
-    while (true) {
-      final rows = await Supabase.instance.client
+    // Paginated via the shared pageAndReduce helper (also used by
+    // AggregatedCalculationService._sumAmounts), in case a household's
+    // full bill set (loadAllBills) pushes this past PostgREST's max_rows
+    // cap.
+    return pageAndReduce<Map<String, double>>(
+      buildQuery: () => Supabase.instance.client
           .from('bill_recovered_amounts')
           .select('bill_id, amount')
-          .inFilter('bill_id', billIds)
-          .order('id')
-          .range(start, start + chunkSize - 1);
-      for (final row in rows) {
+          .inFilter('bill_id', billIds),
+      initial: <String, double>{},
+      reduce: (totals, row) {
         final billId = row['bill_id'] as String;
         totals[billId] =
             (totals[billId] ?? 0) + (row['amount'] as num).toDouble();
-      }
-      if (rows.length < chunkSize) break;
-      start += chunkSize;
-    }
-    return totals;
+        return totals;
+      },
+    );
   }
 
   // Fetches recovered totals for [bills] and returns them with
@@ -534,14 +530,16 @@ class BillsProvider with ChangeNotifier {
     Bill saved;
     try {
       final row = await _updateBillRow(id, updatedBill.toMap());
-      // Editing a bill's own fields never touches its recovered amounts, so
-      // carry forward whatever total was already known locally rather than
-      // resetting it to 0 (the row from _updateBillRow has no recovered
-      // total of its own - it's not a `bills` column).
-      final previousRecovered = _allBills
-              .firstWhere((b) => b.id == id, orElse: () => updatedBill)
-              .recoveredAmount;
-      saved = Bill.fromMap(row).copyWith(recoveredAmount: previousRecovered);
+      // Editing a bill's own fields never touches its recovered amounts,
+      // but the row from _updateBillRow has none of its own (not a `bills`
+      // column) - fetch the authoritative total rather than trusting
+      // whatever _allBills happens to have cached locally, which can be
+      // stale relative to a recovered amount added/deleted elsewhere
+      // (another device, or a screen that skipped a refetch via
+      // hasLoadedAllBillsForHousehold).
+      final recoveredTotals = await _fetchRecoveredTotals(billIds: [id]);
+      saved =
+          Bill.fromMap(row).copyWith(recoveredAmount: recoveredTotals[id] ?? 0);
     } catch (e) {
       _error = 'Failed to update bill: $e';
       _isLoading = false;

@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/category.dart' as models;
 import '../models/payment_split.dart';
 import 'calculation_service.dart';
+import 'postgrest_paging.dart';
 
 // Fetches every payment split for the household. Small, unpaginated table -
 // this is the same query PaymentSplitsProvider already runs, just owned by
@@ -103,31 +104,21 @@ class AggregatedCalculationService {
   // at 1000 rows instead of erroring, so a naive single .select() + fold
   // would silently undercount once a household crossed that many matching
   // bills (see https://github.com/allapcallapc/SplitBalance/issues/57).
-  // _sumAmounts works around that client-side instead, by paging through
-  // .range() in chunks of _pageSize and summing each chunk, rather than
-  // relying on a server-side SUM(). .count(CountOption.exact) (used below
-  // for bill counts) sidesteps the same limit differently: it's a HEAD
-  // request, so PostgREST never materializes a row body for max_rows to
-  // truncate - the exact count comes back via the Content-Range header.
-  static const _pageSize = 1000;
-
+  // _sumAmounts works around that client-side instead, via the shared
+  // pageAndReduce helper (also used by BillsProvider, which hits the same
+  // limit summing recovered amounts), rather than relying on a server-side
+  // SUM(). .count(CountOption.exact) (used below for bill counts)
+  // sidesteps the same limit differently: it's a HEAD request, so PostgREST
+  // never materializes a row body for max_rows to truncate - the exact
+  // count comes back via the Content-Range header.
   static Future<double> _sumAmounts(
     PostgrestFilterBuilder<PostgrestList> Function() buildQuery,
-  ) async {
-    var total = 0.0;
-    var start = 0;
-    while (true) {
-      // Ordered by `id` so each page's boundary is stable across requests,
-      // even if bills are added/edited between pages.
-      final rows =
-          await buildQuery().order('id').range(start, start + _pageSize - 1);
-      for (final row in rows) {
-        total += (row['amount'] as num).toDouble();
-      }
-      if (rows.length < _pageSize) break;
-      start += _pageSize;
-    }
-    return total;
+  ) {
+    return pageAndReduce<double>(
+      buildQuery: buildQuery,
+      initial: 0.0,
+      reduce: (total, row) => total + (row['amount'] as num).toDouble(),
+    );
   }
 
   // A recovered amount reduces whoever *received* the money's paid total,
