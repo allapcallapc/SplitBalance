@@ -109,7 +109,11 @@ void main() {
     final calculationProvider = CalculationProvider(
       aggregatedCalculationService: AggregatedCalculationService(
         fetchSplits: ({required householdId}) async => [],
-        fetchPersonPaidTotal: ({required householdId, required paidBy}) async =>
+        fetchPersonPaidTotal: ({
+          required householdId,
+          required paidBy,
+          required trackedPersonNames,
+        }) async =>
             paidBy == 'Alice' ? 120.0 : 80.0,
         fetchPersonBillCount: ({required householdId, required paidBy}) async =>
             paidBy == 'Alice' ? 3 : 1,
@@ -119,6 +123,7 @@ void main() {
           required periodStart,
           required periodEnd,
           required paidBy,
+          required trackedPersonNames,
         }) async =>
             0.0,
         fetchHouseholdTotals: ({required householdId}) async =>
@@ -161,7 +166,11 @@ void main() {
     final calculationProvider = CalculationProvider(
       aggregatedCalculationService: AggregatedCalculationService(
         fetchSplits: ({required householdId}) async => [],
-        fetchPersonPaidTotal: ({required householdId, required paidBy}) async =>
+        fetchPersonPaidTotal: ({
+          required householdId,
+          required paidBy,
+          required trackedPersonNames,
+        }) async =>
             paidBy == 'Alice' ? 120.0 : 80.0,
         fetchPersonBillCount: ({required householdId, required paidBy}) async =>
             0,
@@ -171,6 +180,7 @@ void main() {
           required periodStart,
           required periodEnd,
           required paidBy,
+          required trackedPersonNames,
         }) async =>
             0.0,
         fetchHouseholdTotals: ({required householdId}) async =>
@@ -207,7 +217,11 @@ void main() {
     final calculationProvider = CalculationProvider(
       aggregatedCalculationService: AggregatedCalculationService(
         fetchSplits: ({required householdId}) async => [],
-        fetchPersonPaidTotal: ({required householdId, required paidBy}) async =>
+        fetchPersonPaidTotal: ({
+          required householdId,
+          required paidBy,
+          required trackedPersonNames,
+        }) async =>
             paidBy == 'Alice' ? 120.0 : 80.0,
         fetchPersonBillCount: ({required householdId, required paidBy}) async =>
             0,
@@ -217,6 +231,7 @@ void main() {
           required periodStart,
           required periodEnd,
           required paidBy,
+          required trackedPersonNames,
         }) async =>
             0.0,
         fetchHouseholdTotals: ({required householdId}) async =>

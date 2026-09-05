@@ -197,6 +197,37 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsNothing);
       expect(find.text('No recovered amounts yet'), findsOneWidget);
     });
+
+    testWidgets(
+        'hides the add-recovered-amount FAB while the real recovered total '
+        'is still loading, rather than showing it against the bill\'s full '
+        'amount (which would let an add overshoot the true remaining once '
+        'the load resolves)', (tester) async {
+      final completer = Completer<List<Map<String, dynamic>>>();
+      final provider = RecoveredAmountsProvider(
+        fetchRecoveredAmountsForBill: ({required billId}) => completer.future,
+      );
+
+      // settle: false - a full pumpAndSettle would wait forever for the
+      // unresolved completer, so this only pumps the frame(s) needed to
+      // render the initial (loading) state.
+      await pumpScreen(tester,
+          bill: bill, recoveredAmountsProvider: provider, settle: false);
+
+      // If the FAB computed `remaining` from the provider's pre-load state
+      // (totalRecovered: 0) instead of being hidden outright, it would show
+      // here against the bill's full $100 - even though $60 of it is
+      // already recovered per the (not yet resolved) fetch below.
+      expect(find.byType(FloatingActionButton), findsNothing);
+
+      completer.complete(
+          [recoveredAmountRow('r1', 'bill-1', '2024-01-05', amount: 60.0)]);
+      await tester.pumpAndSettle();
+
+      // Now that the load has resolved, the FAB reappears reflecting the
+      // true $40 remaining rather than staying hidden or the wrong amount.
+      expect(find.byType(FloatingActionButton), findsOneWidget);
+    });
   });
 
   group('BillRecoveredAmountsScreen - add recovered amount validation', () {

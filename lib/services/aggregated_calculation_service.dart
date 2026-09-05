@@ -16,9 +16,15 @@ typedef FetchSplits = Future<List<PaymentSplit>> Function({
 // Sum of bill.amount for every bill in the household paid by [paidBy],
 // across all categories/dates - the same unconditional total
 // CalculationService.calculateBalances accumulates as person1Paid/person2Paid.
+// [trackedPersonNames] is always [person1Name, person2Name] (in either
+// order) - it's here so the recovered-amount side of this fetch can confirm
+// the underlying bill was paid by one of the two people actually being
+// balanced, not just that its own received_by/household_id line up (see the
+// doc comment on _defaultFetchPersonPaidTotal for why that matters).
 typedef FetchPersonPaidTotal = Future<double> Function({
   required String householdId,
   required String paidBy,
+  required List<String> trackedPersonNames,
 });
 
 // Count of bills in the household paid by [paidBy], across all
@@ -39,6 +45,7 @@ typedef FetchCategoryPeriodPersonPaid = Future<double> Function({
   required DateTime? periodStart, // exclusive
   required DateTime? periodEnd, // inclusive
   required String paidBy,
+  required List<String> trackedPersonNames,
 });
 
 class HouseholdTotals {
@@ -130,10 +137,20 @@ class AggregatedCalculationService {
   // total goes negative by the recovered amount (they're now holding money
   // that belongs to the payer), on top of whatever they separately owe from
   // the split itself. bill_recovered_amounts.household_id is denormalized
-  // from the linked bill, so no join is needed here.
+  // from the linked bill, so no join would be needed for household scoping -
+  // but one is still required to check the bill's own paid_by is in
+  // [trackedPersonNames]: renaming a household member (person1Name/
+  // person2Name in settings) doesn't retroactively update paid_by on bills
+  // recorded before the rename, so a stale bill can be paid by a name that
+  // matches neither person currently being balanced. Without this check, a
+  // recovered amount on such a bill would still reduce a tracked person's
+  // total even though the bill it came from was never counted in anyone's
+  // paid total in the first place - an unearned reduction with no
+  // corresponding paid amount behind it.
   static Future<double> _defaultFetchPersonPaidTotal({
     required String householdId,
     required String paidBy,
+    required List<String> trackedPersonNames,
   }) async {
     final results = await Future.wait([
       _sumAmounts(() => Supabase.instance.client
@@ -143,9 +160,10 @@ class AggregatedCalculationService {
           .eq('paid_by', paidBy)),
       _sumAmounts(() => Supabase.instance.client
           .from('bill_recovered_amounts')
-          .select('amount')
+          .select('amount, bills!inner(paid_by)')
           .eq('household_id', householdId)
-          .eq('received_by', paidBy)),
+          .eq('received_by', paidBy)
+          .inFilter('bills.paid_by', trackedPersonNames)),
     ]);
     return results[0] - results[1];
   }
@@ -175,6 +193,7 @@ class AggregatedCalculationService {
     required DateTime? periodStart,
     required DateTime? periodEnd,
     required String paidBy,
+    required List<String> trackedPersonNames,
   }) async {
     final results = await Future.wait([
       _sumAmounts(() {
@@ -195,14 +214,19 @@ class AggregatedCalculationService {
       // Scoped to this (category, period) slot via the linked bill's own
       // category/date (a PostgREST embed, bills!inner(...)), but attributed
       // to whoever *received* the money rather than the bill's payer - see
-      // _defaultFetchPersonPaidTotal.
+      // _defaultFetchPersonPaidTotal. Also requires bills.paid_by to be in
+      // trackedPersonNames, for the same reason as there: a bill left over
+      // from before a household member rename can't be paid_by anyone
+      // currently tracked, so a recovered amount against it must not offset
+      // either person's total.
       _sumAmounts(() {
         var query = Supabase.instance.client
             .from('bill_recovered_amounts')
-            .select('amount, bills!inner(category, date)')
+            .select('amount, bills!inner(category, date, paid_by)')
             .eq('household_id', householdId)
             .eq('bills.category', category)
-            .eq('received_by', paidBy);
+            .eq('received_by', paidBy)
+            .inFilter('bills.paid_by', trackedPersonNames);
         if (periodStart != null) {
           query = query.gt('bills.date', _dateFormat.format(periodStart));
         }
@@ -277,10 +301,19 @@ class AggregatedCalculationService {
     required String person1Name,
     required String person2Name,
   }) async {
+    final trackedPersonNames = [person1Name, person2Name];
     final results = await Future.wait([
       _fetchSplits(householdId: householdId),
-      _fetchPersonPaidTotal(householdId: householdId, paidBy: person1Name),
-      _fetchPersonPaidTotal(householdId: householdId, paidBy: person2Name),
+      _fetchPersonPaidTotal(
+        householdId: householdId,
+        paidBy: person1Name,
+        trackedPersonNames: trackedPersonNames,
+      ),
+      _fetchPersonPaidTotal(
+        householdId: householdId,
+        paidBy: person2Name,
+        trackedPersonNames: trackedPersonNames,
+      ),
     ]);
     // Canonical order enforced here, on whatever fetchSplits returned -
     // not just in the default implementation - so findMatchingSplit's
@@ -316,6 +349,7 @@ class AggregatedCalculationService {
           periodStart: period.start,
           periodEnd: period.end,
           paidBy: person1Name,
+          trackedPersonNames: trackedPersonNames,
         ));
         slots.add(_CategoryPeriodSlot(category: category, period: period));
         futures.add(_fetchCategoryPeriodPersonPaid(
@@ -324,6 +358,7 @@ class AggregatedCalculationService {
           periodStart: period.start,
           periodEnd: period.end,
           paidBy: person2Name,
+          trackedPersonNames: trackedPersonNames,
         ));
       }
     }

@@ -578,6 +578,79 @@ void main() {
       // person2 (Bob) owes person1 (Alice) $75.
       expect(result.netBalance, closeTo(-75.0, 0.01));
     });
+
+    test(
+        'a recovered amount on a bill paid by someone no longer tracked '
+        'does not offset either current household member\'s total (a stale '
+        'paid_by left behind by a household member rename)', () async {
+      // Simulates renaming a household member after a bill was recorded:
+      // the old bill still has paid_by: 'Charlie' even though the household
+      // is now tracking Alice/Bob, and a recovered amount against that bill
+      // was received by Alice. Since Charlie's bill was never counted in
+      // anyone's paid total (only bills paid_by Alice or Bob are), the
+      // recovered amount must not reduce Alice's total either - otherwise
+      // she'd show a reduction with no corresponding paid amount behind it.
+      final household =
+          await admin.from('households').insert({}).select().single();
+      final householdId = household['id'] as String;
+      createdHouseholdIds.add(householdId);
+
+      await admin.from('categories').insert({
+        'household_id': householdId,
+        'name': 'Food',
+      });
+      final charlieBill = await admin
+          .from('bills')
+          .insert({
+            'household_id': householdId,
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Charlie',
+            'category': 'Food',
+          })
+          .select()
+          .single();
+      await admin.from('bills').insert({
+        'household_id': householdId,
+        'date': '2024-01-15',
+        'amount': 60.0,
+        'paid_by': 'Alice',
+        'category': 'Food',
+      });
+      await admin.from('payment_splits').insert({
+        'household_id': householdId,
+        'category': 'Food',
+        'person1': 'Alice',
+        'person1_percentage': 50.0,
+        'person2': 'Bob',
+        'person2_percentage': 50.0,
+      });
+      await admin.from('bill_recovered_amounts').insert({
+        'household_id': householdId,
+        'bill_id': charlieBill['id'],
+        'date': '2024-01-20',
+        'amount': 40.0,
+        'received_by': 'Alice',
+      });
+
+      final service = AggregatedCalculationService();
+      final result = await service.calculateBalances(
+        householdId: householdId,
+        categories: [Category(name: 'Food')],
+        person1Name: 'Alice',
+        person2Name: 'Bob',
+      );
+
+      // Alice's total is just her own $60 bill - the $40 recovered against
+      // Charlie's untracked bill must not reduce it (it would be 20.0 if
+      // the recovered amount leaked through).
+      expect(result.person1Paid, closeTo(60.0, 0.01));
+      expect(result.person2Paid, closeTo(0.0, 0.01));
+
+      final foodBalance = result.categoryBalances['Food'];
+      expect(foodBalance, isNotNull);
+      expect(foodBalance!.person1Paid, closeTo(60.0, 0.01));
+    });
   });
 
   group('BillsProvider / RecoveredAmountsProvider - real Supabase defaults',

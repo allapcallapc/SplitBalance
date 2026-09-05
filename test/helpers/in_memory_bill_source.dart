@@ -22,6 +22,7 @@ class InMemoryBillSource {
   Future<double> fetchPersonPaidTotal({
     required String householdId,
     required String paidBy,
+    required List<String> trackedPersonNames,
   }) async {
     return bills
         .where((b) => b.paidBy == paidBy)
@@ -34,6 +35,7 @@ class InMemoryBillSource {
     required DateTime? periodStart,
     required DateTime? periodEnd,
     required String paidBy,
+    required List<String> trackedPersonNames,
   }) async {
     return bills
         .where((b) =>

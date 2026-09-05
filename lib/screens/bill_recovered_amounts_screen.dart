@@ -33,6 +33,19 @@ class _BillRecoveredAmountsScreenState
   // BillsListScreen uses for _configProvider.
   RecoveredAmountsProvider? _recoveredAmountsProvider;
 
+  // True until loadForBill for this bill has actually been kicked off.
+  // initState defers that call to a post-frame callback (see below), so the
+  // very first build happens before RecoveredAmountsProvider.isLoading ever
+  // goes true - at that point totalRecovered still reads its pre-load value
+  // of 0 (or a stale value left over from whatever bill this shared provider
+  // last loaded), which would let the FAB compute a `remaining` larger than
+  // the bill's true remaining amount and open the add sheet with a validator
+  // that accepts an over-recovering amount. Flips to false in the same
+  // synchronous stretch that starts the real load (loadForBill sets
+  // isLoading true before its first await), so there's no gap between this
+  // and isLoading taking over as the source of truth.
+  bool _initialLoadPending = true;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -46,6 +59,9 @@ class _BillRecoveredAmountsScreenState
       final billId = widget.bill.id;
       if (billId != null) {
         _recoveredAmountsProvider?.loadForBill(billId);
+      }
+      if (mounted) {
+        setState(() => _initialLoadPending = false);
       }
     });
   }
@@ -296,6 +312,8 @@ class _BillRecoveredAmountsScreenState
         appBar: AppBar(title: Text(l10n.recoveredAmounts)),
         body: Consumer<RecoveredAmountsProvider>(
           builder: (context, recoveredAmountsProvider, child) {
+            final isLoading =
+                _initialLoadPending || recoveredAmountsProvider.isLoading;
             final totalRecovered = recoveredAmountsProvider.totalRecovered;
             final remaining = widget.bill.amount - totalRecovered;
 
@@ -328,7 +346,7 @@ class _BillRecoveredAmountsScreenState
                   ),
                 ),
                 Expanded(
-                  child: recoveredAmountsProvider.isLoading
+                  child: isLoading
                       ? const Center(child: CircularProgressIndicator())
                       : recoveredAmountsProvider.recoveredAmounts.isEmpty
                           ? Center(
@@ -381,6 +399,11 @@ class _BillRecoveredAmountsScreenState
         ),
         floatingActionButton: Consumer<RecoveredAmountsProvider>(
           builder: (context, recoveredAmountsProvider, child) {
+            // Hidden until the real recovered-amounts total has loaded -
+            // see _initialLoadPending's doc comment for why this matters.
+            if (_initialLoadPending || recoveredAmountsProvider.isLoading) {
+              return const SizedBox.shrink();
+            }
             final remaining = widget.bill.amount -
                 recoveredAmountsProvider.totalRecovered;
             if (remaining <= 0.01) return const SizedBox.shrink();
