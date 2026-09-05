@@ -28,6 +28,8 @@ import 'package:splitbalance/providers/pending_payments_provider.dart';
 import 'package:splitbalance/providers/recovered_amounts_provider.dart';
 import 'package:splitbalance/screens/bill_recovered_amounts_screen.dart';
 import 'package:splitbalance/screens/bills_list_screen.dart';
+import 'package:splitbalance/screens/duplicate_bills_screen.dart';
+import 'package:splitbalance/services/duplicate_bills_service.dart';
 
 Future<void> pumpBillsListScreen(
   WidgetTester tester, {
@@ -333,6 +335,90 @@ void main() {
       // whatever recovered totals were cached before this screen opened.
       expect(billsProvider.hasLoadedAllBillsForHousehold('household-1'),
           isTrue);
+    });
+
+    testWidgets(
+        'shows no duplicate-bills banner when there are no potential '
+        'duplicates', (tester) async {
+      final duplicateBillsProvider = DuplicateBillsProvider(
+        service: DuplicateBillsService(
+          fetchHouseholdBillRows: ({required householdId}) async => [],
+        ),
+      );
+
+      await pumpBillsListScreen(
+        tester,
+        billsProvider: BillsProvider(
+          fetchBillsPage: ({
+            required String householdId,
+            String? paidBy,
+            String? category,
+            DateTime? startDate,
+            DateTime? endDate,
+            required BillSortField sortField,
+            required bool sortAscending,
+            required int offset,
+            required int limit,
+          }) async =>
+              const [],
+          fetchRecoveredBreakdown: ({required billIds}) async => {},
+        ),
+        configProvider: signedInConfigProvider(),
+        categoriesProvider: CategoriesProvider(
+            fetchCategories: ({required householdId}) async => []),
+        duplicateBillsProvider: duplicateBillsProvider,
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(MaterialBanner), findsNothing);
+    });
+
+    testWidgets(
+        'shows a duplicate-bills banner with the count, and "Review" opens '
+        'DuplicateBillsScreen', (tester) async {
+      final duplicateBillsProvider = DuplicateBillsProvider(
+        service: DuplicateBillsService(
+          fetchHouseholdBillRows: ({required householdId}) async => [
+            billRow('bill-1', '2026-01-01', amount: 40.0),
+            billRow('bill-2', '2026-01-01', amount: 40.0),
+          ],
+        ),
+      );
+
+      await pumpBillsListScreen(
+        tester,
+        billsProvider: BillsProvider(
+          fetchBillsPage: ({
+            required String householdId,
+            String? paidBy,
+            String? category,
+            DateTime? startDate,
+            DateTime? endDate,
+            required BillSortField sortField,
+            required bool sortAscending,
+            required int offset,
+            required int limit,
+          }) async =>
+              const [],
+          fetchRecoveredBreakdown: ({required billIds}) async => {},
+        ),
+        configProvider: signedInConfigProvider(),
+        categoriesProvider: CategoriesProvider(
+            fetchCategories: ({required householdId}) async => []),
+        duplicateBillsProvider: duplicateBillsProvider,
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('2 potential duplicate bill(s) found'),
+          findsOneWidget);
+
+      await tester.tap(find.text('Review'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(DuplicateBillsScreen), findsOneWidget);
     });
 
     testWidgets(
