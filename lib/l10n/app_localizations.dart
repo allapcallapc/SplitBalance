@@ -800,6 +800,24 @@ abstract class AppLocalizations {
   /// **'Choose an icon'**
   String get chooseIcon;
 
+  /// Hint text for the category icon search field
+  ///
+  /// In en, this message translates to:
+  /// **'Search icons'**
+  String get searchIcons;
+
+  /// Shown when an icon search has no matches
+  ///
+  /// In en, this message translates to:
+  /// **'No icons found'**
+  String get noIconsFound;
+
+  /// Caption above the category icon picker's grid indicating how many of the matching icons are currently loaded, e.g. "Showing 60 of 2,231 icons" - more load automatically as you scroll
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown} of {total} icons'**
+  String showingIconsCount(int shown, int total);
+
   /// Dismiss button label
   ///
   /// In en, this message translates to:

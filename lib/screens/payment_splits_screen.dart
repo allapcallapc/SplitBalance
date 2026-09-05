@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -1862,6 +1864,7 @@ class _CategoriesTab extends StatelessWidget {
         builder: (context, setState) => AlertDialog(
           title: Text(l10n.addCategory),
           content: SingleChildScrollView(
+            key: const Key('categoryDialogScroll'),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1941,6 +1944,7 @@ class _CategoriesTab extends StatelessWidget {
         builder: (context, setState) => AlertDialog(
           title: Text(l10n.editCategory),
           content: SingleChildScrollView(
+            key: const Key('categoryDialogScroll'),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2063,10 +2067,24 @@ class _CategoriesTab extends StatelessWidget {
   }
 }
 
-// Grid of selectable icons used when adding/editing a category. Selecting
-// null (no explicit choice) falls back to [defaultCategoryIcon] wherever the
-// category's icon is displayed - see Category.iconData.
-class _CategoryIconPicker extends StatelessWidget {
+// Searchable, infinite-scrolling grid of selectable icons used when
+// adding/editing a category. Selecting null (no explicit choice) falls back
+// to [defaultCategoryIcon] wherever the category's icon is displayed - see
+// Category.iconData.
+//
+// categoryIconOptions covers Flutter's full built-in icon set (2000+
+// entries). Rendering all of it into a GridView/ListView at once - even
+// nested in this dialog's own scrollable content - has been observed to
+// crash the Flutter framework while the dialog animates in, so only
+// _pageSize matches are ever built into the Wrap at a time; scrolling this
+// picker's ambient dialog scroll view (found via Scrollable.maybeOf, since
+// the picker doesn't own a scrollable of its own - see _onAmbientScroll)
+// loads another page, and the "Showing X of Y" caption above the grid makes
+// it clear there's more to find by scrolling or narrowing the search.
+// Before a search, commonCategoryIconKeys are ordered first so what's
+// visible before scrolling is actually recognizable - see _matches() -
+// and every tile carries a Tooltip with its (unlabeled) icon's name.
+class _CategoryIconPicker extends StatefulWidget {
   final String? selectedIcon;
   final ValueChanged<String> onSelected;
 
@@ -2076,41 +2094,153 @@ class _CategoryIconPicker extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: categoryIconOptions.entries.map((entry) {
-        final key = entry.key;
-        final iconData = entry.value;
-        final isSelected =
-            selectedIcon == key || (selectedIcon == null && key == 'category');
+  State<_CategoryIconPicker> createState() => _CategoryIconPickerState();
+}
 
-        return InkWell(
-          onTap: () => onSelected(key),
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            width: 44,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? colorScheme.primaryContainer
-                  : colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isSelected ? colorScheme.primary : Colors.transparent,
-                width: 2,
-              ),
-            ),
-            child: Icon(
-              iconData,
-              color: isSelected ? colorScheme.primary : colorScheme.onSurface,
-            ),
+class _CategoryIconPickerState extends State<_CategoryIconPicker> {
+  static const int _pageSize = 60;
+  // How close to the bottom (in logical pixels) of the ambient scroll view
+  // triggers loading the next page.
+  static const double _loadMoreThreshold = 200;
+
+  final _searchController = TextEditingController();
+  String _query = '';
+  int _visibleCount = _pageSize;
+  ScrollPosition? _ambientScrollPosition;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final position = Scrollable.maybeOf(context)?.position;
+    if (!identical(_ambientScrollPosition, position)) {
+      _ambientScrollPosition?.removeListener(_onAmbientScroll);
+      _ambientScrollPosition = position;
+      _ambientScrollPosition?.addListener(_onAmbientScroll);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ambientScrollPosition?.removeListener(_onAmbientScroll);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onAmbientScroll() {
+    final position = _ambientScrollPosition;
+    if (position == null) return;
+    if (position.pixels < position.maxScrollExtent - _loadMoreThreshold) {
+      return;
+    }
+    final total = _matches().length;
+    if (_visibleCount < total) {
+      setState(
+          () => _visibleCount = math.min(_visibleCount + _pageSize, total));
+    }
+  }
+
+  List<MapEntry<String, IconData>> _matches() {
+    final query = _query.trim().toLowerCase().replaceAll(' ', '_');
+    if (query.isEmpty) {
+      // commonCategoryIconKeys first (relevant, recognizable at a glance),
+      // then the rest of the set alphabetically for infinite scroll to
+      // reach - rather than the full set's own alphabetical order, which
+      // starts on unrelated icons like 'abc' and 'ac_unit'.
+      final commonKeys = commonCategoryIconKeys.toSet();
+      final common = commonCategoryIconKeys
+          .map((key) => MapEntry(key, categoryIconOptions[key]!));
+      final rest = categoryIconOptions.entries
+          .where((entry) => !commonKeys.contains(entry.key));
+      return [...common, ...rest];
+    }
+    return categoryIconOptions.entries
+        .where((entry) => entry.key.contains(query))
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final matches = _matches();
+    final visible = matches.take(_visibleCount).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          key: const Key('categoryIconSearchField'),
+          controller: _searchController,
+          decoration: InputDecoration(
+            hintText: l10n.searchIcons,
+            prefixIcon: const Icon(Icons.search),
+            isDense: true,
+            border: const OutlineInputBorder(),
           ),
-        );
-      }).toList(),
+          onChanged: (value) => setState(() {
+            _query = value;
+            _visibleCount = _pageSize;
+          }),
+        ),
+        const SizedBox(height: 8),
+        if (matches.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: Text(l10n.noIconsFound)),
+          )
+        else ...[
+          Text(
+            l10n.showingIconsCount(visible.length, matches.length),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            key: const Key('categoryIconGrid'),
+            spacing: 8,
+            runSpacing: 8,
+            children: visible.map((entry) {
+              final key = entry.key;
+              final iconData = entry.value;
+              final isSelected = widget.selectedIcon == key ||
+                  (widget.selectedIcon == null && key == 'category');
+
+              return Tooltip(
+                message: key.replaceAll('_', ' '),
+                child: InkWell(
+                  onTap: () => widget.onSelected(key),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? colorScheme.primaryContainer
+                          : colorScheme.surfaceContainerHighest
+                              .withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isSelected
+                            ? colorScheme.primary
+                            : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                    child: Icon(
+                      iconData,
+                      color: isSelected
+                          ? colorScheme.primary
+                          : colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ],
     );
   }
 }
