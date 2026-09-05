@@ -2123,7 +2123,7 @@ class _CategoryIconPickerState extends State<_CategoryIconPicker> {
           child: entries.isEmpty
               ? Center(child: Text(l10n.noIconsFound))
               : GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisExtent(
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                     maxCrossAxisExtent: 52,
                     mainAxisSpacing: 8,
                     crossAxisSpacing: 8,
