@@ -164,6 +164,43 @@ void main() {
     expect(find.text('Any date'), findsOneWidget);
   });
 
+  testWidgets(
+      'the filter modal shows a single formatted date, not a range, when '
+      'the date filter is an exact-date search (same start and end)',
+      (tester) async {
+    final billsProvider = BillsProvider();
+    final exactDate = DateTime(2026, 1, 15);
+    await billsProvider.setDateRangeFilter(
+        exactDate, exactDate, ConfigProvider());
+
+    await pumpBillsListScreen(tester, billsProvider: billsProvider);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.filter_list));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('2026-01-15'), findsOneWidget);
+    expect(find.text('2026-01-15 – 2026-01-15'), findsNothing);
+  });
+
+  testWidgets(
+      'the filter modal shows just the one bound when only the start or '
+      'end of the date range is set', (tester) async {
+    final billsProvider = BillsProvider();
+    await billsProvider.setDateRangeFilter(
+        DateTime(2026, 2, 1), null, ConfigProvider());
+
+    await pumpBillsListScreen(tester, billsProvider: billsProvider);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.filter_list));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('2026-02-01'), findsOneWidget);
+  });
+
   group('BillsListScreen - signed in with bills', () {
     ConfigProvider signedInConfigProvider() => ConfigProvider.forTesting(
           isSignedIn: true,
@@ -293,6 +330,72 @@ void main() {
       expect(billsProvider.hasLoadedAllBillsForHousehold('household-1'),
           isTrue);
     });
+
+    testWidgets(
+        'tapping the date range field opens the picker, and confirming the '
+        'suggested range (today, when no filter is active yet) applies it',
+        (tester) async {
+      final billsProvider = BillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          DateTime? startDate,
+          DateTime? endDate,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            const [],
+        fetchRecoveredBreakdown: ({required billIds}) async => {},
+      );
+      expect(billsProvider.hasActiveFilters, isFalse);
+
+      await pumpBillsListScreen(
+        tester,
+        billsProvider: billsProvider,
+        configProvider: signedInConfigProvider(),
+        categoriesProvider: CategoriesProvider(
+            fetchCategories: ({required householdId}) async => []),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.filter_list));
+      await tester.pumpAndSettle();
+
+      // No filter active yet, so the field shows the "any date" placeholder
+      // and a calendar icon rather than a clear button.
+      expect(find.text('Any date'), findsOneWidget);
+      expect(find.byIcon(Icons.calendar_today), findsOneWidget);
+
+      // Tapping anywhere in the field's InputDecorator (the calendar icon
+      // included, since a plain Icon doesn't absorb the tap) hits the
+      // InkWell wrapping it and opens showDateRangePicker.
+      await tester.tap(find.byIcon(Icons.calendar_today));
+      await tester.pumpAndSettle();
+
+      // With no active filter, _pickDateRange seeds the picker with
+      // today for both ends of the range - confirm that suggestion as-is,
+      // without picking a different day, by tapping the dialog's "Save"
+      // action (matched case-insensitively: Flutter's Material
+      // localizations capitalize it as "Save").
+      final saveButton = find.byWidgetPredicate(
+          (widget) => widget is Text && widget.data?.toLowerCase() == 'save');
+      expect(saveButton, findsOneWidget);
+      await tester.tap(saveButton);
+      await tester.pumpAndSettle();
+
+      final today = DateTime.now();
+      expect(billsProvider.filterStartDate, isNotNull);
+      expect(billsProvider.filterStartDate!.year, today.year);
+      expect(billsProvider.filterStartDate!.month, today.month);
+      expect(billsProvider.filterStartDate!.day, today.day);
+      // Same day for both ends (an exact-date search), since the dialog was
+      // confirmed without changing the suggested range.
+      expect(billsProvider.filterEndDate, billsProvider.filterStartDate);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   test(
@@ -303,5 +406,13 @@ void main() {
       AppLocalizationsFr().noBillsMatchFilters,
       'Aucune facture ne correspond à vos filtres',
     );
+  });
+
+  test(
+      'AppLocalizationsFr provides French translations for the date-range '
+      'filter (no widget test exercises the fr locale, so this covers the '
+      'getters directly)', () {
+    expect(AppLocalizationsFr().filterByDateRange, 'Plage de dates');
+    expect(AppLocalizationsFr().anyDate, 'Toutes les dates');
   });
 }

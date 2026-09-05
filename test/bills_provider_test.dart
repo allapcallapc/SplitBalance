@@ -97,6 +97,35 @@ void main() {
 
       expect(provider.error, contains('Failed to load bills'));
     });
+
+    test(
+        'omitting fetchBillsPage falls through to the real default, which '
+        'applies the date-range filter before the network call fails',
+        () async {
+      // No fetchBillsPage override, so this exercises
+      // _defaultFetchBillsPage's own startDate/endDate handling (the
+      // .gte()/.lte() query builder calls run synchronously before the
+      // network await, so they execute - and this assertion is reachable -
+      // even though the request itself then fails against the fake
+      // project url configured in setUpAll.
+      final provider = BillsProvider(
+        fetchRecoveredBreakdown: ({required billIds}) async => {},
+      );
+
+      await provider.setDateRangeFilter(
+        DateTime(2026, 1, 1),
+        DateTime(2026, 1, 31),
+        ConfigProvider.forTesting(
+          isSignedIn: true,
+          config: AppConfig(
+              householdId: 'household-1',
+              person1Name: 'Alice',
+              person2Name: 'Bob'),
+        ),
+      );
+
+      expect(provider.error, contains('Failed to load bills'));
+    });
   });
 
   group('BillsProvider - sort', () {
