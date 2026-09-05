@@ -715,7 +715,10 @@ class _BillsListScreenState extends State<BillsListScreen>
                                 children: [
                                   const Icon(Icons.edit, size: 20),
                                   const SizedBox(width: 8),
-                                  Text(l10n.edit),
+                                  Flexible(
+                                    child: Text(l10n.edit,
+                                        overflow: TextOverflow.ellipsis),
+                                  ),
                                 ],
                               ),
                               onTap: () {
@@ -745,7 +748,10 @@ class _BillsListScreenState extends State<BillsListScreen>
                                   const Icon(Icons.currency_exchange,
                                       size: 20),
                                   const SizedBox(width: 8),
-                                  Text(l10n.recoveredAmounts),
+                                  Flexible(
+                                    child: Text(l10n.recoveredAmounts,
+                                        overflow: TextOverflow.ellipsis),
+                                  ),
                                 ],
                               ),
                               onTap: () {
@@ -792,9 +798,12 @@ class _BillsListScreenState extends State<BillsListScreen>
                                   const Icon(Icons.delete,
                                       size: 20, color: Colors.red),
                                   const SizedBox(width: 8),
-                                  Text(l10n.delete,
-                                      style:
-                                          const TextStyle(color: Colors.red)),
+                                  Flexible(
+                                    child: Text(l10n.delete,
+                                        style: const TextStyle(
+                                            color: Colors.red),
+                                        overflow: TextOverflow.ellipsis),
+                                  ),
                                 ],
                               ),
                               onTap: () {
