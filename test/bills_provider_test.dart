@@ -283,6 +283,45 @@ void main() {
       await provider.setDateRangeFilter(start, end, configProvider);
       expect(fetchCallCount, 1);
     });
+
+    test(
+        'clearFilters is a no-op when every filter (including the date '
+        'range) is already unset', () async {
+      // Unlike the other clearFilters test above (which clears a date
+      // range that was actually set), this leaves every one of
+      // clearFilters' four &&-chained null-checks true, so it's the only
+      // case that reaches (and short-circuit-evaluates) the last one,
+      // _filterEndDate == null, before returning early.
+      var fetchCallCount = 0;
+      final provider = testBillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          DateTime? startDate,
+          DateTime? endDate,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async {
+          fetchCallCount++;
+          return const [];
+        },
+      );
+      expect(provider.hasActiveFilters, isFalse);
+
+      await provider.clearFilters(ConfigProvider.forTesting(
+        isSignedIn: true,
+        config: AppConfig(
+            householdId: 'household-1',
+            person1Name: 'Alice',
+            person2Name: 'Bob'),
+      ));
+
+      expect(fetchCallCount, 0);
+      expect(provider.hasActiveFilters, isFalse);
+    });
   });
 
   group('BillsProvider - request id guard', () {

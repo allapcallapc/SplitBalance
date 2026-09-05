@@ -396,6 +396,63 @@ void main() {
       expect(billsProvider.filterEndDate, billsProvider.filterStartDate);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets(
+        'tapping the date range field while a filter is already active '
+        'seeds the picker with that range, and confirming it as-is keeps '
+        'the filter unchanged', (tester) async {
+      final configProvider = signedInConfigProvider();
+      final billsProvider = BillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          DateTime? startDate,
+          DateTime? endDate,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            const [],
+        fetchRecoveredBreakdown: ({required billIds}) async => {},
+      );
+      final activeDate = DateTime(2026, 1, 15);
+      await billsProvider.setDateRangeFilter(
+          activeDate, activeDate, configProvider);
+
+      await pumpBillsListScreen(
+        tester,
+        billsProvider: billsProvider,
+        configProvider: configProvider,
+        categoriesProvider: CategoriesProvider(
+            fetchCategories: ({required householdId}) async => []),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.filter_list));
+      await tester.pumpAndSettle();
+
+      // A filter is already active, so the field shows the formatted date
+      // (not the "Any date" placeholder) and a clear button rather than a
+      // calendar icon - tap the date text itself to open the picker, since
+      // that still lands inside the InkWell wrapping the whole field.
+      expect(find.text('2026-01-15'), findsOneWidget);
+      await tester.tap(find.text('2026-01-15'));
+      await tester.pumpAndSettle();
+
+      // _pickDateRange seeds the picker from the already-active filter in
+      // this case (rather than today) - confirm that suggestion as-is.
+      final saveButton = find.byWidgetPredicate(
+          (widget) => widget is Text && widget.data?.toLowerCase() == 'save');
+      expect(saveButton, findsOneWidget);
+      await tester.tap(saveButton);
+      await tester.pumpAndSettle();
+
+      expect(billsProvider.filterStartDate, activeDate);
+      expect(billsProvider.filterEndDate, activeDate);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   test(
