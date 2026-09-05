@@ -271,6 +271,42 @@ void main() {
     expect(deletedId, 'bill-1');
   });
 
+  testWidgets('tapping Cancel on the delete confirmation leaves the bill in '
+      'place', (tester) async {
+    String? deletedId;
+    final billsProvider = BillsProvider(
+      deleteBillRow: (id) async => deletedId = id,
+    );
+    final duplicateBillsProvider = DuplicateBillsProvider(
+      service: DuplicateBillsService(
+        fetchHouseholdBillRows: ({required householdId}) async => [
+          billRow('bill-1', '2026-01-01', amount: 50.0),
+          billRow('bill-2', '2026-01-01', amount: 50.0),
+        ],
+      ),
+    );
+
+    await pumpDuplicateBillsScreen(
+      tester,
+      configProvider: signedInConfigProvider(),
+      duplicateBillsProvider: duplicateBillsProvider,
+      billsProvider: billsProvider,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.delete).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delete Bill'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(deletedId, isNull);
+    expect(find.text('Delete Bill'), findsNothing);
+  });
+
   testWidgets(
       'a delete failure shows the provider\'s error and leaves the group in '
       'place', (tester) async {
