@@ -436,7 +436,8 @@ void main() {
 
     testWidgets(
         'shows a duplicate-bills banner with the count, and "Review" opens '
-        'DuplicateBillsScreen', (tester) async {
+        'DuplicateBillsScreen and reloads on return', (tester) async {
+      var billsFetchCount = 0;
       final duplicateBillsProvider = DuplicateBillsProvider(
         service: DuplicateBillsService(
           fetchHouseholdBillRows: ({required householdId}) async => [
@@ -459,8 +460,10 @@ void main() {
             required bool sortAscending,
             required int offset,
             required int limit,
-          }) async =>
-              const [],
+          }) async {
+            billsFetchCount++;
+            return const [];
+          },
           fetchRecoveredBreakdown: ({required billIds}) async => {},
         ),
         configProvider: signedInConfigProvider(),
@@ -479,6 +482,16 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.byType(DuplicateBillsScreen), findsOneWidget);
+
+      final fetchesBeforeReturn = billsFetchCount;
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(DuplicateBillsScreen), findsNothing);
+      // Returning from the Duplicate Bills screen must reload the bills
+      // list, in case something was edited/deleted from there.
+      expect(billsFetchCount, greaterThan(fetchesBeforeReturn));
     });
 
     testWidgets(

@@ -34,6 +34,7 @@ Map<String, dynamic> billRow(
   double amount = 10.0,
   String paidBy = 'Alice',
   String category = 'Groceries',
+  String details = '',
 }) {
   return {
     'id': id,
@@ -41,7 +42,7 @@ Map<String, dynamic> billRow(
     'amount': amount,
     'paid_by': paidBy,
     'category': category,
-    'details': '',
+    'details': details,
   };
 }
 
@@ -110,7 +111,10 @@ void main() {
       service: DuplicateBillsService(
         fetchHouseholdBillRows: ({required householdId}) async => [
           billRow('bill-1', '2026-01-01',
-              amount: 50.0, paidBy: 'Alice', category: 'Rent'),
+              amount: 50.0,
+              paidBy: 'Alice',
+              category: 'Rent',
+              details: 'January rent'),
           billRow('bill-2', '2026-01-01',
               amount: 50.0, paidBy: 'Bob', category: 'Utilities'),
         ],
@@ -131,15 +135,46 @@ void main() {
     expect(find.text('Paid by: Bob'), findsOneWidget);
     expect(find.text('Category: Rent'), findsOneWidget);
     expect(find.text('Category: Utilities'), findsOneWidget);
+    // Bill-1's non-empty details render as an extra line on its card.
+    expect(find.text('January rent'), findsOneWidget);
   });
 
-  testWidgets('tapping edit on a bill opens AddEditBillScreen', (tester) async {
+  testWidgets(
+      'tapping edit on a bill opens AddEditBillScreen, and saving it reloads '
+      'duplicate detection', (tester) async {
+    var duplicatesFetchCount = 0;
+    final billsProvider = BillsProvider(
+      updateBillRow: (id, data) async => {'id': id, ...data},
+      fetchBillsPage: ({
+        required String householdId,
+        String? paidBy,
+        String? category,
+        DateTime? startDate,
+        DateTime? endDate,
+        required BillSortField sortField,
+        required bool sortAscending,
+        required int offset,
+        required int limit,
+      }) async =>
+          [],
+      fetchRecoveredBreakdown: ({required billIds}) async => {},
+    );
     final duplicateBillsProvider = DuplicateBillsProvider(
       service: DuplicateBillsService(
-        fetchHouseholdBillRows: ({required householdId}) async => [
-          billRow('bill-1', '2026-01-01', amount: 50.0),
-          billRow('bill-2', '2026-01-01', amount: 50.0),
-        ],
+        fetchHouseholdBillRows: ({required householdId}) async {
+          duplicatesFetchCount++;
+          return [
+            billRow('bill-1', '2026-01-01', amount: 50.0),
+            billRow('bill-2', '2026-01-01', amount: 50.0),
+          ];
+        },
+        fetchMatchingBillRows: ({
+          required householdId,
+          required date,
+          required amount,
+          excludeId,
+        }) async =>
+            [],
       ),
     );
 
@@ -147,16 +182,28 @@ void main() {
       tester,
       configProvider: signedInConfigProvider(),
       duplicateBillsProvider: duplicateBillsProvider,
+      billsProvider: billsProvider,
       categoriesProvider:
           CategoriesProvider(fetchCategories: ({required householdId}) async => []),
     );
     await tester.pumpAndSettle();
+
+    final fetchesBeforeEdit = duplicatesFetchCount;
+    expect(fetchesBeforeEdit, greaterThan(0));
 
     await tester.tap(find.byIcon(Icons.edit).first);
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
     expect(find.byType(AddEditBillScreen), findsOneWidget);
+
+    await tester.tap(find.text('Save Bill'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(AddEditBillScreen), findsNothing);
+    // Saving the edited bill must re-trigger duplicate detection.
+    expect(duplicatesFetchCount, greaterThan(fetchesBeforeEdit));
   });
 
   testWidgets(
