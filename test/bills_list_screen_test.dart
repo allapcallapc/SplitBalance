@@ -23,6 +23,7 @@ import 'package:splitbalance/models/app_config.dart';
 import 'package:splitbalance/providers/bills_provider.dart';
 import 'package:splitbalance/providers/categories_provider.dart';
 import 'package:splitbalance/providers/config_provider.dart';
+import 'package:splitbalance/providers/duplicate_bills_provider.dart';
 import 'package:splitbalance/providers/pending_payments_provider.dart';
 import 'package:splitbalance/providers/recovered_amounts_provider.dart';
 import 'package:splitbalance/screens/bill_recovered_amounts_screen.dart';
@@ -34,6 +35,7 @@ Future<void> pumpBillsListScreen(
   ConfigProvider? configProvider,
   CategoriesProvider? categoriesProvider,
   RecoveredAmountsProvider? recoveredAmountsProvider,
+  DuplicateBillsProvider? duplicateBillsProvider,
 }) async {
   await tester.pumpWidget(
     MultiProvider(
@@ -42,6 +44,8 @@ Future<void> pumpBillsListScreen(
         ChangeNotifierProvider.value(
             value: categoriesProvider ?? CategoriesProvider()),
         ChangeNotifierProvider(create: (_) => PendingPaymentsProvider()),
+        ChangeNotifierProvider.value(
+            value: duplicateBillsProvider ?? DuplicateBillsProvider()),
         ChangeNotifierProvider.value(value: billsProvider),
         ChangeNotifierProvider.value(
             value: recoveredAmountsProvider ?? RecoveredAmountsProvider()),

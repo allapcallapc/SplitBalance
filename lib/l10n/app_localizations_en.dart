@@ -701,4 +701,29 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get originalAmount => 'Original amount';
+
+  @override
+  String get possibleDuplicateBillTitle => 'Possible Duplicate Bill';
+
+  @override
+  String get possibleDuplicateBillMessage =>
+      'A bill with the same date and amount already exists:';
+
+  @override
+  String get saveAnyway => 'Save Anyway';
+
+  @override
+  String duplicateBillsBannerMessage(int count) {
+    return '$count potential duplicate bill(s) found';
+  }
+
+  @override
+  String get duplicateBills => 'Duplicate Bills';
+
+  @override
+  String get noDuplicateBills => 'No duplicate bills found';
+
+  @override
+  String get noDuplicateBillsMessage =>
+      'Bills with the same date and amount will show up here for you to review.';
 }

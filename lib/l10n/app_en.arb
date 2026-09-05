@@ -942,5 +942,38 @@
   "originalAmount": "Original amount",
   "@originalAmount": {
     "description": "Label for a bill's amount before any recovered amounts are subtracted"
+  },
+  "possibleDuplicateBillTitle": "Possible Duplicate Bill",
+  "@possibleDuplicateBillTitle": {
+    "description": "Title for the dialog warning that a bill with the same date and amount already exists"
+  },
+  "possibleDuplicateBillMessage": "A bill with the same date and amount already exists:",
+  "@possibleDuplicateBillMessage": {
+    "description": "Explanation shown above the conflicting bill(s) in the duplicate-bill confirmation dialog"
+  },
+  "saveAnyway": "Save Anyway",
+  "@saveAnyway": {
+    "description": "Button label to save a bill despite a potential duplicate warning"
+  },
+  "duplicateBillsBannerMessage": "{count} potential duplicate bill(s) found",
+  "@duplicateBillsBannerMessage": {
+    "description": "Banner message showing count of bills that are potential duplicates",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "duplicateBills": "Duplicate Bills",
+  "@duplicateBills": {
+    "description": "Title for the duplicate bills review screen"
+  },
+  "noDuplicateBills": "No duplicate bills found",
+  "@noDuplicateBills": {
+    "description": "Message when there are no potential duplicate bills"
+  },
+  "noDuplicateBillsMessage": "Bills with the same date and amount will show up here for you to review.",
+  "@noDuplicateBillsMessage": {
+    "description": "Explanation shown when the duplicate bills queue is empty"
   }
 }
