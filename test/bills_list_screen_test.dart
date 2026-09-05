@@ -337,6 +337,66 @@ void main() {
           isTrue);
     });
 
+    testWidgets('deleting a bill also reloads duplicate-bill detection',
+        (tester) async {
+      String? deletedId;
+      var duplicatesFetchCount = 0;
+      final billsProvider = BillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          DateTime? startDate,
+          DateTime? endDate,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            [billRow('bill-1', '2026-01-01', amount: 40.0)],
+        fetchRecoveredBreakdown: ({required billIds}) async => {},
+        deleteBillRow: (id) async => deletedId = id,
+      );
+      final duplicateBillsProvider = DuplicateBillsProvider(
+        service: DuplicateBillsService(
+          fetchHouseholdBillRows: ({required householdId}) async {
+            duplicatesFetchCount++;
+            return [];
+          },
+        ),
+      );
+
+      await pumpBillsListScreen(
+        tester,
+        billsProvider: billsProvider,
+        configProvider: signedInConfigProvider(),
+        categoriesProvider: CategoriesProvider(
+            fetchCategories: ({required householdId}) async => []),
+        duplicateBillsProvider: duplicateBillsProvider,
+      );
+      await tester.pumpAndSettle();
+
+      // The initial _loadData() already triggered one duplicate-detection
+      // fetch; deleting the bill below must trigger another.
+      final fetchesBeforeDelete = duplicatesFetchCount;
+      expect(fetchesBeforeDelete, greaterThan(0));
+
+      await tester.tap(find.byType(PopupMenuButton));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
+      // The menu item's onTap fires after a 100ms Future.delayed.
+      await tester.pump(const Duration(milliseconds: 150));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Bill'), findsOneWidget);
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(deletedId, 'bill-1');
+      expect(duplicatesFetchCount, greaterThan(fetchesBeforeDelete));
+    });
+
     testWidgets(
         'shows no duplicate-bills banner when there are no potential '
         'duplicates', (tester) async {
@@ -561,5 +621,24 @@ void main() {
       'getters directly)', () {
     expect(AppLocalizationsFr().filterByDateRange, 'Plage de dates');
     expect(AppLocalizationsFr().anyDate, 'Toutes les dates');
+  });
+
+  test(
+      'AppLocalizationsFr provides French translations for the '
+      'duplicate-bill strings (no widget test exercises the fr locale, so '
+      'this covers the getters directly)', () {
+    final fr = AppLocalizationsFr();
+    expect(fr.possibleDuplicateBillTitle, 'Facture potentiellement en double');
+    expect(fr.possibleDuplicateBillMessage,
+        'Une facture avec la même date et le même montant existe déjà :');
+    expect(fr.saveAnyway, 'Enregistrer quand même');
+    expect(fr.duplicateBillsBannerMessage(3),
+        '3 facture(s) potentiellement en double trouvée(s)');
+    expect(fr.duplicateBills, 'Factures en double');
+    expect(fr.noDuplicateBills, 'Aucune facture en double trouvée');
+    expect(
+        fr.noDuplicateBillsMessage,
+        'Les factures ayant la même date et le même montant apparaîtront '
+        'ici pour que vous puissiez les vérifier.');
   });
 }

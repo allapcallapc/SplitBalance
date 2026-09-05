@@ -55,7 +55,11 @@ class DuplicateBillsProvider with ChangeNotifier {
 
   // Existing bills matching [date]+[amount] in the current household,
   // excluding [excludeId] (the bill being edited, if any) - used by the
-  // Add/Edit Bill screen to block Save behind a confirmation step.
+  // Add/Edit Bill screen to block Save behind a confirmation step. A failed
+  // check fails open (returns no matches) rather than throwing - a network
+  // hiccup in this best-effort check should never block saving the bill
+  // itself, which is called from a plain (non-error-handling) button
+  // onPressed.
   Future<List<Bill>> findMatches({
     required ConfigProvider configProvider,
     required DateTime date,
@@ -64,11 +68,15 @@ class DuplicateBillsProvider with ChangeNotifier {
   }) async {
     final householdId = configProvider.householdId;
     if (!configProvider.isSignedIn || householdId == null) return const [];
-    return _service.findMatches(
-      householdId: householdId,
-      date: date,
-      amount: amount,
-      excludeId: excludeId,
-    );
+    try {
+      return await _service.findMatches(
+        householdId: householdId,
+        date: date,
+        amount: amount,
+        excludeId: excludeId,
+      );
+    } catch (_) {
+      return const [];
+    }
   }
 }

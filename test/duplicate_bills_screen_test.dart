@@ -194,4 +194,65 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(deletedId, 'bill-1');
   });
+
+  testWidgets(
+      'a delete failure shows the provider\'s error and leaves the group in '
+      'place', (tester) async {
+    final billsProvider = BillsProvider(
+      deleteBillRow: (id) async => throw Exception('network error'),
+    );
+    final duplicateBillsProvider = DuplicateBillsProvider(
+      service: DuplicateBillsService(
+        fetchHouseholdBillRows: ({required householdId}) async => [
+          billRow('bill-1', '2026-01-01', amount: 50.0),
+          billRow('bill-2', '2026-01-01', amount: 50.0),
+        ],
+      ),
+    );
+
+    await pumpDuplicateBillsScreen(
+      tester,
+      configProvider: signedInConfigProvider(),
+      duplicateBillsProvider: duplicateBillsProvider,
+      billsProvider: billsProvider,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.delete).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Failed to delete bill: Exception: network error'),
+        findsOneWidget);
+  });
+
+  testWidgets('the refresh button reloads duplicate groups', (tester) async {
+    var fetchCount = 0;
+    final duplicateBillsProvider = DuplicateBillsProvider(
+      service: DuplicateBillsService(
+        fetchHouseholdBillRows: ({required householdId}) async {
+          fetchCount++;
+          return [];
+        },
+      ),
+    );
+
+    await pumpDuplicateBillsScreen(
+      tester,
+      configProvider: signedInConfigProvider(),
+      duplicateBillsProvider: duplicateBillsProvider,
+    );
+    await tester.pumpAndSettle();
+
+    final fetchesAfterInitialLoad = fetchCount;
+    expect(fetchesAfterInitialLoad, greaterThan(0));
+
+    await tester.tap(find.byIcon(Icons.refresh));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(fetchCount, greaterThan(fetchesAfterInitialLoad));
+  });
 }
