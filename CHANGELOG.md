@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.4.0](https://github.com/allapcallapc/SplitBalance/compare/v3.3.0...v3.4.0) (2026-09-05)
+
+
+### Features
+
+* make all built-in Material icons available for categories ([#80](https://github.com/allapcallapc/SplitBalance/issues/80)) ([42e99aa](https://github.com/allapcallapc/SplitBalance/commit/42e99aa1424bf665a368cc25333a032b1ebc46d8))
+* ping staging Supabase on a schedule to prevent auto-pause ([ed2d382](https://github.com/allapcallapc/SplitBalance/commit/ed2d3821a03e5b52044175eac01494d599cf5856))
+* search bills by date or date range on the bills list ([#78](https://github.com/allapcallapc/SplitBalance/issues/78)) ([f8d4486](https://github.com/allapcallapc/SplitBalance/commit/f8d4486ae4fe8cbdff2fab632565d5a69f7084f6))
+
 ## [3.3.0](https://github.com/allapcallapc/SplitBalance/compare/v3.2.0...v3.3.0) (2026-09-05)
 
 
