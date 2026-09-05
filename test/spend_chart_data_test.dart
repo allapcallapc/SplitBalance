@@ -83,21 +83,70 @@ void main() {
       expect(computeMonthlySpend([], person1, person2), isEmpty);
     });
 
-    test('buckets by netAmount, not amount, when a bill has a recovered '
-        'amount', () {
+    test(
+        'nets a recovered amount against the payer\'s own bucket when they '
+        'received it themselves (the common case)', () {
       final bills = [
         Bill(
             date: DateTime(2024, 1, 5),
             amount: 100.0,
             paidBy: person1,
             category: 'Food',
-            recoveredAmount: 40.0),
+            recoveredAmount: 40.0,
+            recoveredByReceiver: {person1: 40.0}),
       ];
 
       final months = computeMonthlySpend(bills, person1, person2);
 
       expect(months, hasLength(1));
       expect(months.single.person1Amount, 60.0);
+      expect(months.single.person2Amount, 0.0);
+    });
+
+    test(
+        'credits a recovered amount to whoever actually received it, not '
+        'the bill\'s payer, matching AggregatedCalculationService\'s '
+        'balance math', () {
+      // Alice pays $100, but Bob is the one who gets $50 back - Bob's
+      // bucket should be pulled down by that $50 (he's holding money that
+      // belongs against Alice's outlay), while Alice's stays at her full
+      // $100 outlay. Net household total is still 50.
+      final bills = [
+        Bill(
+            date: DateTime(2024, 1, 5),
+            amount: 100.0,
+            paidBy: person1,
+            category: 'Food',
+            recoveredAmount: 50.0,
+            recoveredByReceiver: {person2: 50.0}),
+      ];
+
+      final months = computeMonthlySpend(bills, person1, person2);
+
+      expect(months, hasLength(1));
+      expect(months.single.person1Amount, 100.0);
+      expect(months.single.person2Amount, -50.0);
+      expect(months.single.total, 50.0);
+    });
+
+    test('sums recovered amounts split across both receivers on the same '
+        'bill', () {
+      final bills = [
+        Bill(
+            date: DateTime(2024, 1, 5),
+            amount: 100.0,
+            paidBy: person1,
+            category: 'Food',
+            recoveredAmount: 50.0,
+            recoveredByReceiver: {person1: 30.0, person2: 20.0}),
+      ];
+
+      final months = computeMonthlySpend(bills, person1, person2);
+
+      expect(months, hasLength(1));
+      expect(months.single.person1Amount, 70.0); // 100 - 30
+      expect(months.single.person2Amount, -20.0);
+      expect(months.single.total, 50.0);
     });
   });
 

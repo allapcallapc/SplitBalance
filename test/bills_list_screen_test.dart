@@ -151,8 +151,9 @@ void main() {
               billRow('plain', '2026-01-01', amount: 50.0),
               billRow('recovered', '2026-01-02', amount: 100.0),
             ],
-        fetchRecoveredTotals: ({required billIds}) async =>
-            {'recovered': 30.0},
+        fetchRecoveredBreakdown: ({required billIds}) async => {
+          'recovered': {'Alice': 30.0},
+        },
       );
 
       await pumpBillsListScreen(
@@ -184,7 +185,7 @@ void main() {
           required int limit,
         }) async =>
             [billRow('bill-1', '2026-01-01', amount: 80.0)],
-        fetchRecoveredTotals: ({required billIds}) async => {},
+        fetchRecoveredBreakdown: ({required billIds}) async => {},
       );
 
       await pumpBillsListScreen(

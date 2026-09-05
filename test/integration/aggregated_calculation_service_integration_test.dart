@@ -627,7 +627,7 @@ void main() {
       'BillsProvider pages through more than max_rows worth of '
       'recovered amounts on a single bill without truncating the total',
       () async {
-        // _defaultFetchRecoveredTotals pages in chunks of 1000 - this seeds
+        // _defaultFetchRecoveredBreakdown pages in chunks of 1000 - this seeds
         // more than that for one bill so the "page came back full, fetch the
         // next one" branch (rows.length == chunkSize, so keep going instead
         // of breaking) actually runs, the same way the existing "more bills
@@ -789,6 +789,62 @@ void main() {
       expect(months, hasLength(1));
       expect(months.single.total, closeTo(50.0, 0.01)); // 100 - 50, not 100
       expect(months.single.person1Amount, closeTo(50.0, 0.01));
+    });
+
+    // Companion to the test above, and to the reimbursement-received-by-
+    // the-other-person AggregatedCalculationService test further up this
+    // file: proves computeMonthlySpend agrees with the Summary screen's
+    // balance for the exact same bill, rather than always crediting the
+    // reduction to the payer regardless of who actually received it.
+    test('a recovered amount received by the *other* person is reflected '
+        'in computeMonthlySpend the same way it shifts the balance',
+        () async {
+      final householdId = await seedHousehold(
+        categoryRows: [
+          {'name': 'Food'},
+        ],
+        billRows: [
+          {
+            'date': '2024-01-15',
+            'amount': 100.0,
+            'paid_by': 'Alice',
+            'category': 'Food',
+          },
+        ],
+        splitRows: const [],
+      );
+      final bill =
+          await admin.from('bills').select().eq('household_id', householdId).single();
+      await admin.from('bill_recovered_amounts').insert({
+        'household_id': householdId,
+        'bill_id': bill['id'],
+        'date': '2024-01-20',
+        'amount': 50.0,
+        'received_by': 'Bob',
+      });
+
+      final billsProvider = BillsProvider();
+      final configProvider = ConfigProvider.forTesting(
+        isSignedIn: true,
+        config: AppConfig(
+          householdId: householdId,
+          person1Name: 'Alice',
+          person2Name: 'Bob',
+        ),
+      );
+
+      await billsProvider.loadAllBills(configProvider);
+
+      final months = computeMonthlySpend(
+          billsProvider.allBills, 'Alice', 'Bob');
+
+      expect(months, hasLength(1));
+      // Net household cost is still 50, but attributed like the balance
+      // calc: Alice's full $100 outlay, Bob's total pulled to -$50 by the
+      // money he received (not $0, and not $50 that Alice never saw back).
+      expect(months.single.total, closeTo(50.0, 0.01));
+      expect(months.single.person1Amount, closeTo(100.0, 0.01));
+      expect(months.single.person2Amount, closeTo(-50.0, 0.01));
     });
 
     test('RecoveredAmountsProvider add/load/delete round-trips through the '

@@ -18,6 +18,15 @@ class Bill {
   // bill_recovered_amounts.received_by directly, gets that case right (see
   // its calculateBalances doc comment).
   final double recoveredAmount;
+  // Per-receiver breakdown of this bill's recovered amounts (receivedBy ->
+  // total) - unlike [recoveredAmount], which always nets against [paidBy]
+  // regardless of who actually received the money. Needed for spend-chart
+  // attribution (see computeMonthlySpend), which - like
+  // AggregatedCalculationService, and unlike [netAmount]/[recoveredAmount]
+  // - has to credit the reduction to the actual receiver. Not a `bills`
+  // column; populated the same way [recoveredAmount] is (see
+  // BillsProvider._withRecoveredTotals).
+  final Map<String, double> recoveredByReceiver;
 
   Bill({
     this.id,
@@ -27,6 +36,7 @@ class Bill {
     required this.category,
     this.details = '',
     this.recoveredAmount = 0,
+    this.recoveredByReceiver = const {},
   });
 
   // What this bill "really" cost after subtracting anything recovered
@@ -115,6 +125,7 @@ class Bill {
     String? category,
     String? details,
     double? recoveredAmount,
+    Map<String, double>? recoveredByReceiver,
   }) {
     return Bill(
       id: id ?? this.id,
@@ -124,6 +135,7 @@ class Bill {
       category: category ?? this.category,
       details: details ?? this.details,
       recoveredAmount: recoveredAmount ?? this.recoveredAmount,
+      recoveredByReceiver: recoveredByReceiver ?? this.recoveredByReceiver,
     );
   }
 }

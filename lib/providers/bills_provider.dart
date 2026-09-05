@@ -35,12 +35,16 @@ typedef UpdateBillRow = Future<Map<String, dynamic>> Function(
 // Deletes the row with the given id.
 typedef DeleteBillRow = Future<void> Function(String id);
 
-// Sums bill_recovered_amounts.amount for each of [billIds], keyed by bill
-// id. Bills with nothing recovered are simply absent from the result
-// (treated as 0 by the caller) rather than present with a 0 entry.
-typedef FetchRecoveredTotals = Future<Map<String, double>> Function({
-  required List<String> billIds,
-});
+// Sums bill_recovered_amounts.amount for each of [billIds], grouped by who
+// received it: bill_id -> {receivedBy -> total}. Bills/receivers with
+// nothing recovered are simply absent from the result (treated as 0 by the
+// caller) rather than present with a 0 entry. The per-receiver breakdown
+// (not just a flat per-bill total) is what lets spend-chart attribution
+// (see computeMonthlySpend) credit the reduction to whoever actually
+// received the money, matching AggregatedCalculationService's balance math
+// instead of always netting it against the bill's own paidBy.
+typedef FetchRecoveredBreakdown = Future<Map<String, Map<String, double>>>
+    Function({required List<String> billIds});
 
 class BillsProvider with ChangeNotifier {
   BillsProvider({
@@ -48,13 +52,13 @@ class BillsProvider with ChangeNotifier {
     InsertBillRow? insertBillRow,
     UpdateBillRow? updateBillRow,
     DeleteBillRow? deleteBillRow,
-    FetchRecoveredTotals? fetchRecoveredTotals,
+    FetchRecoveredBreakdown? fetchRecoveredBreakdown,
   })  : _fetchBillsPage = fetchBillsPage ?? _defaultFetchBillsPage,
         _insertBillRow = insertBillRow ?? _defaultInsertBillRow,
         _updateBillRow = updateBillRow ?? _defaultUpdateBillRow,
         _deleteBillRow = deleteBillRow ?? _defaultDeleteBillRow,
-        _fetchRecoveredTotals =
-            fetchRecoveredTotals ?? _defaultFetchRecoveredTotals;
+        _fetchRecoveredBreakdown =
+            fetchRecoveredBreakdown ?? _defaultFetchRecoveredBreakdown;
 
   static const int pageSize = 25;
 
@@ -62,7 +66,7 @@ class BillsProvider with ChangeNotifier {
   final InsertBillRow _insertBillRow;
   final UpdateBillRow _updateBillRow;
   final DeleteBillRow _deleteBillRow;
-  final FetchRecoveredTotals _fetchRecoveredTotals;
+  final FetchRecoveredBreakdown _fetchRecoveredBreakdown;
 
   // Paginated, server-filtered bills backing the bills list screen.
   final List<Bill> _bills = [];
@@ -228,7 +232,8 @@ class BillsProvider with ChangeNotifier {
     await Supabase.instance.client.from('bills').delete().eq('id', id);
   }
 
-  static Future<Map<String, double>> _defaultFetchRecoveredTotals({
+  static Future<Map<String, Map<String, double>>>
+      _defaultFetchRecoveredBreakdown({
     required List<String> billIds,
   }) async {
     if (billIds.isEmpty) return {};
@@ -237,33 +242,42 @@ class BillsProvider with ChangeNotifier {
     // AggregatedCalculationService._sumAmounts), in case a household's
     // full bill set (loadAllBills) pushes this past PostgREST's max_rows
     // cap.
-    return pageAndReduce<Map<String, double>>(
+    return pageAndReduce<Map<String, Map<String, double>>>(
       buildQuery: () => Supabase.instance.client
           .from('bill_recovered_amounts')
-          .select('bill_id, amount')
+          .select('bill_id, received_by, amount')
           .inFilter('bill_id', billIds),
-      initial: <String, double>{},
-      reduce: (totals, row) {
+      initial: <String, Map<String, double>>{},
+      reduce: (byBill, row) {
         final billId = row['bill_id'] as String;
-        totals[billId] =
-            (totals[billId] ?? 0) + (row['amount'] as num).toDouble();
-        return totals;
+        final receivedBy = row['received_by'] as String;
+        final amount = (row['amount'] as num).toDouble();
+        final byReceiver = byBill.putIfAbsent(billId, () => <String, double>{});
+        byReceiver[receivedBy] = (byReceiver[receivedBy] ?? 0) + amount;
+        return byBill;
       },
     );
   }
 
+  static double _sumRecovered(Map<String, double>? byReceiver) =>
+      byReceiver == null ? 0 : byReceiver.values.fold(0.0, (a, b) => a + b);
+
   // Fetches recovered totals for [bills] and returns them with
-  // recoveredAmount populated, for display (list badges, category/summary
-  // charts) - not consulted by balance calculations, which subtract
-  // recovered amounts at the query level (see AggregatedCalculationService).
+  // recoveredAmount/recoveredByReceiver populated, for display (list
+  // badges, category/summary charts) - not consulted by balance
+  // calculations, which subtract recovered amounts at the query level (see
+  // AggregatedCalculationService).
   Future<List<Bill>> _withRecoveredTotals(List<Bill> bills) async {
     final ids = [for (final b in bills) if (b.id != null) b.id!];
     if (ids.isEmpty) return bills;
-    final totals = await _fetchRecoveredTotals(billIds: ids);
-    if (totals.isEmpty) return bills;
+    final breakdown = await _fetchRecoveredBreakdown(billIds: ids);
+    if (breakdown.isEmpty) return bills;
     return [
       for (final bill in bills)
-        bill.copyWith(recoveredAmount: totals[bill.id] ?? 0),
+        bill.copyWith(
+          recoveredAmount: _sumRecovered(breakdown[bill.id]),
+          recoveredByReceiver: breakdown[bill.id] ?? const {},
+        ),
     ];
   }
 
@@ -537,9 +551,11 @@ class BillsProvider with ChangeNotifier {
       // stale relative to a recovered amount added/deleted elsewhere
       // (another device, or a screen that skipped a refetch via
       // hasLoadedAllBillsForHousehold).
-      final recoveredTotals = await _fetchRecoveredTotals(billIds: [id]);
-      saved =
-          Bill.fromMap(row).copyWith(recoveredAmount: recoveredTotals[id] ?? 0);
+      final breakdown = await _fetchRecoveredBreakdown(billIds: [id]);
+      saved = Bill.fromMap(row).copyWith(
+        recoveredAmount: _sumRecovered(breakdown[id]),
+        recoveredByReceiver: breakdown[id] ?? const {},
+      );
     } catch (e) {
       _error = 'Failed to update bill: $e';
       _isLoading = false;

@@ -113,4 +113,46 @@ void main() {
       expect(bill.toMap().containsKey('recovered_amount'), isFalse);
     });
   });
+
+  group('Bill - recoveredByReceiver', () {
+    test('defaults to empty', () {
+      final bill = Bill(
+        date: DateTime(2024, 1, 1),
+        amount: 100.0,
+        paidBy: 'Alice',
+        category: 'Food',
+      );
+
+      expect(bill.recoveredByReceiver, isEmpty);
+    });
+
+    test('copyWith preserves it when not overridden', () {
+      final bill = Bill(
+        date: DateTime(2024, 1, 1),
+        amount: 100.0,
+        paidBy: 'Alice',
+        category: 'Food',
+        recoveredByReceiver: const {'Alice': 20.0},
+      );
+
+      final copy = bill.copyWith(amount: 120.0);
+
+      expect(copy.recoveredByReceiver, {'Alice': 20.0});
+    });
+
+    test('copyWith overrides it when explicitly passed', () {
+      final bill = Bill(
+        date: DateTime(2024, 1, 1),
+        amount: 100.0,
+        paidBy: 'Alice',
+        category: 'Food',
+        recoveredByReceiver: const {'Alice': 20.0},
+      );
+
+      final copy =
+          bill.copyWith(recoveredByReceiver: const {'Bob': 5.0});
+
+      expect(copy.recoveredByReceiver, {'Bob': 5.0});
+    });
+  });
 }
