@@ -475,6 +475,47 @@ void main() {
       expect(capturedInsert!['received_by'], 'Bob');
     });
 
+    testWidgets(
+        'falls back to person1Name when the bill\'s payer no longer '
+        'matches a configured household member and no signed-in member '
+        'name is known', (tester) async {
+      Map<String, dynamic>? capturedInsert;
+      final provider = RecoveredAmountsProvider(
+        fetchRecoveredAmountsForBill: ({required billId}) async => [],
+        insertRecoveredAmountRow: (data) async {
+          capturedInsert = data;
+          return recoveredAmountRow('r1', 'bill-1', '2024-01-01',
+              amount: 20.0, receivedBy: 'Alice');
+        },
+      );
+      // paidBy is 'Charlie', as above, but this time no
+      // memberNamesByUserId is configured, so myPersonName is null too -
+      // the default should fall all the way back to person1Name ('Alice').
+      final unmatchedPayerBill = Bill(
+        id: 'bill-1',
+        date: DateTime(2024, 1, 1),
+        amount: 100.0,
+        paidBy: 'Charlie',
+        category: 'Food',
+      );
+
+      await pumpScreen(
+        tester,
+        bill: unmatchedPayerBill,
+        recoveredAmountsProvider: provider,
+      );
+
+      await tester.tap(find.text('Add Recovered Amount'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).first, '20');
+      await tester.tap(find.text('Save Recovered Amount'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(capturedInsert, isNotNull);
+      expect(capturedInsert!['received_by'], 'Alice');
+    });
+
     testWidgets('changing the receiver dropdown updates who gets saved',
         (tester) async {
       Map<String, dynamic>? capturedInsert;
