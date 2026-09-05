@@ -82,12 +82,22 @@ class _BillRecoveredAmountsScreenState
     final amountController = TextEditingController();
     final noteController = TextEditingController();
     DateTime selectedDate = DateTime.now();
-    String? selectedReceivedBy = (configProvider.myPersonName?.isNotEmpty ??
-            false)
-        ? configProvider.myPersonName
-        : (configProvider.config.person1Name.isNotEmpty
-            ? configProvider.config.person1Name
-            : null);
+    // Defaults to whoever paid the bill - the common case is that they're
+    // also the one who gets the money back (a store refund, an insurance
+    // payout on their own outlay, etc). Falls back to the signed-in
+    // member's own name, then person1Name, only if the bill's payer no
+    // longer matches either configured household member (e.g. a rename
+    // since the bill was recorded).
+    final billPayerIsConfigured =
+        widget.bill.paidBy == configProvider.config.person1Name ||
+            widget.bill.paidBy == configProvider.config.person2Name;
+    String? selectedReceivedBy = billPayerIsConfigured
+        ? widget.bill.paidBy
+        : (configProvider.myPersonName?.isNotEmpty ?? false)
+            ? configProvider.myPersonName
+            : (configProvider.config.person1Name.isNotEmpty
+                ? configProvider.config.person1Name
+                : null);
 
     await showModalBottomSheet<void>(
       context: context,

@@ -400,8 +400,39 @@ void main() {
     });
 
     testWidgets(
-        'defaults the receiver to the signed-in member\'s own name when one '
-        'is known', (tester) async {
+        'defaults the receiver to whoever paid the bill', (tester) async {
+      Map<String, dynamic>? capturedInsert;
+      final provider = RecoveredAmountsProvider(
+        fetchRecoveredAmountsForBill: ({required billId}) async => [],
+        insertRecoveredAmountRow: (data) async {
+          capturedInsert = data;
+          return recoveredAmountRow('r1', 'bill-1', '2024-01-01',
+              amount: 20.0, receivedBy: 'Alice');
+        },
+      );
+
+      // `bill` (from the outer main()) is paidBy: 'Alice' - the common case
+      // is that the payer is also the one who gets money back (a store
+      // refund, an insurance payout on their own outlay, etc), so the
+      // receiver dropdown should default to them without the user having
+      // to change it.
+      await pumpScreen(tester, bill: bill, recoveredAmountsProvider: provider);
+
+      await tester.tap(find.text('Add Recovered Amount'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).first, '20');
+      await tester.tap(find.text('Save Recovered Amount'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(capturedInsert, isNotNull);
+      expect(capturedInsert!['received_by'], 'Alice');
+    });
+
+    testWidgets(
+        'falls back to the signed-in member\'s own name when the bill\'s '
+        'payer no longer matches a configured household member',
+        (tester) async {
       Map<String, dynamic>? capturedInsert;
       final provider = RecoveredAmountsProvider(
         fetchRecoveredAmountsForBill: ({required billId}) async => [],
@@ -411,13 +442,22 @@ void main() {
               amount: 20.0, receivedBy: 'Bob');
         },
       );
-
+      // paidBy is 'Charlie' - e.g. a household member who has since been
+      // renamed/replaced - so it can't be used as the dropdown default.
       // 'user-1' (the signed-in id baked into testConfigProvider) maps to
-      // 'Bob' here, so the receiver dropdown should default to 'Bob' rather
-      // than falling back to person1Name ('Alice').
+      // 'Bob' here, so the receiver dropdown should fall back to that
+      // rather than person1Name ('Alice').
+      final unmatchedPayerBill = Bill(
+        id: 'bill-1',
+        date: DateTime(2024, 1, 1),
+        amount: 100.0,
+        paidBy: 'Charlie',
+        category: 'Food',
+      );
+
       await pumpScreen(
         tester,
-        bill: bill,
+        bill: unmatchedPayerBill,
         recoveredAmountsProvider: provider,
         configProvider: testConfigProvider(
           memberNamesByUserId: const {'user-1': 'Bob'},
@@ -453,7 +493,8 @@ void main() {
       await tester.tap(find.text('Add Recovered Amount'));
       await tester.pumpAndSettle();
 
-      // Defaults to 'Alice' (person1Name); open the dropdown and pick 'Bob'.
+      // Defaults to 'Alice' (the bill's payer); open the dropdown and pick
+      // 'Bob' instead.
       await tester.tap(find.byType(DropdownButtonFormField<String>));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Bob').last);
