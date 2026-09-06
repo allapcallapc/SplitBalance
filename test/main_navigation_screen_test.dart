@@ -3,12 +3,13 @@
 // TabIndexStore.load() before deciding which screen to land on, made
 // testable via the tabIndexStore constructor injection point.
 //
-// A fully signed-in-with-household scenario can't be driven here -
-// ConfigProvider talks directly to Supabase.instance.client with no DI seam
-// (same limitation documented in test/summary_screen_test.dart) - so this
-// exercises the not-signed-in path, which still goes through the same
-// `configSettled && categoriesSettled && _tabIndexLoaded` gate and the same
-// TabIndexStore.load() call.
+// Most cases below exercise the not-signed-in path, which still goes through
+// the same `configSettled && categoriesSettled && _tabIndexLoaded` gate and
+// the same TabIndexStore.load() call. The pending-deep-link regression test
+// further down drives a signed-in-with-household scenario via
+// ConfigProvider.forTesting/CategoriesProvider's fetchCategories override
+// (see test/bills_list_screen_test.dart for the same pattern), since that
+// bug only reproduces once isConfigComplete flips true asynchronously.
 
 import 'dart:async';
 
@@ -21,6 +22,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:splitbalance/l10n/app_localizations.dart';
 import 'package:splitbalance/main.dart';
+import 'package:splitbalance/models/app_config.dart';
 import 'package:splitbalance/providers/bills_provider.dart';
 import 'package:splitbalance/providers/calculation_provider.dart';
 import 'package:splitbalance/providers/categories_provider.dart';
@@ -70,14 +72,19 @@ Future<void> pumpMainNavigationScreen(
   WidgetTester tester, {
   required TabIndexStore tabIndexStore,
   TabNavigationProvider? tabNavigationProvider,
+  ConfigProvider? configProvider,
+  CategoriesProvider? categoriesProvider,
+  BillsProvider? billsProvider,
 }) async {
   await tester.pumpWidget(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ConfigProvider()),
-        ChangeNotifierProvider(create: (_) => BillsProvider()),
+        ChangeNotifierProvider.value(value: configProvider ?? ConfigProvider()),
+        ChangeNotifierProvider.value(value: billsProvider ?? BillsProvider()),
         ChangeNotifierProvider(create: (_) => PaymentSplitsProvider()),
-        ChangeNotifierProvider(create: (_) => CategoriesProvider()),
+        ChangeNotifierProvider.value(
+          value: categoriesProvider ?? CategoriesProvider(),
+        ),
         ChangeNotifierProvider(create: (_) => CalculationProvider()),
         ChangeNotifierProvider(create: (_) => PendingPaymentsProvider()),
         ChangeNotifierProvider(create: (_) => DuplicateBillsProvider()),
@@ -193,5 +200,97 @@ void main() {
     expect(store.saveCallCount, 1);
     expect(store.storedIndex, 0);
     expect(tabNavigationProvider.requestedIndex, isNull);
+  });
+
+  testWidgets(
+      'retries the settle-triggered auto-navigation (and so the pending '
+      'deep-link check riding along with it) once config settles '
+      'asynchronously after the first build - regression test for a cold '
+      'start where household/categories were still loading on the first '
+      'check, previously dropping any pending notification deep link for '
+      'the rest of the session', (tester) async {
+    final store = _FakeTabIndexStore();
+    final configProvider = ConfigProvider.forTesting(
+      isSignedIn: true,
+      config: AppConfig(
+        householdId: 'household-1',
+        person1Name: 'Alice',
+        person2Name: 'Bob',
+      ),
+    );
+    // Starts empty so the first settle (once BillsListScreen's initial load
+    // resolves) has isConfigComplete still false - categories only arrive on
+    // the second, explicit loadCategories call below, mirroring a slow
+    // network finishing after the app's first settled build. (Actually
+    // exercising deep-link navigation itself would need
+    // PendingPaymentsProvider.isSupported - platform-gated to Android with
+    // no test seam - so this instead pins down the observable half of the
+    // fix in main.dart: the settle logic retries _checkPendingDeepLink(),
+    // which the diff being covered here schedules via the same branch that
+    // also finally moves off the config screen.)
+    var categoryRows = <Map<String, dynamic>>[];
+    final categoriesProvider = CategoriesProvider(
+      fetchCategories: ({required householdId}) async => categoryRows,
+    );
+    final billsProvider = BillsProvider(
+      fetchBillsPage: ({
+        required String householdId,
+        String? paidBy,
+        String? category,
+        DateTime? startDate,
+        DateTime? endDate,
+        required BillSortField sortField,
+        required bool sortAscending,
+        required int offset,
+        required int limit,
+      }) async =>
+          const [],
+      fetchRecoveredBreakdown: ({required billIds}) async => {},
+    );
+
+    await pumpMainNavigationScreen(
+      tester,
+      tabIndexStore: store,
+      configProvider: configProvider,
+      categoriesProvider: categoriesProvider,
+      billsProvider: billsProvider,
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    // Settled with no categories yet, so isConfigComplete is false: signed
+    // in with a household is enough to show the nav bar (just in the
+    // limited "create categories" mode), but not enough to auto-navigate
+    // off it, so it's still parked on the config tab (index 3). The nav
+    // bar's selectedIndex - rather than which screen is visible - is what
+    // distinguishes this from the post-fix state below, since every screen
+    // in _screens (ConfigScreen included) stays mounted in the IndexedStack
+    // regardless of which one is currently showing.
+    expect(tester.takeException(), isNull);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      3,
+    );
+
+    // Categories finish loading a moment later - isConfigComplete flips true
+    // well after the first settled build, the exact timing this regression
+    // covers. Without the fix, nothing but the (already-spent) first-settle
+    // branch ever moves _selectedIndex, so the nav bar would stay parked on
+    // the config tab forever; with it, the retried settle logic auto-
+    // navigates to Bills (index 0) same as a fresh, fully-configured sign-in
+    // would.
+    categoryRows = [
+      {'id': 'cat-1', 'name': 'Groceries', 'icon': null},
+    ];
+    await categoriesProvider.loadCategories(configProvider);
+    await tester.pump();
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      0,
+    );
   });
 }
