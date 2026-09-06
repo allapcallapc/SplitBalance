@@ -17,6 +17,14 @@ class DuplicateBillsProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
+  // Bumped by every loadDuplicatesForHousehold() call. Lets a call tell
+  // whether it's still the most recent request before applying its
+  // response, so a slow response from an earlier load (e.g. a stale
+  // pre-add-bill fetch resolving after a later delete's fetch already
+  // finished) can't clobber newer state - mirrors BillsProvider's
+  // _requestId pattern.
+  int _requestId = 0;
+
   List<DuplicateBillGroup> get duplicateGroups =>
       List.unmodifiable(_duplicateGroups);
   bool get isLoading => _isLoading;
@@ -39,17 +47,24 @@ class DuplicateBillsProvider with ChangeNotifier {
   // Supabase session.
   @visibleForTesting
   Future<void> loadDuplicatesForHousehold(String householdId) async {
+    final requestId = ++_requestId;
     _isLoading = true;
     notifyListeners();
 
     try {
-      _duplicateGroups = await _service.findDuplicateGroups(householdId);
+      final groups = await _service.findDuplicateGroups(householdId);
+      if (requestId != _requestId) return;
+      _duplicateGroups = groups;
       _error = null;
     } catch (e) {
-      _error = 'Failed to load duplicate bills: $e';
+      if (requestId == _requestId) {
+        _error = 'Failed to load duplicate bills: $e';
+      }
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (requestId == _requestId) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 

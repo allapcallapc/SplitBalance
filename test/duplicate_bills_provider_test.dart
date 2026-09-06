@@ -2,6 +2,8 @@
 // bills_provider_test.dart's style: an injected DuplicateBillsService lets
 // these run without a real signed-in Supabase session.
 
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -153,6 +155,109 @@ void main() {
 
       expect(provider.duplicateGroups, hasLength(2));
       expect(provider.duplicateBillCount, 5);
+    });
+  });
+
+  group('DuplicateBillsProvider - request id guard', () {
+    test('a stale loadDuplicatesForHousehold response is dropped', () async {
+      final completers = <Completer<List<Map<String, dynamic>>>>[];
+      final provider = DuplicateBillsProvider(
+        service: DuplicateBillsService(
+          fetchHouseholdBillRows: ({required householdId}) {
+            final completer = Completer<List<Map<String, dynamic>>>();
+            completers.add(completer);
+            return completer.future;
+          },
+        ),
+      );
+
+      // Simulate a user adding a bill (triggers one load), then quickly
+      // deleting another before the first load's response comes back: two
+      // loadDuplicatesForHousehold() calls in flight.
+      final firstLoad = provider.loadDuplicatesForHousehold('household-1');
+      await Future<void>.delayed(Duration.zero);
+      final secondLoad = provider.loadDuplicatesForHousehold('household-1');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(completers.length, 2);
+
+      // Resolve out of order: the newer (second) request wins the race and
+      // comes back first, then the stale first request resolves after.
+      completers[1].complete([
+        {
+          'id': 'bill-2',
+          'date': '2026-01-02',
+          'amount': 20.0,
+          'paid_by': 'Bob',
+          'category': 'Rent',
+          'details': '',
+        },
+        {
+          'id': 'bill-2b',
+          'date': '2026-01-02',
+          'amount': 20.0,
+          'paid_by': 'Alice',
+          'category': 'Rent',
+          'details': '',
+        },
+      ]);
+      await secondLoad;
+
+      completers[0].complete([
+        {
+          'id': 'bill-1',
+          'date': '2026-01-01',
+          'amount': 10.0,
+          'paid_by': 'Alice',
+          'category': 'Groceries',
+          'details': '',
+        },
+        {
+          'id': 'bill-1b',
+          'date': '2026-01-01',
+          'amount': 10.0,
+          'paid_by': 'Bob',
+          'category': 'Groceries',
+          'details': '',
+        },
+      ]);
+      await firstLoad;
+
+      // The stale response must not have clobbered the newer state.
+      expect(provider.duplicateGroups, hasLength(1));
+      expect(provider.duplicateGroups.single.date, DateTime.parse('2026-01-02'));
+      expect(provider.isLoading, isFalse);
+    });
+
+    test('a stale error response does not clobber a newer success',
+        () async {
+      final completers = <Completer<List<Map<String, dynamic>>>>[];
+      final provider = DuplicateBillsProvider(
+        service: DuplicateBillsService(
+          fetchHouseholdBillRows: ({required householdId}) {
+            final completer = Completer<List<Map<String, dynamic>>>();
+            completers.add(completer);
+            return completer.future;
+          },
+        ),
+      );
+
+      final firstLoad = provider.loadDuplicatesForHousehold('household-1');
+      await Future<void>.delayed(Duration.zero);
+      final secondLoad = provider.loadDuplicatesForHousehold('household-1');
+      await Future<void>.delayed(Duration.zero);
+
+      completers[1].complete([]);
+      await secondLoad;
+      expect(provider.error, isNull);
+
+      completers[0].completeError(Exception('stale network error'));
+      await firstLoad;
+
+      // The stale failure must not have overwritten the newer (successful,
+      // error-free) state.
+      expect(provider.error, isNull);
+      expect(provider.duplicateGroups, isEmpty);
     });
   });
 
