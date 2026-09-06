@@ -11,6 +11,7 @@ import 'providers/bills_provider.dart';
 import 'providers/payment_splits_provider.dart';
 import 'providers/categories_provider.dart';
 import 'providers/calculation_provider.dart';
+import 'providers/duplicate_bills_provider.dart';
 import 'providers/pending_payments_provider.dart';
 import 'providers/recovered_amounts_provider.dart';
 import 'providers/tab_navigation_provider.dart';
@@ -187,6 +188,7 @@ class SplitBalanceApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CategoriesProvider()),
         ChangeNotifierProvider(create: (_) => CalculationProvider()),
         ChangeNotifierProvider(create: (_) => PendingPaymentsProvider()),
+        ChangeNotifierProvider(create: (_) => DuplicateBillsProvider()),
         ChangeNotifierProvider(create: (_) => RecoveredAmountsProvider()),
         ChangeNotifierProvider(create: (_) => TabNavigationProvider()),
       ],

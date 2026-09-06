@@ -7,12 +7,15 @@ import '../l10n/app_localizations.dart';
 import '../providers/bills_provider.dart';
 import '../providers/categories_provider.dart';
 import '../providers/config_provider.dart';
+import '../providers/duplicate_bills_provider.dart';
 import '../providers/pending_payments_provider.dart';
 import '../models/bill.dart';
 import '../utils/category_icons.dart';
 import '../widgets/app_bar_action_icon_button.dart';
+import '../widgets/delete_bill_confirmation_dialog.dart';
 import 'add_edit_bill_screen.dart';
 import 'bill_recovered_amounts_screen.dart';
+import 'duplicate_bills_screen.dart';
 import 'pending_payments_screen.dart';
 
 class BillsListScreen extends StatefulWidget {
@@ -34,6 +37,9 @@ class _BillsListScreenState extends State<BillsListScreen>
     WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Duplicate-bill detection is folded into _loadData() (it shares the
+      // same isSignedIn/householdId gate bills themselves need), unlike
+      // pending payments below, which are gated on platform support instead.
       _loadData();
       _loadPendingPayments();
     });
@@ -86,6 +92,11 @@ class _BillsListScreenState extends State<BillsListScreen>
     }
   }
 
+  Future<void> _loadDuplicates() async {
+    final configProvider = _configProvider ?? context.read<ConfigProvider>();
+    await context.read<DuplicateBillsProvider>().loadDuplicates(configProvider);
+  }
+
   void _onConfigChanged() {
     if (!mounted || _configProvider == null) return;
 
@@ -114,6 +125,13 @@ class _BillsListScreenState extends State<BillsListScreen>
       await billsProvider.loadBills(configProvider);
       await categoriesProvider.loadCategories(configProvider);
       unawaited(billsProvider.loadFilterOptions(configProvider));
+      // Guarded like every other DuplicateBillsProvider call site added in
+      // this feature: _loadDuplicates() does its own context.read(), which
+      // throws if this screen was disposed while the awaits above were in
+      // flight.
+      if (mounted) {
+        unawaited(_loadDuplicates());
+      }
     }
   }
 
@@ -435,31 +453,17 @@ class _BillsListScreenState extends State<BillsListScreen>
   }
 
   Future<void> _deleteBill(BuildContext context, int index, Bill bill) async {
-    final l10n = AppLocalizations.of(context)!;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.deleteBill),
-        content: Text(
-            '${l10n.areYouSureDeleteBill}\n\n${bill.details.isNotEmpty ? bill.details : "${DateFormat('yyyy-MM-dd').format(bill.date)} - \$${bill.amount.toStringAsFixed(2)}"}'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(l10n.delete),
-          ),
-        ],
-      ),
-    );
+    final confirmed = await confirmDeleteBill(context, bill);
 
     if (confirmed == true && context.mounted) {
       final configProvider = context.read<ConfigProvider>();
       final billsProvider = context.read<BillsProvider>();
       await billsProvider.deleteBill(index, configProvider);
+      if (context.mounted) {
+        await context
+            .read<DuplicateBillsProvider>()
+            .loadDuplicates(configProvider);
+      }
       if (context.mounted && billsProvider.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(billsProvider.error!)),
@@ -598,6 +602,35 @@ class _BillsListScreenState extends State<BillsListScreen>
                         context,
                         MaterialPageRoute(
                           builder: (context) => const PendingPaymentsScreen(),
+                        ),
+                      );
+                      if (mounted) {
+                        await _loadData();
+                      }
+                    },
+                    child: Text(l10n.review),
+                  ),
+                ],
+              );
+            },
+          ),
+          Consumer<DuplicateBillsProvider>(
+            builder: (context, duplicateBillsProvider, child) {
+              final duplicateCount = duplicateBillsProvider.duplicateBillCount;
+              if (duplicateCount == 0) {
+                return const SizedBox.shrink();
+              }
+
+              return MaterialBanner(
+                content: Text(l10n.duplicateBillsBannerMessage(duplicateCount)),
+                leading: const Icon(Icons.warning_amber_outlined),
+                actions: [
+                  TextButton(
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DuplicateBillsScreen(),
                         ),
                       );
                       if (mounted) {
@@ -802,7 +835,6 @@ class _BillsListScreenState extends State<BillsListScreen>
                                       MaterialPageRoute(
                                         builder: (context) => AddEditBillScreen(
                                           bill: bill,
-                                          index: index,
                                         ),
                                       ),
                                     );

@@ -6,17 +6,16 @@ import '../models/bill.dart';
 import '../providers/bills_provider.dart';
 import '../providers/config_provider.dart';
 import '../providers/categories_provider.dart';
+import '../providers/duplicate_bills_provider.dart';
 
 class AddEditBillScreen extends StatefulWidget {
   final Bill? bill;
-  final int? index;
   final double? prefillAmount;
   final String? prefillDetails;
 
   const AddEditBillScreen({
     super.key,
     this.bill,
-    this.index,
     this.prefillAmount,
     this.prefillDetails,
   });
@@ -32,6 +31,11 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
   String? _selectedPaidBy;
   String? _selectedCategory;
   final _detailsController = TextEditingController();
+  // Guards against a double-tap on Save re-entering _saveBill() while the
+  // duplicate check + insert/update from the first tap is still in flight -
+  // without this, neither call's findMatches() sees the other's
+  // not-yet-inserted bill, so both proceed and create two identical rows.
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -84,6 +88,18 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
   }
 
   Future<void> _saveBill() async {
+    // A double-tap on Save must not re-enter while the first tap's duplicate
+    // check + insert/update is still in flight - see _isSaving's doc comment.
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+    try {
+      await _doSaveBill();
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _doSaveBill() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -111,8 +127,35 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
       return;
     }
 
+    // Editing an existing bill that hasn't finished its initial save (and so
+    // has no id yet) must fail loudly here rather than silently falling
+    // through to the addBill branch below and creating a duplicate row -
+    // mirrors the equivalent guard BillsProvider.updateBill(index, ...) used
+    // to have before edits switched to looking bills up by id instead of by
+    // page-index.
+    if (widget.bill != null && widget.bill!.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.billNotFinishedSaving)),
+      );
+      return;
+    }
+
     final configProvider = context.read<ConfigProvider>();
     final billsProvider = context.read<BillsProvider>();
+    final duplicateBillsProvider = context.read<DuplicateBillsProvider>();
+
+    final duplicateMatches = await duplicateBillsProvider.findMatches(
+      configProvider: configProvider,
+      date: _selectedDate,
+      amount: amount,
+      excludeId: widget.bill?.id,
+    );
+    if (duplicateMatches.isNotEmpty) {
+      if (!mounted) return;
+      final proceed = await _confirmSaveDespiteDuplicates(duplicateMatches);
+      if (proceed != true) return;
+    }
+    if (!mounted) return;
 
     final bill = Bill(
       date: _selectedDate,
@@ -122,30 +165,71 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
       details: _detailsController.text.trim(),
     );
 
-    try {
-      if (widget.index != null) {
-        await billsProvider.updateBill(widget.index!, bill, configProvider);
-      } else {
-        await billsProvider.addBill(bill, configProvider);
-      }
+    // updateBillById/addBill catch and record their own errors via
+    // billsProvider.error rather than throwing (see BillsProvider), so
+    // there's no exception here to catch.
+    if (widget.bill?.id != null) {
+      await billsProvider.updateBillById(
+          widget.bill!.id!, bill, configProvider.householdId);
+    } else {
+      await billsProvider.addBill(bill, configProvider);
+    }
 
-      if (mounted) {
-        if (billsProvider.error != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(billsProvider.error!)),
-          );
-        } else {
-          Navigator.pop(context, true);
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        final l10n = AppLocalizations.of(context)!;
+    if (mounted) {
+      if (billsProvider.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.errorSavingBill(e.toString()))),
+          SnackBar(content: Text(billsProvider.error!)),
         );
+      } else {
+        Navigator.pop(context, true);
       }
     }
+  }
+
+  // Shows the conflicting bill(s) (date, amount, category, paid by) and
+  // requires an explicit "Save anyway" before letting the caller persist a
+  // bill that matches an existing one on date+amount (GH issue #20).
+  Future<bool?> _confirmSaveDespiteDuplicates(List<Bill> matches) {
+    final l10n = AppLocalizations.of(context)!;
+    final dateFormat = DateFormat('yyyy-MM-dd');
+    final currencyFormat = NumberFormat.currency(symbol: '\$');
+
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.possibleDuplicateBillTitle),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l10n.possibleDuplicateBillMessage),
+              const SizedBox(height: 12),
+              for (final match in matches)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    '${dateFormat.format(match.date)} · '
+                    '${currencyFormat.format(match.amount)}\n'
+                    '${l10n.category}: ${match.category} · '
+                    '${l10n.paidBy}: ${match.paidBy}',
+                  ),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l10n.saveAnyway),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -286,8 +370,15 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
               const SizedBox(height: 24),
 
               // Save button
+              //
+              // Deliberately no CircularProgressIndicator swap while
+              // _isSaving is true: an indeterminate spinner animates for as
+              // long as the duplicate-confirmation dialog is open awaiting
+              // user input, which keeps scheduling frames and prevents
+              // WidgetTester.pumpAndSettle() from ever settling in tests.
+              // The disabled onPressed below is sufficient to block re-entry.
               ElevatedButton(
-                onPressed: _saveBill,
+                onPressed: _isSaving ? null : _saveBill,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),

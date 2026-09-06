@@ -555,29 +555,9 @@ class BillsProvider with ChangeNotifier {
     await loadBillsForHousehold(householdId);
   }
 
-  // Update a bill
-  Future<void> updateBill(
-      int index, Bill updatedBill, ConfigProvider configProvider) async {
-    if (index < 0 || index >= _bills.length) {
-      _error = 'Invalid bill index';
-      notifyListeners();
-      return;
-    }
-
-    final id = _bills[index].id;
-    if (id == null) {
-      _error = 'Bill has not finished saving yet';
-      notifyListeners();
-      return;
-    }
-
-    await updateBillById(id, updatedBill, configProvider.householdId);
-  }
-
-  // Core of updateBill(), scoped to a bill id and (optional) household id
-  // rather than an index into `_bills`/a ConfigProvider, so it can be
-  // exercised in tests without a real signed-in Supabase session.
-  @visibleForTesting
+  // Update a bill by id (not by its index into the paginated `_bills` list -
+  // a bill being edited, e.g. from the Duplicate Bills screen, may not be on
+  // the currently loaded page at all).
   Future<void> updateBillById(
       String id, Bill updatedBill, String? householdId) async {
     _isLoading = true;
@@ -641,7 +621,9 @@ class BillsProvider with ChangeNotifier {
     await deleteBillById(id);
   }
 
-  @visibleForTesting
+  // Delete a bill by id (not by its index into the paginated `_bills` list -
+  // a bill being deleted, e.g. from the Duplicate Bills screen, may not be
+  // on the currently loaded page at all).
   Future<void> deleteBillById(String id) async {
     _isLoading = true;
     _error = null;
