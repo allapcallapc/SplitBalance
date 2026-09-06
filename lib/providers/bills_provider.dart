@@ -49,6 +49,14 @@ typedef DeleteBillRow = Future<void> Function(String id);
 typedef FetchRecoveredBreakdown = Future<Map<String, Map<String, double>>>
     Function({required List<String> billIds});
 
+// Fetches every distinct category name (lowercased/trimmed) referenced by
+// at least one bill in the household, for the Categories tab's "in use
+// (cannot delete)" flag. Injectable so tests can control it without a real
+// Supabase session - see FetchBillsPage.
+typedef FetchCategoriesInUse = Future<Set<String>> Function({
+  required String householdId,
+});
+
 class BillsProvider with ChangeNotifier {
   BillsProvider({
     FetchBillsPage? fetchBillsPage,
@@ -56,12 +64,15 @@ class BillsProvider with ChangeNotifier {
     UpdateBillRow? updateBillRow,
     DeleteBillRow? deleteBillRow,
     FetchRecoveredBreakdown? fetchRecoveredBreakdown,
+    FetchCategoriesInUse? fetchCategoriesInUse,
   })  : _fetchBillsPage = fetchBillsPage ?? _defaultFetchBillsPage,
         _insertBillRow = insertBillRow ?? _defaultInsertBillRow,
         _updateBillRow = updateBillRow ?? _defaultUpdateBillRow,
         _deleteBillRow = deleteBillRow ?? _defaultDeleteBillRow,
         _fetchRecoveredBreakdown =
-            fetchRecoveredBreakdown ?? _defaultFetchRecoveredBreakdown;
+            fetchRecoveredBreakdown ?? _defaultFetchRecoveredBreakdown,
+        _fetchCategoriesInUse =
+            fetchCategoriesInUse ?? _defaultFetchCategoriesInUse;
 
   static const int pageSize = 25;
 
@@ -70,6 +81,7 @@ class BillsProvider with ChangeNotifier {
   final UpdateBillRow _updateBillRow;
   final DeleteBillRow _deleteBillRow;
   final FetchRecoveredBreakdown _fetchRecoveredBreakdown;
+  final FetchCategoriesInUse _fetchCategoriesInUse;
 
   // Paginated, server-filtered bills backing the bills list screen.
   final List<Bill> _bills = [];
@@ -78,9 +90,8 @@ class BillsProvider with ChangeNotifier {
   bool _hasMore = true;
 
   // Full, unpaginated/unfiltered household bill set. Kept separate from
-  // _bills because balance calculations (summary screen) and category
-  // "in use" checks (payment splits screen) need every bill, not just the
-  // page currently shown in the list.
+  // _bills because balance calculations (summary screen) need every bill,
+  // not just the page currently shown in the list.
   final List<Bill> _allBills = [];
   bool _isLoadingAll = false;
 
@@ -98,6 +109,15 @@ class BillsProvider with ChangeNotifier {
   // scans every bill row (unlike _allBills, which pulls full rows).
   List<String> _paidByOptions = [];
   List<String> _categoryOptions = [];
+
+  // Distinct category names (lowercased/trimmed) referenced by at least one
+  // household bill, for the Categories tab's "in use (cannot delete)" flag.
+  // Populated by loadCategoriesInUse(), which - like loadFilterOptions -
+  // only projects the `category` column instead of pulling full bill rows
+  // (loadAllBills): the flag only needs to know whether a name is used
+  // anywhere, not the bills themselves.
+  Set<String> _categoryNamesInUse = {};
+  String? _categoryNamesInUseLoadedForHouseholdId;
 
   // Bumped by every loadBills() call. Lets loadBills()/loadMoreBills() tell
   // whether they're still the most recent request before applying their
@@ -125,6 +145,7 @@ class BillsProvider with ChangeNotifier {
   List<Bill> get allBills => List.unmodifiable(_allBills);
   List<String> get paidByOptions => List.unmodifiable(_paidByOptions);
   List<String> get categoryOptions => List.unmodifiable(_categoryOptions);
+  Set<String> get categoryNamesInUse => Set.unmodifiable(_categoryNamesInUse);
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
   bool get isLoadingAll => _isLoadingAll;
@@ -136,6 +157,12 @@ class BillsProvider with ChangeNotifier {
   // fetch is always needed.
   bool hasLoadedAllBillsForHousehold(String? householdId) =>
       householdId != null && _allBillsLoadedForHouseholdId == householdId;
+
+  // Whether loadCategoriesInUse has run (successfully or not) for this
+  // household, so callers can skip a redundant refetch.
+  bool hasLoadedCategoryNamesInUseForHousehold(String? householdId) =>
+      householdId != null &&
+      _categoryNamesInUseLoadedForHouseholdId == householdId;
 
   String? get filterPaidBy => _filterPaidBy;
   String? get filterCategory => _filterCategory;
@@ -506,6 +533,78 @@ class BillsProvider with ChangeNotifier {
     }
   }
 
+  // Load which category names are currently used by at least one household
+  // bill, for the Categories tab's "in use (cannot delete)" flag.
+  Future<void> loadCategoriesInUse(ConfigProvider configProvider) async {
+    final householdId = configProvider.householdId;
+    if (!configProvider.isSignedIn || householdId == null) {
+      return;
+    }
+
+    try {
+      _categoryNamesInUse =
+          await _fetchCategoriesInUse(householdId: householdId);
+      _categoryNamesInUseLoadedForHouseholdId = householdId;
+    } catch (_) {
+      // Best-effort, like loadFilterOptions: leave whatever was already
+      // cached in place. Deliberately NOT marking the household as loaded
+      // here (unlike loadAllBills) - this gates a destructive action, so a
+      // transient failure should be retried on the next Categories tab
+      // visit rather than silently disabling the check for the rest of the
+      // session.
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  // Always safe to call: a bill in [category] now definitely exists, even
+  // before the next loadCategoriesInUse() fetch confirms it. Keeps
+  // categoryNamesInUse from missing a bill's category the moment it's
+  // added/recategorized, since loadCategoriesInUse only (re)computes the
+  // set once per household (see hasLoadedCategoryNamesInUseForHousehold)
+  // rather than on every bill change.
+  void _noteBillCategoryAdded(String category) {
+    final name = category.toLowerCase().trim();
+    if (name.isNotEmpty) {
+      _categoryNamesInUse.add(name);
+    }
+  }
+
+  // A category can only be *removed* from use by deleting/recategorizing
+  // its last bill, which can't be confirmed here without scanning every
+  // other bill in the household - so this invalidates the cached set
+  // instead of guessing, forcing the next loadCategoriesInUse() call (next
+  // Categories tab visit) to recompute the authoritative answer rather than
+  // risk a stale false positive turning into an unsafe false negative.
+  void _invalidateCategoryNamesInUse() {
+    _categoryNamesInUseLoadedForHouseholdId = null;
+  }
+
+  // Default FetchCategoriesInUse: only the `category` column is projected
+  // (not full bill rows, unlike loadAllBills), and it's paged via
+  // pageAndReduce rather than a single .select() - unlike loadFilterOptions,
+  // this gates a destructive action (category deletion), so it can't risk
+  // PostgREST's max_rows silently truncating a household with 1000+ bills
+  // and missing a category that's actually still in use.
+  static Future<Set<String>> _defaultFetchCategoriesInUse({
+    required String householdId,
+  }) {
+    return pageAndReduce<Set<String>>(
+      buildQuery: () => Supabase.instance.client
+          .from('bills')
+          .select('category')
+          .eq('household_id', householdId),
+      initial: <String>{},
+      reduce: (names, row) {
+        final category = row['category'] as String?;
+        if (category != null && category.isNotEmpty) {
+          names.add(category.toLowerCase().trim());
+        }
+        return names;
+      },
+    );
+  }
+
   // Sort order that matches the server's `.order('date', ..).order('id', ..)`
   // so locally-maintained lists (_allBills) don't drift from what a fresh
   // fetch would return when two bills share a date.
@@ -547,6 +646,7 @@ class BillsProvider with ChangeNotifier {
 
     _allBills.add(saved);
     _allBills.sort(_byDateThenId);
+    _noteBillCategoryAdded(saved.category);
 
     // Re-fetch page 1 from the server rather than optimistically splicing
     // the new row into `_bills`: the new bill's position relative to the
@@ -593,6 +693,14 @@ class BillsProvider with ChangeNotifier {
       _allBills.add(saved);
     }
     _allBills.sort(_byDateThenId);
+    // The new category is always safe to flag immediately. Whatever
+    // category this bill had before the edit may have just lost its last
+    // reference - _bills/_allBills aren't guaranteed to have that prior
+    // value cached (this screen doesn't require a full bill load), so
+    // rather than guess, invalidate unconditionally and let the next
+    // loadCategoriesInUse() call recompute the authoritative set.
+    _noteBillCategoryAdded(saved.category);
+    _invalidateCategoryNamesInUse();
 
     // Same rationale as addBill: the edit may have changed the bill's sort
     // position or taken it out of the active filter, which a local splice
@@ -636,6 +744,10 @@ class BillsProvider with ChangeNotifier {
       // different row (or none) by the time we get here.
       _bills.removeWhere((b) => b.id == id);
       _allBills.removeWhere((b) => b.id == id);
+      // The deleted bill's category may have just lost its last reference -
+      // can't confirm that without scanning every other bill, so invalidate
+      // rather than risk leaving it stuck showing as in use.
+      _invalidateCategoryNamesInUse();
       _error = null;
     } catch (e) {
       _error = 'Failed to delete bill: $e';

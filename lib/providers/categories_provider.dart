@@ -2,8 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show IconData;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/category.dart' as models;
-import '../models/bill.dart';
-import '../models/payment_split.dart';
 import '../utils/category_icons.dart';
 import 'config_provider.dart';
 
@@ -226,21 +224,14 @@ class CategoriesProvider with ChangeNotifier {
     }
   }
 
-  // Check if a category is in use (used by bills)
-  // Note: Payment splits don't prevent category deletion - they will be removed automatically
-  bool isCategoryInUse(
-      String categoryName, List<Bill> bills, List<PaymentSplit> splits) {
-    final categoryLower = categoryName.toLowerCase().trim();
-
-    // Only check bills - splits don't prevent deletion (they'll be removed automatically)
-    for (final bill in bills) {
-      final billCategory = bill.category.toLowerCase().trim();
-      if (billCategory == categoryLower) {
-        return true;
-      }
-    }
-
-    return false;
+  // Check if a category is in use (used by bills).
+  // [categoryNamesInUse] is BillsProvider.categoryNamesInUse - a lightweight
+  // household-wide query over just the `category` column (see
+  // BillsProvider.loadCategoriesInUse), not the full bill list. Payment
+  // splits are never consulted: they don't prevent category deletion (any
+  // referencing splits are removed automatically).
+  bool isCategoryInUse(String categoryName, Set<String> categoryNamesInUse) {
+    return categoryNamesInUse.contains(categoryName.toLowerCase().trim());
   }
 
   void clearError() {
