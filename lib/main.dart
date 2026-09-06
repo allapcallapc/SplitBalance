@@ -353,10 +353,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
 
     final configProvider = context.read<ConfigProvider>();
     final categoriesProvider = context.read<CategoriesProvider>();
+    // Matches build()'s isConfigComplete below - a household is usable solo
+    // (person2Name stays '' until a second member joins, see
+    // ConfigProvider.createHousehold), so requiring it here would strand a
+    // solo household's deep link unclaimed for the rest of the session once
+    // the one-shot retry below has already fired and found it not "complete".
     final isConfigComplete = configProvider.isSignedIn &&
         configProvider.householdId != null &&
         configProvider.config.person1Name.trim().isNotEmpty &&
-        configProvider.config.person2Name.trim().isNotEmpty &&
         categoriesProvider.categories.isNotEmpty;
     if (!isConfigComplete) return;
 
@@ -502,6 +506,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
             // build.
             _selectedIndex = _persistedTabIndex ?? 0; // Bills screen
             _hasAutoNavigatedToBills = true;
+            // initState's _checkPendingDeepLink() ran before config was
+            // complete and bailed out (see its isConfigComplete guard), so a
+            // cold start via a notification tap would otherwise never
+            // navigate to the deep-linked screen this session - it'd just
+            // silently land on the restored tab above. Retry now that we're
+            // settled; getPendingDeepLink() only clears once this succeeds,
+            // so it's still there to find.
+            WidgetsBinding.instance
+                .addPostFrameCallback((_) => _checkPendingDeepLink());
           }
         }
 
