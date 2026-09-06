@@ -1055,4 +1055,101 @@ void main() {
       expect(bill.recoveredByReceiver, {'Alice': 30.0, 'Bob': 20.0});
     });
   });
+
+  group('BillsProvider - loadCategoriesInUse', () {
+    // Exercises loadCategoriesInUse's own logic (household resolution,
+    // notify/error handling, hasLoaded bookkeeping) via the
+    // FetchCategoriesInUse injection point. The real default fetcher
+    // (_defaultFetchCategoriesInUse) has no injection seam of its own - like
+    // loadAllBills/loadFilterOptions, it's only exercised end-to-end against
+    // a real Supabase instance, by the integration suite.
+
+    test('not signed in: no-op, does not call the fetcher', () async {
+      var called = false;
+      final provider = BillsProvider(
+        fetchCategoriesInUse: ({required householdId}) async {
+          called = true;
+          return {};
+        },
+      );
+      final configProvider = ConfigProvider.forTesting(isSignedIn: false);
+
+      await provider.loadCategoriesInUse(configProvider);
+
+      expect(called, false);
+      expect(provider.categoryNamesInUse, isEmpty);
+      expect(
+          provider.hasLoadedCategoryNamesInUseForHousehold('household-1'),
+          false);
+    });
+
+    test('signed in with no household yet: no-op, does not call the fetcher',
+        () async {
+      var called = false;
+      final provider = BillsProvider(
+        fetchCategoriesInUse: ({required householdId}) async {
+          called = true;
+          return {};
+        },
+      );
+      final configProvider = ConfigProvider.forTesting(isSignedIn: true);
+
+      await provider.loadCategoriesInUse(configProvider);
+
+      expect(called, false);
+    });
+
+    test('populates categoryNamesInUse and marks the household as loaded',
+        () async {
+      final provider = BillsProvider(
+        fetchCategoriesInUse: ({required householdId}) async {
+          expect(householdId, 'household-1');
+          return {'groceries', 'rent'};
+        },
+      );
+      final configProvider = ConfigProvider.forTesting(
+        isSignedIn: true,
+        config: AppConfig(
+          householdId: 'household-1',
+          person1Name: 'Alice',
+          person2Name: 'Bob',
+        ),
+      );
+
+      await provider.loadCategoriesInUse(configProvider);
+
+      expect(provider.categoryNamesInUse, {'groceries', 'rent'});
+      expect(
+          provider.hasLoadedCategoryNamesInUseForHousehold('household-1'),
+          true);
+      expect(
+          provider.hasLoadedCategoryNamesInUseForHousehold('household-2'),
+          false);
+    });
+
+    test(
+        'a fetch failure is swallowed (best-effort) but still marks the '
+        "household as loaded, so callers don't retry on every build",
+        () async {
+      final provider = BillsProvider(
+        fetchCategoriesInUse: ({required householdId}) async =>
+            throw Exception('network error'),
+      );
+      final configProvider = ConfigProvider.forTesting(
+        isSignedIn: true,
+        config: AppConfig(
+          householdId: 'household-1',
+          person1Name: 'Alice',
+          person2Name: 'Bob',
+        ),
+      );
+
+      await provider.loadCategoriesInUse(configProvider);
+
+      expect(provider.categoryNamesInUse, isEmpty);
+      expect(
+          provider.hasLoadedCategoryNamesInUseForHousehold('household-1'),
+          true);
+    });
+  });
 }

@@ -49,6 +49,14 @@ typedef DeleteBillRow = Future<void> Function(String id);
 typedef FetchRecoveredBreakdown = Future<Map<String, Map<String, double>>>
     Function({required List<String> billIds});
 
+// Fetches every distinct category name (lowercased/trimmed) referenced by
+// at least one bill in the household, for the Categories tab's "in use
+// (cannot delete)" flag. Injectable so tests can control it without a real
+// Supabase session - see FetchBillsPage.
+typedef FetchCategoriesInUse = Future<Set<String>> Function({
+  required String householdId,
+});
+
 class BillsProvider with ChangeNotifier {
   BillsProvider({
     FetchBillsPage? fetchBillsPage,
@@ -56,12 +64,15 @@ class BillsProvider with ChangeNotifier {
     UpdateBillRow? updateBillRow,
     DeleteBillRow? deleteBillRow,
     FetchRecoveredBreakdown? fetchRecoveredBreakdown,
+    FetchCategoriesInUse? fetchCategoriesInUse,
   })  : _fetchBillsPage = fetchBillsPage ?? _defaultFetchBillsPage,
         _insertBillRow = insertBillRow ?? _defaultInsertBillRow,
         _updateBillRow = updateBillRow ?? _defaultUpdateBillRow,
         _deleteBillRow = deleteBillRow ?? _defaultDeleteBillRow,
         _fetchRecoveredBreakdown =
-            fetchRecoveredBreakdown ?? _defaultFetchRecoveredBreakdown;
+            fetchRecoveredBreakdown ?? _defaultFetchRecoveredBreakdown,
+        _fetchCategoriesInUse =
+            fetchCategoriesInUse ?? _defaultFetchCategoriesInUse;
 
   static const int pageSize = 25;
 
@@ -70,6 +81,7 @@ class BillsProvider with ChangeNotifier {
   final UpdateBillRow _updateBillRow;
   final DeleteBillRow _deleteBillRow;
   final FetchRecoveredBreakdown _fetchRecoveredBreakdown;
+  final FetchCategoriesInUse _fetchCategoriesInUse;
 
   // Paginated, server-filtered bills backing the bills list screen.
   final List<Bill> _bills = [];
@@ -522,13 +534,7 @@ class BillsProvider with ChangeNotifier {
   }
 
   // Load which category names are currently used by at least one household
-  // bill, for the Categories tab's "in use (cannot delete)" flag. Only the
-  // `category` column is projected (not full bill rows, unlike
-  // loadAllBills), and it's paged via pageAndReduce rather than a single
-  // .select() - unlike loadFilterOptions, this gates a destructive action
-  // (category deletion), so it can't risk PostgREST's max_rows silently
-  // truncating a household with 1000+ bills and missing a category that's
-  // actually still in use.
+  // bill, for the Categories tab's "in use (cannot delete)" flag.
   Future<void> loadCategoriesInUse(ConfigProvider configProvider) async {
     final householdId = configProvider.householdId;
     if (!configProvider.isSignedIn || householdId == null) {
@@ -536,20 +542,8 @@ class BillsProvider with ChangeNotifier {
     }
 
     try {
-      _categoryNamesInUse = await pageAndReduce<Set<String>>(
-        buildQuery: () => _supabase
-            .from('bills')
-            .select('category')
-            .eq('household_id', householdId),
-        initial: <String>{},
-        reduce: (names, row) {
-          final category = row['category'] as String?;
-          if (category != null && category.isNotEmpty) {
-            names.add(category.toLowerCase().trim());
-          }
-          return names;
-        },
-      );
+      _categoryNamesInUse =
+          await _fetchCategoriesInUse(householdId: householdId);
     } catch (_) {
       // Best-effort, like loadFilterOptions: leave whatever was already
       // cached in place rather than surfacing a top-level error for this
@@ -558,6 +552,31 @@ class BillsProvider with ChangeNotifier {
       _categoryNamesInUseLoadedForHouseholdId = householdId;
       notifyListeners();
     }
+  }
+
+  // Default FetchCategoriesInUse: only the `category` column is projected
+  // (not full bill rows, unlike loadAllBills), and it's paged via
+  // pageAndReduce rather than a single .select() - unlike loadFilterOptions,
+  // this gates a destructive action (category deletion), so it can't risk
+  // PostgREST's max_rows silently truncating a household with 1000+ bills
+  // and missing a category that's actually still in use.
+  static Future<Set<String>> _defaultFetchCategoriesInUse({
+    required String householdId,
+  }) {
+    return pageAndReduce<Set<String>>(
+      buildQuery: () => Supabase.instance.client
+          .from('bills')
+          .select('category')
+          .eq('household_id', householdId),
+      initial: <String>{},
+      reduce: (names, row) {
+        final category = row['category'] as String?;
+        if (category != null && category.isNotEmpty) {
+          names.add(category.toLowerCase().trim());
+        }
+        return names;
+      },
+    );
   }
 
   // Sort order that matches the server's `.order('date', ..).order('id', ..)`

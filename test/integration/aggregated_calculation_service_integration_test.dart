@@ -810,6 +810,64 @@ void main() {
           billsProvider.hasLoadedAllBillsForHousehold(householdId), isTrue);
     });
 
+    test('BillsProvider.loadCategoriesInUse returns every distinct bill '
+        'category, lowercased/trimmed, across more than one page', () async {
+      // loadCategoriesInUse's default fetcher has no injection seam of its
+      // own either (see the comment on the loadAllBills test above), and -
+      // unlike that test - this one also needs to prove the pagination
+      // (pageAndReduce, chunkSize 1000) actually walks every page rather
+      // than only ever seeing page one, which a small fixture can't tell
+      // apart from an off-by-one that silently drops later pages.
+      final householdId = await seedHousehold(
+        categoryRows: [
+          {'name': 'Food'},
+          {'name': 'Rent'},
+        ],
+        billRows: const [],
+        splitRows: const [],
+      );
+
+      // Inserted in batches of 500, matching fetchHouseholdTotals's own
+      // 1200-row fixture above - a single 1200-row insert risks the same
+      // request-size ceiling that fixture was already written to avoid.
+      const billCount = 1200;
+      const batchSize = 500;
+      for (var start = 0; start < billCount; start += batchSize) {
+        final end =
+            (start + batchSize < billCount) ? start + batchSize : billCount;
+        await admin.from('bills').insert(List.generate(
+              end - start,
+              (i) => {
+                'household_id': householdId,
+                'date': '2024-01-15',
+                'amount': 10.0,
+                'paid_by': 'Alice',
+                // The last row lands in the final page - lowercasing/
+                // trimming still has to match it up with the "Rent"
+                // category despite the different case and stray spaces.
+                'category': (start + i) < billCount - 1 ? 'Food' : ' RENT ',
+              },
+            ));
+      }
+
+      final billsProvider = BillsProvider();
+      final configProvider = ConfigProvider.forTesting(
+        isSignedIn: true,
+        config: AppConfig(
+          householdId: householdId,
+          person1Name: 'Alice',
+          person2Name: 'Bob',
+        ),
+      );
+
+      await billsProvider.loadCategoriesInUse(configProvider);
+
+      expect(billsProvider.categoryNamesInUse, {'food', 'rent'});
+      expect(
+          billsProvider.hasLoadedCategoryNamesInUseForHousehold(householdId),
+          isTrue);
+    }, timeout: const Timeout(Duration(minutes: 3)));
+
     // Regression test for a live user report: the Summary screen's monthly/
     // cumulative spend charts (CategoryDetailScreen, TotalDetailScreen) read
     // computeMonthlySpend(billsProvider.allBills, ...) - so it's not enough
