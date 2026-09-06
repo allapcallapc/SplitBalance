@@ -92,94 +92,97 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
     // check + insert/update is still in flight - see _isSaving's doc comment.
     if (_isSaving) return;
     setState(() => _isSaving = true);
-
     try {
-      if (!_formKey.currentState!.validate()) {
-        return;
-      }
-
-      final l10n = AppLocalizations.of(context)!;
-      if (_selectedPaidBy == null || _selectedPaidBy!.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.selectWhoPaid)),
-        );
-        return;
-      }
-
-      if (_selectedCategory == null || _selectedCategory!.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.selectCategory)),
-        );
-        return;
-      }
-
-      final amount = double.tryParse(_amountController.text.trim());
-      if (amount == null || amount <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.enterValidAmount)),
-        );
-        return;
-      }
-
-      // Editing an existing bill that hasn't finished its initial save (and
-      // so has no id yet) must fail loudly here rather than silently falling
-      // through to the addBill branch below and creating a duplicate row -
-      // mirrors the equivalent guard BillsProvider.updateBill(index, ...)
-      // used to have before edits switched to looking bills up by id instead
-      // of by page-index.
-      if (widget.bill != null && widget.bill!.id == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.billNotFinishedSaving)),
-        );
-        return;
-      }
-
-      final configProvider = context.read<ConfigProvider>();
-      final billsProvider = context.read<BillsProvider>();
-      final duplicateBillsProvider = context.read<DuplicateBillsProvider>();
-
-      final duplicateMatches = await duplicateBillsProvider.findMatches(
-        configProvider: configProvider,
-        date: _selectedDate,
-        amount: amount,
-        excludeId: widget.bill?.id,
-      );
-      if (duplicateMatches.isNotEmpty) {
-        if (!mounted) return;
-        final proceed = await _confirmSaveDespiteDuplicates(duplicateMatches);
-        if (proceed != true) return;
-      }
-      if (!mounted) return;
-
-      final bill = Bill(
-        date: _selectedDate,
-        amount: amount,
-        paidBy: _selectedPaidBy!,
-        category: _selectedCategory!,
-        details: _detailsController.text.trim(),
-      );
-
-      // updateBillById/addBill catch and record their own errors via
-      // billsProvider.error rather than throwing (see BillsProvider), so
-      // there's no exception here to catch.
-      if (widget.bill?.id != null) {
-        await billsProvider.updateBillById(
-            widget.bill!.id!, bill, configProvider.householdId);
-      } else {
-        await billsProvider.addBill(bill, configProvider);
-      }
-
-      if (mounted) {
-        if (billsProvider.error != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(billsProvider.error!)),
-          );
-        } else {
-          Navigator.pop(context, true);
-        }
-      }
+      await _doSaveBill();
     } finally {
       if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _doSaveBill() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final l10n = AppLocalizations.of(context)!;
+    if (_selectedPaidBy == null || _selectedPaidBy!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.selectWhoPaid)),
+      );
+      return;
+    }
+
+    if (_selectedCategory == null || _selectedCategory!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.selectCategory)),
+      );
+      return;
+    }
+
+    final amount = double.tryParse(_amountController.text.trim());
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.enterValidAmount)),
+      );
+      return;
+    }
+
+    // Editing an existing bill that hasn't finished its initial save (and so
+    // has no id yet) must fail loudly here rather than silently falling
+    // through to the addBill branch below and creating a duplicate row -
+    // mirrors the equivalent guard BillsProvider.updateBill(index, ...) used
+    // to have before edits switched to looking bills up by id instead of by
+    // page-index.
+    if (widget.bill != null && widget.bill!.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.billNotFinishedSaving)),
+      );
+      return;
+    }
+
+    final configProvider = context.read<ConfigProvider>();
+    final billsProvider = context.read<BillsProvider>();
+    final duplicateBillsProvider = context.read<DuplicateBillsProvider>();
+
+    final duplicateMatches = await duplicateBillsProvider.findMatches(
+      configProvider: configProvider,
+      date: _selectedDate,
+      amount: amount,
+      excludeId: widget.bill?.id,
+    );
+    if (duplicateMatches.isNotEmpty) {
+      if (!mounted) return;
+      final proceed = await _confirmSaveDespiteDuplicates(duplicateMatches);
+      if (proceed != true) return;
+    }
+    if (!mounted) return;
+
+    final bill = Bill(
+      date: _selectedDate,
+      amount: amount,
+      paidBy: _selectedPaidBy!,
+      category: _selectedCategory!,
+      details: _detailsController.text.trim(),
+    );
+
+    // updateBillById/addBill catch and record their own errors via
+    // billsProvider.error rather than throwing (see BillsProvider), so
+    // there's no exception here to catch.
+    if (widget.bill?.id != null) {
+      await billsProvider.updateBillById(
+          widget.bill!.id!, bill, configProvider.householdId);
+    } else {
+      await billsProvider.addBill(bill, configProvider);
+    }
+
+    if (mounted) {
+      if (billsProvider.error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(billsProvider.error!)),
+        );
+      } else {
+        Navigator.pop(context, true);
+      }
     }
   }
 
