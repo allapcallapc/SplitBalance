@@ -1096,211 +1096,60 @@ void main() {
   });
 
   group('CategoriesProvider - isCategoryInUse', () {
-    const String person1 = 'Alice';
-    const String person2 = 'Bob';
-    final DateTime baseDate = DateTime(2024, 1, 15);
+    // categoryNamesInUse is BillsProvider.categoryNamesInUse - the result of
+    // a query over bills.category only, so payment splits can never appear
+    // in it regardless of what's passed here; splits don't prevent category
+    // deletion (any referencing splits are removed automatically).
 
-    test('Category not in use when no bills or splits', () {
+    test('Category not in use when set is empty', () {
       final provider = CategoriesProvider();
-      
-      final result = provider.isCategoryInUse('Food', [], []);
-      
+
+      final result = provider.isCategoryInUse('Food', {});
+
       expect(result, false);
     });
 
-    test('Category in use when bill uses it', () {
+    test('Category in use when present in the set', () {
       final provider = CategoriesProvider();
-      final bills = [
-        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
-      ];
-      
-      final result = provider.isCategoryInUse('Food', bills, []);
-      
+
+      final result = provider.isCategoryInUse('Food', {'food'});
+
       expect(result, true);
     });
 
-    test('Category not in use when bill uses different category', () {
+    test('Category not in use when set has a different category', () {
       final provider = CategoriesProvider();
-      final bills = [
-        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
-      ];
-      
-      final result = provider.isCategoryInUse('Rent', bills, []);
-      
-      expect(result, false);
-    });
 
-    test('Category NOT in use when split uses it - splits dont prevent deletion', () {
-      final provider = CategoriesProvider();
-      final splits = [
-        PaymentSplit(
-          category: 'Food',
-          person1: person1,
-          person1Percentage: 50.0,
-          person2: person2,
-          person2Percentage: 50.0,
-        ),
-      ];
-      
-      // Categories referenced in splits don't prevent deletion - they'll be removed automatically
-      final result = provider.isCategoryInUse('Food', [], splits);
-      
-      expect(result, false);
-    });
+      final result = provider.isCategoryInUse('Rent', {'food'});
 
-    test('Category not in use when only referenced in splits - splits dont prevent deletion', () {
-      final provider = CategoriesProvider();
-      final splits = [
-        PaymentSplit(
-          category: 'Food',
-          person1: person1,
-          person1Percentage: 50.0,
-          person2: person2,
-          person2Percentage: 50.0,
-        ),
-      ];
-      
-      // Categories referenced in splits don't prevent deletion - they'll be removed automatically
-      final result = provider.isCategoryInUse('Food', [], splits);
-      
-      expect(result, false);
-    });
-
-    test('Category not in use when split has "all" category', () {
-      final provider = CategoriesProvider();
-      final splits = [
-        PaymentSplit(
-          category: 'all',
-          person1: person1,
-          person1Percentage: 50.0,
-          person2: person2,
-          person2Percentage: 50.0,
-        ),
-      ];
-      
-      final result = provider.isCategoryInUse('Food', [], splits);
-      
-      expect(result, false);
-    });
-
-    test('Category not in use when split uses different category', () {
-      final provider = CategoriesProvider();
-      final splits = [
-        PaymentSplit(
-          category: 'Rent',
-          person1: person1,
-          person1Percentage: 50.0,
-          person2: person2,
-          person2Percentage: 50.0,
-        ),
-      ];
-      
-      final result = provider.isCategoryInUse('Food', [], splits);
-      
       expect(result, false);
     });
 
     test('Category matching is case-insensitive', () {
       final provider = CategoriesProvider();
-      final bills = [
-        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'FOOD'),
-      ];
-      
-      final result = provider.isCategoryInUse('food', bills, []);
-      
+
+      final result = provider.isCategoryInUse('food', {'food'});
+
       expect(result, true);
     });
 
-    test('Category with multiple bills - only matching one counts', () {
+    test('Category matching trims whitespace', () {
       final provider = CategoriesProvider();
-      final bills = [
-        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
-        Bill(date: baseDate, amount: 200.0, paidBy: person1, category: 'Rent'),
-      ];
-      
-      expect(provider.isCategoryInUse('Food', bills, []), true);
-      expect(provider.isCategoryInUse('Rent', bills, []), true);
-      expect(provider.isCategoryInUse('Utilities', bills, []), false);
+
+      final result = provider.isCategoryInUse('  Food  ', {'food'});
+
+      expect(result, true);
     });
 
-    test('Category with multiple splits - splits dont prevent deletion', () {
+    test('Multiple categories - only names in the set are in use', () {
       final provider = CategoriesProvider();
-      final splits = [
-        PaymentSplit(
-          category: 'Food',
-          person1: person1,
-          person1Percentage: 50.0,
-          person2: person2,
-          person2Percentage: 50.0,
-        ),
-        PaymentSplit(
-          category: 'Rent',
-          person1: person1,
-          person1Percentage: 60.0,
-          person2: person2,
-          person2Percentage: 40.0,
-        ),
-        PaymentSplit(
-          category: 'all',
-          person1: person1,
-          person1Percentage: 50.0,
-          person2: person2,
-          person2Percentage: 50.0,
-        ),
-      ];
-      
-      // Splits don't prevent deletion - all should return false
-      expect(provider.isCategoryInUse('Food', [], splits), false);
-      expect(provider.isCategoryInUse('Rent', [], splits), false);
-      expect(provider.isCategoryInUse('Utilities', [], splits), false);
-      expect(provider.isCategoryInUse('Entertainment', [], splits), false);
-    });
+      final categoryNamesInUse = {'food'};
 
-    test('Category checked in bills only - splits dont prevent deletion', () {
-      final provider = CategoriesProvider();
-      final bills = [
-        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
-      ];
-      final splits = [
-        PaymentSplit(
-          category: 'Rent',
-          person1: person1,
-          person1Percentage: 50.0,
-          person2: person2,
-          person2Percentage: 50.0,
-        ),
-      ];
-      
-      // Only bills prevent deletion - Food is in use (bill), Rent is not (only in split)
-      expect(provider.isCategoryInUse('Food', bills, splits), true);
-      expect(provider.isCategoryInUse('Rent', bills, splits), false);
-      expect(provider.isCategoryInUse('Utilities', bills, splits), false);
-    });
-
-    test('Multiple categories - only bills prevent deletion', () {
-      final provider = CategoriesProvider();
-      final bills = [
-        Bill(date: baseDate, amount: 100.0, paidBy: person1, category: 'Food'),
-        Bill(date: baseDate, amount: 200.0, paidBy: person1, category: 'Food'),
-      ];
-      final splits = [
-        PaymentSplit(
-          category: 'Rent',
-          person1: person1,
-          person1Percentage: 50.0,
-          person2: person2,
-          person2Percentage: 50.0,
-        ),
-      ];
-      
-      // Food is in use (via bills) - prevents deletion
-      expect(provider.isCategoryInUse('Food', bills, splits), true);
-      // Rent is NOT in use (only referenced in split, which doesn't prevent deletion)
-      expect(provider.isCategoryInUse('Rent', bills, splits), false);
-      // Utilities is NOT in use
-      expect(provider.isCategoryInUse('Utilities', bills, splits), false);
-      // Entertainment is NOT in use
-      expect(provider.isCategoryInUse('Entertainment', bills, splits), false);
+      expect(provider.isCategoryInUse('Food', categoryNamesInUse), true);
+      expect(provider.isCategoryInUse('Rent', categoryNamesInUse), false);
+      expect(provider.isCategoryInUse('Utilities', categoryNamesInUse), false);
+      expect(
+          provider.isCategoryInUse('Entertainment', categoryNamesInUse), false);
     });
   });
 

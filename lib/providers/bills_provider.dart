@@ -78,9 +78,8 @@ class BillsProvider with ChangeNotifier {
   bool _hasMore = true;
 
   // Full, unpaginated/unfiltered household bill set. Kept separate from
-  // _bills because balance calculations (summary screen) and category
-  // "in use" checks (payment splits screen) need every bill, not just the
-  // page currently shown in the list.
+  // _bills because balance calculations (summary screen) need every bill,
+  // not just the page currently shown in the list.
   final List<Bill> _allBills = [];
   bool _isLoadingAll = false;
 
@@ -98,6 +97,15 @@ class BillsProvider with ChangeNotifier {
   // scans every bill row (unlike _allBills, which pulls full rows).
   List<String> _paidByOptions = [];
   List<String> _categoryOptions = [];
+
+  // Distinct category names (lowercased/trimmed) referenced by at least one
+  // household bill, for the Categories tab's "in use (cannot delete)" flag.
+  // Populated by loadCategoriesInUse(), which - like loadFilterOptions -
+  // only projects the `category` column instead of pulling full bill rows
+  // (loadAllBills): the flag only needs to know whether a name is used
+  // anywhere, not the bills themselves.
+  Set<String> _categoryNamesInUse = {};
+  String? _categoryNamesInUseLoadedForHouseholdId;
 
   // Bumped by every loadBills() call. Lets loadBills()/loadMoreBills() tell
   // whether they're still the most recent request before applying their
@@ -125,6 +133,7 @@ class BillsProvider with ChangeNotifier {
   List<Bill> get allBills => List.unmodifiable(_allBills);
   List<String> get paidByOptions => List.unmodifiable(_paidByOptions);
   List<String> get categoryOptions => List.unmodifiable(_categoryOptions);
+  Set<String> get categoryNamesInUse => Set.unmodifiable(_categoryNamesInUse);
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
   bool get isLoadingAll => _isLoadingAll;
@@ -136,6 +145,12 @@ class BillsProvider with ChangeNotifier {
   // fetch is always needed.
   bool hasLoadedAllBillsForHousehold(String? householdId) =>
       householdId != null && _allBillsLoadedForHouseholdId == householdId;
+
+  // Whether loadCategoriesInUse has run (successfully or not) for this
+  // household, so callers can skip a redundant refetch.
+  bool hasLoadedCategoryNamesInUseForHousehold(String? householdId) =>
+      householdId != null &&
+      _categoryNamesInUseLoadedForHouseholdId == householdId;
 
   String? get filterPaidBy => _filterPaidBy;
   String? get filterCategory => _filterCategory;
@@ -503,6 +518,45 @@ class BillsProvider with ChangeNotifier {
     } catch (_) {
       // Best-effort: leave whatever options were already loaded in place
       // rather than surfacing this as a blocking error.
+    }
+  }
+
+  // Load which category names are currently used by at least one household
+  // bill, for the Categories tab's "in use (cannot delete)" flag. Only the
+  // `category` column is projected (not full bill rows, unlike
+  // loadAllBills), and it's paged via pageAndReduce rather than a single
+  // .select() - unlike loadFilterOptions, this gates a destructive action
+  // (category deletion), so it can't risk PostgREST's max_rows silently
+  // truncating a household with 1000+ bills and missing a category that's
+  // actually still in use.
+  Future<void> loadCategoriesInUse(ConfigProvider configProvider) async {
+    final householdId = configProvider.householdId;
+    if (!configProvider.isSignedIn || householdId == null) {
+      return;
+    }
+
+    try {
+      _categoryNamesInUse = await pageAndReduce<Set<String>>(
+        buildQuery: () => _supabase
+            .from('bills')
+            .select('category')
+            .eq('household_id', householdId),
+        initial: <String>{},
+        reduce: (names, row) {
+          final category = row['category'] as String?;
+          if (category != null && category.isNotEmpty) {
+            names.add(category.toLowerCase().trim());
+          }
+          return names;
+        },
+      );
+    } catch (_) {
+      // Best-effort, like loadFilterOptions: leave whatever was already
+      // cached in place rather than surfacing a top-level error for this
+      // secondary UI affordance.
+    } finally {
+      _categoryNamesInUseLoadedForHouseholdId = householdId;
+      notifyListeners();
     }
   }
 

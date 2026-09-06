@@ -107,15 +107,14 @@ class _PaymentSplitsScreenState extends State<PaymentSplitsScreen>
       // Load categories first, then splits
       await categoriesProvider.loadCategories(configProvider);
       await splitsProvider.loadPaymentSplits(configProvider);
-      // The "in use" flag on the Categories tab checks every bill via
-      // BillsProvider.allBills, which only a full loadAllBills() populates -
-      // BillsProvider.bills is just the paginated/filtered list rendered on
-      // the Bills tab. Without this, categories with bills the user hasn't
-      // scrolled to (or hasn't visited the Bills tab at all this session)
-      // were wrongly shown as safe to delete.
-      if (!billsProvider
-          .hasLoadedAllBillsForHousehold(configProvider.householdId)) {
-        await billsProvider.loadAllBills(configProvider);
+      // The "in use" flag on the Categories tab needs to know which
+      // category names have a bill anywhere in the household - not just
+      // BillsProvider.bills (the paginated/filtered list shown on the Bills
+      // tab). loadCategoriesInUse runs a lightweight query over just the
+      // `category` column rather than pulling every full bill row.
+      if (!billsProvider.hasLoadedCategoryNamesInUseForHousehold(
+          configProvider.householdId)) {
+        await billsProvider.loadCategoriesInUse(configProvider);
       }
     } finally {
       _isLoadingData = false;
@@ -1665,12 +1664,11 @@ class _CategoriesTab extends StatelessWidget {
           );
         }
 
-        // Use watch to rebuild when bills or splits change so "in use" status updates correctly.
-        // allBills (not the paginated bills list screen's page) so every
-        // bill referencing a category counts toward "in use", not just
-        // whichever page happens to be loaded.
-        final billsData = context.watch<BillsProvider>().allBills;
-        final splitsData = context.watch<PaymentSplitsProvider>().splits;
+        // Use watch to rebuild when the in-use set changes so "in use"
+        // status updates correctly. categoryNamesInUse covers every bill in
+        // the household (not just the paginated bills list screen's page).
+        final categoryNamesInUse =
+            context.watch<BillsProvider>().categoryNamesInUse;
 
         // Show error banner if there's an error but we have categories to display
         final hasError = categoriesProvider.error != null;
@@ -1762,12 +1760,11 @@ class _CategoriesTab extends StatelessWidget {
                       padding: const EdgeInsets.all(8),
                       itemBuilder: (context, index) {
                         final category = categoriesProvider.categories[index];
-                        // Check if category is in use using the bills and splits watched in build method
-                        // billsData and splitsData are watched, so the widget rebuilds when they change
+                        // categoryNamesInUse is watched above, so the widget
+                        // rebuilds when it changes.
                         final isInUse = categoriesProvider.isCategoryInUse(
                           category.name,
-                          billsData,
-                          splitsData,
+                          categoryNamesInUse,
                         );
 
                         return Card(
