@@ -726,4 +726,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get noDuplicateBillsMessage =>
       'Bills with the same date and amount will show up here for you to review.';
+
+  @override
+  String get billNotFinishedSaving => 'Bill has not finished saving yet';
 }

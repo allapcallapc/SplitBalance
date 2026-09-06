@@ -110,6 +110,19 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
       return;
     }
 
+    // Editing an existing bill that hasn't finished its initial save (and so
+    // has no id yet) must fail loudly here rather than silently falling
+    // through to the addBill branch below and creating a duplicate row -
+    // mirrors the equivalent guard BillsProvider.updateBill(index, ...) used
+    // to have before edits switched to looking bills up by id instead of by
+    // page-index.
+    if (widget.bill != null && widget.bill!.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.billNotFinishedSaving)),
+      );
+      return;
+    }
+
     final configProvider = context.read<ConfigProvider>();
     final billsProvider = context.read<BillsProvider>();
     final duplicateBillsProvider = context.read<DuplicateBillsProvider>();

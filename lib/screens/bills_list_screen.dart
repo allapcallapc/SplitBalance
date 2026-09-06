@@ -124,7 +124,13 @@ class _BillsListScreenState extends State<BillsListScreen>
       await billsProvider.loadBills(configProvider);
       await categoriesProvider.loadCategories(configProvider);
       unawaited(billsProvider.loadFilterOptions(configProvider));
-      unawaited(_loadDuplicates());
+      // Guarded like every other DuplicateBillsProvider call site added in
+      // this feature: _loadDuplicates() does its own context.read(), which
+      // throws if this screen was disposed while the awaits above were in
+      // flight.
+      if (mounted) {
+        unawaited(_loadDuplicates());
+      }
     }
   }
 

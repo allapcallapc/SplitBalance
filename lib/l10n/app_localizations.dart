@@ -1411,6 +1411,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bills with the same date and amount will show up here for you to review.'**
   String get noDuplicateBillsMessage;
+
+  /// Error shown when trying to edit a bill that hasn't finished its initial save (has no id yet)
+  ///
+  /// In en, this message translates to:
+  /// **'Bill has not finished saving yet'**
+  String get billNotFinishedSaving;
 }
 
 class _AppLocalizationsDelegate

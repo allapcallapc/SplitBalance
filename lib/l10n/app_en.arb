@@ -975,5 +975,9 @@
   "noDuplicateBillsMessage": "Bills with the same date and amount will show up here for you to review.",
   "@noDuplicateBillsMessage": {
     "description": "Explanation shown when the duplicate bills queue is empty"
+  },
+  "billNotFinishedSaving": "Bill has not finished saving yet",
+  "@billNotFinishedSaving": {
+    "description": "Error shown when trying to edit a bill that hasn't finished its initial save (has no id yet)"
   }
 }

@@ -736,4 +736,8 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get noDuplicateBillsMessage =>
       'Les factures ayant la même date et le même montant apparaîtront ici pour que vous puissiez les vérifier.';
+
+  @override
+  String get billNotFinishedSaving =>
+      'La facture n\'a pas encore fini d\'être enregistrée';
 }

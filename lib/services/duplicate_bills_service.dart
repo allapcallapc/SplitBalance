@@ -102,17 +102,22 @@ class DuplicateBillsService {
 
   // Existing bills in [householdId] matching [date]+[amount], excluding
   // [excludeId] (the bill being edited, if any) - used to block Save on the
-  // Add/Edit Bill screen behind a confirmation step.
+  // Add/Edit Bill screen behind a confirmation step. [amount] is rounded to
+  // 2 decimal places before querying - the `bills.amount` column is
+  // `numeric(10,2)`, so an unrounded value (e.g. 25.005, which the amount
+  // TextFormField doesn't reject) would never `.eq()` the rounded value
+  // Postgres actually stored (25.01), silently missing a real duplicate.
   Future<List<Bill>> findMatches({
     required String householdId,
     required DateTime date,
     required double amount,
     String? excludeId,
   }) async {
+    final roundedAmount = double.parse(amount.toStringAsFixed(2));
     final rows = await _fetchMatchingBillRows(
       householdId: householdId,
       date: date,
-      amount: amount,
+      amount: roundedAmount,
       excludeId: excludeId,
     );
     return rows.map(Bill.fromMap).toList();

@@ -352,4 +352,63 @@ void main() {
     expect(updatedData!['amount'], 30.0);
     expect(find.byType(AddEditBillScreen), findsNothing);
   });
+
+  testWidgets(
+      'editing a bill with no id yet shows an error instead of silently '
+      'adding a duplicate row', (tester) async {
+    var insertCalled = false;
+    var updateCalled = false;
+    final configProvider = signedInConfigProvider();
+    final categoriesProvider = await loadedCategoriesProvider(configProvider);
+    final billsProvider = noOpBillsProvider(
+      insertBillRow: (data) async {
+        insertCalled = true;
+        return {'id': 'new-bill', ...data};
+      },
+      updateBillRow: (id, data) async {
+        updateCalled = true;
+        return {'id': id, ...data};
+      },
+    );
+    final duplicateBillsProvider = DuplicateBillsProvider(
+      service: DuplicateBillsService(
+        fetchMatchingBillRows: ({
+          required householdId,
+          required date,
+          required amount,
+          excludeId,
+        }) async =>
+            [],
+      ),
+    );
+    // A Bill with no id - shouldn't happen in practice today (every Bill
+    // reaching this screen comes from a saved server row), but guards
+    // against a future caller passing one in.
+    final unsavedBill = Bill(
+      date: DateTime(2026, 1, 1),
+      amount: 20.0,
+      paidBy: 'Bob',
+      category: 'Groceries',
+    );
+
+    await pumpAndOpenAddEditBillScreen(
+      tester,
+      billsProvider: billsProvider,
+      configProvider: configProvider,
+      categoriesProvider: categoriesProvider,
+      duplicateBillsProvider: duplicateBillsProvider,
+      bill: unsavedBill,
+    );
+
+    await tester.tap(find.text('Save Bill'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Bill has not finished saving yet'), findsOneWidget);
+    expect(insertCalled, isFalse);
+    expect(updateCalled, isFalse);
+    // The screen stays open - Save was rejected, not silently redirected to
+    // an add.
+    expect(find.byType(AddEditBillScreen), findsOneWidget);
+  });
 }

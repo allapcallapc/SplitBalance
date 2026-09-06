@@ -198,5 +198,32 @@ void main() {
       expect(seenAmount, 42.5);
       expect(seenExcludeId, 'bill-being-edited');
     });
+
+    test(
+        'rounds the amount to 2 decimal places before querying, matching '
+        "the bills table's numeric(10,2) column - so a raw, unrounded "
+        'amount still finds the duplicate Postgres actually stored',
+        () async {
+      double? seenAmount;
+      final service = DuplicateBillsService(
+        fetchMatchingBillRows: ({
+          required householdId,
+          required date,
+          required amount,
+          excludeId,
+        }) async {
+          seenAmount = amount;
+          return [];
+        },
+      );
+
+      await service.findMatches(
+        householdId: 'household-1',
+        date: DateTime(2026, 1, 1),
+        amount: 25.006,
+      );
+
+      expect(seenAmount, 25.01);
+    });
   });
 }
