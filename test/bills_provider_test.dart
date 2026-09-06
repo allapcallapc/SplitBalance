@@ -24,6 +24,7 @@ BillsProvider testBillsProvider({
   UpdateBillRow? updateBillRow,
   DeleteBillRow? deleteBillRow,
   FetchRecoveredBreakdown? fetchRecoveredBreakdown,
+  FetchCategoriesInUse? fetchCategoriesInUse,
 }) {
   return BillsProvider(
     fetchBillsPage: fetchBillsPage,
@@ -32,6 +33,7 @@ BillsProvider testBillsProvider({
     deleteBillRow: deleteBillRow,
     fetchRecoveredBreakdown:
         fetchRecoveredBreakdown ?? ({required billIds}) async => {},
+    fetchCategoriesInUse: fetchCategoriesInUse,
   );
 }
 
@@ -1128,12 +1130,16 @@ void main() {
     });
 
     test(
-        'a fetch failure is swallowed (best-effort) but still marks the '
-        "household as loaded, so callers don't retry on every build",
-        () async {
+        'a fetch failure is swallowed (best-effort) and does NOT mark the '
+        'household as loaded, so the next Categories tab visit retries '
+        'instead of leaving the check disabled for the session', () async {
+      var callCount = 0;
       final provider = BillsProvider(
-        fetchCategoriesInUse: ({required householdId}) async =>
-            throw Exception('network error'),
+        fetchCategoriesInUse: ({required householdId}) async {
+          callCount++;
+          if (callCount == 1) throw Exception('network error');
+          return {'groceries'};
+        },
       );
       final configProvider = ConfigProvider.forTesting(
         isSignedIn: true,
@@ -1149,7 +1155,156 @@ void main() {
       expect(provider.categoryNamesInUse, isEmpty);
       expect(
           provider.hasLoadedCategoryNamesInUseForHousehold('household-1'),
+          false);
+
+      // A caller checking hasLoaded before deciding whether to refetch (as
+      // PaymentSplitsScreen._loadData does) retries rather than treating the
+      // failed attempt as done.
+      await provider.loadCategoriesInUse(configProvider);
+
+      expect(provider.categoryNamesInUse, {'groceries'});
+      expect(
+          provider.hasLoadedCategoryNamesInUseForHousehold('household-1'),
           true);
+    });
+  });
+
+  group('BillsProvider - categoryNamesInUse stays in sync with bill '
+      'mutations', () {
+    // Regression coverage for a real report: loadCategoriesInUse only
+    // (re)computes categoryNamesInUse once per household, so without this,
+    // adding the first bill in a brand-new category wouldn't flag it as in
+    // use, and deleting a category's last bill would leave it stuck showing
+    // as in use, until the next full reload.
+
+    test('adding a bill in a brand-new category immediately flags it as in '
+        'use, without waiting for a fresh loadCategoriesInUse fetch',
+        () async {
+      final provider = testBillsProvider(
+        insertBillRow: (data) async => {
+          'id': 'bill-1',
+          'date': data['date'],
+          'amount': data['amount'],
+          'paid_by': data['paid_by'],
+          'category': data['category'],
+          'details': data['details'],
+        },
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          DateTime? startDate,
+          DateTime? endDate,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            [],
+      );
+
+      await provider.addBillForHousehold(
+        Bill(
+          date: DateTime(2026, 1, 1),
+          amount: 10.0,
+          paidBy: 'Alice',
+          category: 'Utilities',
+        ),
+        'household-1',
+      );
+
+      expect(provider.categoryNamesInUse, contains('utilities'));
+    });
+
+    test('recategorizing a bill invalidates the cache, so a stale false '
+        "positive on the old category doesn't linger forever", () async {
+      final provider = testBillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          DateTime? startDate,
+          DateTime? endDate,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            [billRow('bill-1', '2026-01-01', category: 'Food')],
+        updateBillRow: (id, data) async => {
+          'id': id,
+          'date': data['date'],
+          'amount': data['amount'],
+          'paid_by': data['paid_by'],
+          'category': data['category'],
+          'details': data['details'],
+        },
+        fetchCategoriesInUse: ({required householdId}) async => {'food'},
+      );
+      await provider.loadBillsForHousehold('household-1');
+
+      // Simulate a prior successful loadCategoriesInUse fetch on this same
+      // provider, so there's a cached "loaded" state for the update to
+      // invalidate.
+      final configProvider = ConfigProvider.forTesting(
+        isSignedIn: true,
+        config: AppConfig(
+          householdId: 'household-1',
+          person1Name: 'Alice',
+          person2Name: 'Bob',
+        ),
+      );
+      await provider.loadCategoriesInUse(configProvider);
+      expect(
+          provider.hasLoadedCategoryNamesInUseForHousehold('household-1'),
+          true);
+
+      await provider.updateBillById(
+        'bill-1',
+        Bill(
+          id: 'bill-1',
+          date: DateTime(2026, 1, 1),
+          amount: 10.0,
+          paidBy: 'Alice',
+          category: 'Rent',
+        ),
+        'household-1',
+      );
+
+      // The new category is immediately safe to flag...
+      expect(provider.categoryNamesInUse, contains('rent'));
+      // ...but whether 'food' is still used by some other bill can't be
+      // known without a fresh fetch, so the cache is invalidated rather
+      // than left stuck reporting 'food' as in use.
+      expect(
+          provider.hasLoadedCategoryNamesInUseForHousehold('household-1'),
+          false);
+    });
+
+    test('deleting a bill invalidates the cache rather than leaving its '
+        "category's in-use status stale", () async {
+      final provider = testBillsProvider(
+        fetchBillsPage: ({
+          required String householdId,
+          String? paidBy,
+          String? category,
+          DateTime? startDate,
+          DateTime? endDate,
+          required BillSortField sortField,
+          required bool sortAscending,
+          required int offset,
+          required int limit,
+        }) async =>
+            [billRow('bill-1', '2026-01-01', category: 'Food')],
+        deleteBillRow: (id) async {},
+      );
+      await provider.loadBillsForHousehold('household-1');
+
+      await provider.deleteBillById('bill-1');
+
+      expect(
+          provider.hasLoadedCategoryNamesInUseForHousehold('household-1'),
+          false);
     });
   });
 }

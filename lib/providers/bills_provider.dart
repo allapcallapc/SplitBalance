@@ -544,14 +544,40 @@ class BillsProvider with ChangeNotifier {
     try {
       _categoryNamesInUse =
           await _fetchCategoriesInUse(householdId: householdId);
+      _categoryNamesInUseLoadedForHouseholdId = householdId;
     } catch (_) {
       // Best-effort, like loadFilterOptions: leave whatever was already
-      // cached in place rather than surfacing a top-level error for this
-      // secondary UI affordance.
+      // cached in place. Deliberately NOT marking the household as loaded
+      // here (unlike loadAllBills) - this gates a destructive action, so a
+      // transient failure should be retried on the next Categories tab
+      // visit rather than silently disabling the check for the rest of the
+      // session.
     } finally {
-      _categoryNamesInUseLoadedForHouseholdId = householdId;
       notifyListeners();
     }
+  }
+
+  // Always safe to call: a bill in [category] now definitely exists, even
+  // before the next loadCategoriesInUse() fetch confirms it. Keeps
+  // categoryNamesInUse from missing a bill's category the moment it's
+  // added/recategorized, since loadCategoriesInUse only (re)computes the
+  // set once per household (see hasLoadedCategoryNamesInUseForHousehold)
+  // rather than on every bill change.
+  void _noteBillCategoryAdded(String category) {
+    final name = category.toLowerCase().trim();
+    if (name.isNotEmpty) {
+      _categoryNamesInUse.add(name);
+    }
+  }
+
+  // A category can only be *removed* from use by deleting/recategorizing
+  // its last bill, which can't be confirmed here without scanning every
+  // other bill in the household - so this invalidates the cached set
+  // instead of guessing, forcing the next loadCategoriesInUse() call (next
+  // Categories tab visit) to recompute the authoritative answer rather than
+  // risk a stale false positive turning into an unsafe false negative.
+  void _invalidateCategoryNamesInUse() {
+    _categoryNamesInUseLoadedForHouseholdId = null;
   }
 
   // Default FetchCategoriesInUse: only the `category` column is projected
@@ -620,6 +646,7 @@ class BillsProvider with ChangeNotifier {
 
     _allBills.add(saved);
     _allBills.sort(_byDateThenId);
+    _noteBillCategoryAdded(saved.category);
 
     // Re-fetch page 1 from the server rather than optimistically splicing
     // the new row into `_bills`: the new bill's position relative to the
@@ -666,6 +693,14 @@ class BillsProvider with ChangeNotifier {
       _allBills.add(saved);
     }
     _allBills.sort(_byDateThenId);
+    // The new category is always safe to flag immediately. Whatever
+    // category this bill had before the edit may have just lost its last
+    // reference - _bills/_allBills aren't guaranteed to have that prior
+    // value cached (this screen doesn't require a full bill load), so
+    // rather than guess, invalidate unconditionally and let the next
+    // loadCategoriesInUse() call recompute the authoritative set.
+    _noteBillCategoryAdded(saved.category);
+    _invalidateCategoryNamesInUse();
 
     // Same rationale as addBill: the edit may have changed the bill's sort
     // position or taken it out of the active filter, which a local splice
@@ -709,6 +744,10 @@ class BillsProvider with ChangeNotifier {
       // different row (or none) by the time we get here.
       _bills.removeWhere((b) => b.id == id);
       _allBills.removeWhere((b) => b.id == id);
+      // The deleted bill's category may have just lost its last reference -
+      // can't confirm that without scanning every other bill, so invalidate
+      // rather than risk leaving it stuck showing as in use.
+      _invalidateCategoryNamesInUse();
       _error = null;
     } catch (e) {
       _error = 'Failed to delete bill: $e';

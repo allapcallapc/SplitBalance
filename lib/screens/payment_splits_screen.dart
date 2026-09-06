@@ -104,18 +104,23 @@ class _PaymentSplitsScreenState extends State<PaymentSplitsScreen>
     _lastLoadedHouseholdId = configProvider.householdId;
     _isLoadingData = true;
     try {
-      // Load categories first, then splits
-      await categoriesProvider.loadCategories(configProvider);
-      await splitsProvider.loadPaymentSplits(configProvider);
-      // The "in use" flag on the Categories tab needs to know which
-      // category names have a bill anywhere in the household - not just
-      // BillsProvider.bills (the paginated/filtered list shown on the Bills
-      // tab). loadCategoriesInUse runs a lightweight query over just the
-      // `category` column rather than pulling every full bill row.
-      if (!billsProvider.hasLoadedCategoryNamesInUseForHousehold(
-          configProvider.householdId)) {
-        await billsProvider.loadCategoriesInUse(configProvider);
-      }
+      // None of these depend on each other's results, so run them
+      // concurrently rather than serializing three independent round trips
+      // (loadCategoriesInUse alone pages through the household's bills in
+      // chunks of 1000 - see BillsProvider.loadCategoriesInUse).
+      await Future.wait([
+        categoriesProvider.loadCategories(configProvider),
+        splitsProvider.loadPaymentSplits(configProvider),
+        // The "in use" flag on the Categories tab needs to know which
+        // category names have a bill anywhere in the household - not just
+        // BillsProvider.bills (the paginated/filtered list shown on the
+        // Bills tab). loadCategoriesInUse runs a lightweight query over
+        // just the `category` column rather than pulling every full bill
+        // row.
+        if (!billsProvider.hasLoadedCategoryNamesInUseForHousehold(
+            configProvider.householdId))
+          billsProvider.loadCategoriesInUse(configProvider),
+      ]);
     } finally {
       _isLoadingData = false;
     }
