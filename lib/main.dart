@@ -353,10 +353,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
 
     final configProvider = context.read<ConfigProvider>();
     final categoriesProvider = context.read<CategoriesProvider>();
+    // Matches build()'s isConfigComplete below - a household is usable solo
+    // (person2Name stays '' until a second member joins, see
+    // ConfigProvider.createHousehold), so requiring it here would strand a
+    // solo household's deep link unclaimed for the rest of the session once
+    // the one-shot retry below has already fired and found it not "complete".
     final isConfigComplete = configProvider.isSignedIn &&
         configProvider.householdId != null &&
         configProvider.config.person1Name.trim().isNotEmpty &&
-        configProvider.config.person2Name.trim().isNotEmpty &&
         categoriesProvider.categories.isNotEmpty;
     if (!isConfigComplete) return;
 
