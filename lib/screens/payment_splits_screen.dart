@@ -95,6 +95,7 @@ class _PaymentSplitsScreenState extends State<PaymentSplitsScreen>
     final configProvider = _configProvider ?? context.read<ConfigProvider>();
     final splitsProvider = context.read<PaymentSplitsProvider>();
     final categoriesProvider = context.read<CategoriesProvider>();
+    final billsProvider = context.read<BillsProvider>();
 
     if (!configProvider.isSignedIn || configProvider.householdId == null) {
       return;
@@ -106,6 +107,16 @@ class _PaymentSplitsScreenState extends State<PaymentSplitsScreen>
       // Load categories first, then splits
       await categoriesProvider.loadCategories(configProvider);
       await splitsProvider.loadPaymentSplits(configProvider);
+      // The "in use" flag on the Categories tab checks every bill via
+      // BillsProvider.allBills, which only a full loadAllBills() populates -
+      // BillsProvider.bills is just the paginated/filtered list rendered on
+      // the Bills tab. Without this, categories with bills the user hasn't
+      // scrolled to (or hasn't visited the Bills tab at all this session)
+      // were wrongly shown as safe to delete.
+      if (!billsProvider
+          .hasLoadedAllBillsForHousehold(configProvider.householdId)) {
+        await billsProvider.loadAllBills(configProvider);
+      }
     } finally {
       _isLoadingData = false;
     }
