@@ -159,29 +159,23 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
         details: _detailsController.text.trim(),
       );
 
-      try {
-        if (widget.bill?.id != null) {
-          await billsProvider.updateBillById(
-              widget.bill!.id!, bill, configProvider.householdId);
-        } else {
-          await billsProvider.addBill(bill, configProvider);
-        }
+      // updateBillById/addBill catch and record their own errors via
+      // billsProvider.error rather than throwing (see BillsProvider), so
+      // there's no exception here to catch.
+      if (widget.bill?.id != null) {
+        await billsProvider.updateBillById(
+            widget.bill!.id!, bill, configProvider.householdId);
+      } else {
+        await billsProvider.addBill(bill, configProvider);
+      }
 
-        if (mounted) {
-          if (billsProvider.error != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(billsProvider.error!)),
-            );
-          } else {
-            Navigator.pop(context, true);
-          }
-        }
-      } catch (e) {
-        if (mounted) {
-          final l10n = AppLocalizations.of(context)!;
+      if (mounted) {
+        if (billsProvider.error != null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.errorSavingBill(e.toString()))),
+            SnackBar(content: Text(billsProvider.error!)),
           );
+        } else {
+          Navigator.pop(context, true);
         }
       }
     } finally {

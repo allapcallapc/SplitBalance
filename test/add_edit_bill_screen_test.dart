@@ -417,6 +417,46 @@ void main() {
   });
 
   testWidgets(
+      'shows an error snackbar instead of popping when the save itself fails',
+      (tester) async {
+    final configProvider = signedInConfigProvider();
+    final categoriesProvider = await loadedCategoriesProvider(configProvider);
+    // insertBillRow throwing is caught inside BillsProvider itself (see
+    // addBillForHousehold), which records it via `error` rather than
+    // rethrowing - so this exercises the screen's billsProvider.error
+    // snackbar branch, not an exception handler.
+    final billsProvider = noOpBillsProvider(
+      insertBillRow: (data) async => throw Exception('network down'),
+    );
+    final duplicateBillsProvider = DuplicateBillsProvider(
+      service: DuplicateBillsService(
+        fetchMatchingBillRows: ({
+          required householdId,
+          required date,
+          required amount,
+          excludeId,
+        }) async =>
+            [],
+      ),
+    );
+
+    await pumpAndOpenAddEditBillScreen(
+      tester,
+      billsProvider: billsProvider,
+      configProvider: configProvider,
+      categoriesProvider: categoriesProvider,
+      duplicateBillsProvider: duplicateBillsProvider,
+    );
+
+    await fillBillForm(tester, amount: '25.00');
+
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('Failed to add bill'), findsOneWidget);
+    // The screen stays open - the failure was surfaced, not silently popped.
+    expect(find.byType(AddEditBillScreen), findsOneWidget);
+  });
+
+  testWidgets(
       'a double-tap on Save only creates one bill, not two', (tester) async {
     var insertCount = 0;
     final configProvider = signedInConfigProvider();
