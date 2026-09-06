@@ -12,6 +12,7 @@ import '../providers/pending_payments_provider.dart';
 import '../models/bill.dart';
 import '../utils/category_icons.dart';
 import '../widgets/app_bar_action_icon_button.dart';
+import '../widgets/delete_bill_confirmation_dialog.dart';
 import 'add_edit_bill_screen.dart';
 import 'bill_recovered_amounts_screen.dart';
 import 'duplicate_bills_screen.dart';
@@ -452,26 +453,7 @@ class _BillsListScreenState extends State<BillsListScreen>
   }
 
   Future<void> _deleteBill(BuildContext context, int index, Bill bill) async {
-    final l10n = AppLocalizations.of(context)!;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.deleteBill),
-        content: Text(
-            '${l10n.areYouSureDeleteBill}\n\n${bill.details.isNotEmpty ? bill.details : "${DateFormat('yyyy-MM-dd').format(bill.date)} - \$${bill.amount.toStringAsFixed(2)}"}'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(l10n.delete),
-          ),
-        ],
-      ),
-    );
+    final confirmed = await confirmDeleteBill(context, bill);
 
     if (confirmed == true && context.mounted) {
       final configProvider = context.read<ConfigProvider>();

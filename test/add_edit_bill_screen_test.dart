@@ -116,7 +116,8 @@ Future<void> pumpAndOpenAddEditBillScreen(
   await tester.pumpAndSettle();
 }
 
-Future<void> fillBillForm(WidgetTester tester, {required String amount}) async {
+Future<void> fillBillFormFields(WidgetTester tester,
+    {required String amount}) async {
   await tester.enterText(find.byType(TextFormField).first, amount);
 
   // Paid by dropdown (first of the two DropdownButtonFormField<String>s).
@@ -130,7 +131,10 @@ Future<void> fillBillForm(WidgetTester tester, {required String amount}) async {
   await tester.pumpAndSettle();
   await tester.tap(find.text('Groceries').last);
   await tester.pumpAndSettle();
+}
 
+Future<void> fillBillForm(WidgetTester tester, {required String amount}) async {
+  await fillBillFormFields(tester, amount: amount);
   await tester.tap(find.text('Save Bill'));
   await tester.pumpAndSettle();
 }
@@ -410,5 +414,51 @@ void main() {
     // The screen stays open - Save was rejected, not silently redirected to
     // an add.
     expect(find.byType(AddEditBillScreen), findsOneWidget);
+  });
+
+  testWidgets(
+      'a double-tap on Save only creates one bill, not two', (tester) async {
+    var insertCount = 0;
+    final configProvider = signedInConfigProvider();
+    final categoriesProvider = await loadedCategoriesProvider(configProvider);
+    final billsProvider = noOpBillsProvider(
+      insertBillRow: (data) async {
+        insertCount++;
+        return {'id': 'new-bill-$insertCount', ...data};
+      },
+    );
+    final duplicateBillsProvider = DuplicateBillsProvider(
+      service: DuplicateBillsService(
+        fetchMatchingBillRows: ({
+          required householdId,
+          required date,
+          required amount,
+          excludeId,
+        }) async =>
+            [],
+      ),
+    );
+
+    await pumpAndOpenAddEditBillScreen(
+      tester,
+      billsProvider: billsProvider,
+      configProvider: configProvider,
+      categoriesProvider: categoriesProvider,
+      duplicateBillsProvider: duplicateBillsProvider,
+    );
+
+    await fillBillFormFields(tester, amount: '25.00');
+
+    // Two rapid taps with no pump in between, simulating a double-tap:
+    // _saveBill's own _isSaving guard (not just the disabled-button
+    // rebuild, which hasn't happened yet at this point) must reject the
+    // second call.
+    await tester.tap(find.text('Save Bill'));
+    await tester.tap(find.text('Save Bill'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(insertCount, 1);
+    expect(find.byType(AddEditBillScreen), findsNothing);
   });
 }
