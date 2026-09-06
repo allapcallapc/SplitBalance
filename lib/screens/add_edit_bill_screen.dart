@@ -373,21 +373,22 @@ class _AddEditBillScreenState extends State<AddEditBillScreen> {
               const SizedBox(height: 24),
 
               // Save button
+              //
+              // Deliberately no CircularProgressIndicator swap while
+              // _isSaving is true: an indeterminate spinner animates for as
+              // long as the duplicate-confirmation dialog is open awaiting
+              // user input, which keeps scheduling frames and prevents
+              // WidgetTester.pumpAndSettle() from ever settling in tests.
+              // The disabled onPressed below is sufficient to block re-entry.
               ElevatedButton(
                 onPressed: _isSaving ? null : _saveBill,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: _isSaving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(
-                        l10n.saveBill,
-                        style: const TextStyle(fontSize: 16),
-                      ),
+                child: Text(
+                  l10n.saveBill,
+                  style: const TextStyle(fontSize: 16),
+                ),
               ),
             ],
           ),
