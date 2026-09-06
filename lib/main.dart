@@ -502,6 +502,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
             // build.
             _selectedIndex = _persistedTabIndex ?? 0; // Bills screen
             _hasAutoNavigatedToBills = true;
+            // initState's _checkPendingDeepLink() ran before config was
+            // complete and bailed out (see its isConfigComplete guard), so a
+            // cold start via a notification tap would otherwise never
+            // navigate to the deep-linked screen this session - it'd just
+            // silently land on the restored tab above. Retry now that we're
+            // settled; getPendingDeepLink() only clears once this succeeds,
+            // so it's still there to find.
+            WidgetsBinding.instance
+                .addPostFrameCallback((_) => _checkPendingDeepLink());
           }
         }
 
