@@ -72,6 +72,14 @@ class MainActivity : FlutterActivity() {
                     GooglePayNotificationListenerService.setWatchedPackages(applicationContext, packages)
                     result.success(null)
                 }
+                "getRemoveOriginalNotification" -> {
+                    result.success(GooglePayNotificationListenerService.getRemoveOriginalNotification(applicationContext))
+                }
+                "setRemoveOriginalNotification" -> {
+                    val enabled = call.arguments as? Boolean ?: false
+                    GooglePayNotificationListenerService.setRemoveOriginalNotification(applicationContext, enabled)
+                    result.success(null)
+                }
                 "getPendingQueueFilePath" -> {
                     result.success(GooglePayNotificationListenerService.queueFile(applicationContext).absolutePath)
                 }

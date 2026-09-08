@@ -36,6 +36,7 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
     companion object {
         const val PREFS_NAME = "google_pay_listener_prefs"
         const val WATCHED_PACKAGES_KEY = "watched_packages"
+        const val REMOVE_ORIGINAL_NOTIFICATION_KEY = "remove_original_notification"
         const val QUEUE_FILE_NAME = "pending_google_pay_payments.json"
 
         const val ALERT_CHANNEL_ID = "pending_bills"
@@ -150,6 +151,22 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
             prefs.edit().putStringSet(WATCHED_PACKAGES_KEY, packages.toSet()).apply()
         }
 
+        /**
+         * Whether the original payment-app notification (e.g. Google Pay/Wallet's)
+         * should be dismissed once our own "New payment detected" alert is posted.
+         * Off by default: removing another app's notification is user-visible and
+         * loses that app's own actions, so it must be opted into from the config screen.
+         */
+        fun getRemoveOriginalNotification(context: Context): Boolean {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            return prefs.getBoolean(REMOVE_ORIGINAL_NOTIFICATION_KEY, false)
+        }
+
+        fun setRemoveOriginalNotification(context: Context, enabled: Boolean) {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putBoolean(REMOVE_ORIGINAL_NOTIFICATION_KEY, enabled).apply()
+        }
+
         /** Directory + file used for the pending-payments queue; also read from MainActivity. */
         fun queueFile(context: Context): File {
             return File(context.filesDir, QUEUE_FILE_NAME)
@@ -192,8 +209,17 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
         }
     }
 
-    /** Visible for testing - [context] is explicit so tests don't need to spy this Service. */
-    internal fun handleNotification(sbn: StatusBarNotification, context: Context) {
+    /**
+     * Visible for testing - [context] is explicit so tests don't need to spy this
+     * Service. [cancelOriginal] defaults to the real [cancelNotification] but is
+     * injectable so unit tests can verify the opt-in dismissal without needing the
+     * real NotificationListenerService binder that only a live connection provides.
+     */
+    internal fun handleNotification(
+        sbn: StatusBarNotification,
+        context: Context,
+        cancelOriginal: (String) -> Unit = { key -> cancelNotification(key) }
+    ) {
         val watched = getWatchedPackages(context)
         if (!watched.contains(sbn.packageName)) return
 
@@ -214,6 +240,11 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
         }
 
         appendToQueue(entry, context)
+
+        if (getRemoveOriginalNotification(context)) {
+            cancelOriginal(sbn.key)
+        }
+
         showAlertNotification(id, amount, rawText)
     }
 

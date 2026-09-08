@@ -633,6 +633,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addPackageName => 'Add package name';
 
   @override
+  String get removeOriginalNotification => 'Remove Google Pay notification';
+
+  @override
+  String get removeOriginalNotificationHint =>
+      'Dismiss the Google Pay/Wallet notification once a payment is detected';
+
+  @override
   String get androidOnlyFeature => 'This feature is only available on Android';
 
   @override

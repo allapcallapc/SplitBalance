@@ -62,10 +62,16 @@ class GooglePayNotificationListenerServiceHandleNotificationTest {
         return sbn
     }
 
-    private fun contextWithQueueDir(queueDir: File): Context {
+    private fun contextWithQueueDir(
+        queueDir: File,
+        removeOriginalNotification: Boolean = false
+    ): Context {
         val prefs = mock<SharedPreferences>()
         whenever(prefs.getStringSet(eq(GooglePayNotificationListenerService.WATCHED_PACKAGES_KEY), anyOrNull()))
             .thenReturn(null)
+        whenever(
+            prefs.getBoolean(eq(GooglePayNotificationListenerService.REMOVE_ORIGINAL_NOTIFICATION_KEY), eq(false))
+        ).thenReturn(removeOriginalNotification)
 
         val context = mock<Context>()
         whenever(
@@ -85,9 +91,13 @@ class GooglePayNotificationListenerServiceHandleNotificationTest {
      * what this test cares about - the queue write above it already happened by then -
      * so the expected failure is swallowed here instead of chasing it into Robolectric.
      */
-    private fun invokeHandleNotification(sbn: StatusBarNotification, context: Context) {
+    private fun invokeHandleNotification(
+        sbn: StatusBarNotification,
+        context: Context,
+        cancelOriginal: (String) -> Unit = {}
+    ) {
         try {
-            GooglePayNotificationListenerService().handleNotification(sbn, context)
+            GooglePayNotificationListenerService().handleNotification(sbn, context, cancelOriginal)
         } catch (e: Exception) {
             // Expected past the queue write - see the function doc above.
         }
@@ -148,6 +158,42 @@ class GooglePayNotificationListenerServiceHandleNotificationTest {
 
         val queueFile = File(queueDir, GooglePayNotificationListenerService.QUEUE_FILE_NAME)
         assertFalse(queueFile.exists())
+    }
+
+    @Test
+    fun `handleNotification cancels the original notification when the setting is enabled`() {
+        val queueDir = tempFolder.newFolder()
+        val context = contextWithQueueDir(queueDir, removeOriginalNotification = true)
+        val packageName = GooglePayNotificationListenerService.DEFAULT_WATCHED_PACKAGES.first()
+        val sbn = statusBarNotificationFor(
+            packageName = packageName,
+            title = "SAMPLE MERCHANT",
+            text = "\$31.20 with SOME BANK CARD ••1234",
+            bigText = null
+        )
+        var cancelledKey: String? = null
+
+        invokeHandleNotification(sbn, context) { key -> cancelledKey = key }
+
+        assertEquals("key", cancelledKey)
+    }
+
+    @Test
+    fun `handleNotification leaves the original notification alone when the setting is disabled`() {
+        val queueDir = tempFolder.newFolder()
+        val context = contextWithQueueDir(queueDir, removeOriginalNotification = false)
+        val packageName = GooglePayNotificationListenerService.DEFAULT_WATCHED_PACKAGES.first()
+        val sbn = statusBarNotificationFor(
+            packageName = packageName,
+            title = "SAMPLE MERCHANT",
+            text = "\$31.20 with SOME BANK CARD ••1234",
+            bigText = null
+        )
+        var cancelCalled = false
+
+        invokeHandleNotification(sbn, context) { cancelCalled = true }
+
+        assertFalse(cancelCalled)
     }
 
 }

@@ -305,6 +305,8 @@
   "watchedApps": "Applications surveillées",
   "watchedAppsHint": "Noms de packages à surveiller pour les notifications de paiement",
   "addPackageName": "Ajouter un nom de package",
+  "removeOriginalNotification": "Supprimer la notification Google Pay",
+  "removeOriginalNotificationHint": "Fermer la notification Google Pay/Wallet une fois le paiement détecté",
   "androidOnlyFeature": "Cette fonctionnalité est disponible uniquement sur Android",
   "pendingPaymentsTooltip": "Paiements en attente",
   "checkForUpdates": "Vérifier les mises à jour",

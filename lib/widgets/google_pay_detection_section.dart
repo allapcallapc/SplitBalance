@@ -21,6 +21,7 @@ class _GooglePayDetectionSectionState extends State<GooglePayDetectionSection>
     with WidgetsBindingObserver {
   bool? _notificationAccessGranted;
   List<String> _watchedPackages = [];
+  bool _removeOriginalNotification = false;
   bool _loaded = false;
   final _newPackageController = TextEditingController();
 
@@ -52,6 +53,8 @@ class _GooglePayDetectionSectionState extends State<GooglePayDetectionSection>
 
     final granted = await provider.isNotificationAccessGranted();
     final packages = await provider.getWatchedPackages();
+    final removeOriginalNotification =
+        await provider.getRemoveOriginalNotification();
     if (granted) {
       // Fire-and-forget: only relevant on Android 13+, no-op otherwise.
       unawaited(provider.requestNotificationPermissionIfNeeded());
@@ -60,7 +63,19 @@ class _GooglePayDetectionSectionState extends State<GooglePayDetectionSection>
       setState(() {
         _notificationAccessGranted = granted;
         _watchedPackages = packages;
+        _removeOriginalNotification = removeOriginalNotification;
         _loaded = true;
+      });
+    }
+  }
+
+  Future<void> _setRemoveOriginalNotification(bool enabled) async {
+    await context
+        .read<PendingPaymentsProvider>()
+        .setRemoveOriginalNotification(enabled);
+    if (mounted) {
+      setState(() {
+        _removeOriginalNotification = enabled;
       });
     }
   }
@@ -212,6 +227,17 @@ class _GooglePayDetectionSectionState extends State<GooglePayDetectionSection>
                     icon: const Icon(Icons.add_circle),
                   ),
                 ],
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(l10n.removeOriginalNotification),
+                subtitle: Text(
+                  l10n.removeOriginalNotificationHint,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                value: _removeOriginalNotification,
+                onChanged: _setRemoveOriginalNotification,
               ),
             ],
           ],

@@ -1238,6 +1238,18 @@ abstract class AppLocalizations {
   /// **'Add package name'**
   String get addPackageName;
 
+  /// Label for the toggle that dismisses the original payment app's notification once our own alert is shown
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Google Pay notification'**
+  String get removeOriginalNotification;
+
+  /// Explanation of the remove-original-notification toggle
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss the Google Pay/Wallet notification once a payment is detected'**
+  String get removeOriginalNotificationHint;
+
   /// Message shown when a feature requires Android and the app is running elsewhere
   ///
   /// In en, this message translates to:
