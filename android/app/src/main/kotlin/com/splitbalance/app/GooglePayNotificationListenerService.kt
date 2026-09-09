@@ -241,11 +241,22 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
 
         appendToQueue(entry, context)
 
-        if (getRemoveOriginalNotification(context)) {
-            cancelOriginal(sbn.key)
+        if (hasPostNotificationsPermission()) {
+            // Only dismiss the original once we know our own alert can actually be
+            // posted in its place - otherwise a denied/missing permission would
+            // leave the payment with no visible notification at all.
+            if (getRemoveOriginalNotification(context)) {
+                cancelOriginal(sbn.key)
+            }
+            showAlertNotification(id, amount, rawText)
         }
+        // Permission not granted; the in-app pending-payments banner (backed by
+        // the queue write above) is still the fallback.
+    }
 
-        showAlertNotification(id, amount, rawText)
+    private fun hasPostNotificationsPermission(): Boolean {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun isoNow(): String {
@@ -270,14 +281,8 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
         file.writeText(array.toString())
     }
 
+    /** Caller must have already checked [hasPostNotificationsPermission]. */
     private fun showAlertNotification(id: String, amount: Double?, rawText: String) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            // Not granted; the in-app pending-payments banner is still the fallback.
-            return
-        }
-
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             manager.createNotificationChannel(
