@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.4.0](https://github.com/allapcallapc/SplitBalance/compare/v3.3.0...v3.4.0) (2026-09-07)
+
+
+### Features
+
+* flag potential duplicate bills on save and in the bills list ([#81](https://github.com/allapcallapc/SplitBalance/issues/81)) ([7fded89](https://github.com/allapcallapc/SplitBalance/commit/7fded894331b9a0d467a612502095170a066b73a))
+* make all built-in Material icons available for categories ([#80](https://github.com/allapcallapc/SplitBalance/issues/80)) ([42e99aa](https://github.com/allapcallapc/SplitBalance/commit/42e99aa1424bf665a368cc25333a032b1ebc46d8))
+* ping staging Supabase on a schedule to prevent auto-pause ([ed2d382](https://github.com/allapcallapc/SplitBalance/commit/ed2d3821a03e5b52044175eac01494d599cf5856))
+* search bills by date or date range on the bills list ([#78](https://github.com/allapcallapc/SplitBalance/issues/78)) ([f8d4486](https://github.com/allapcallapc/SplitBalance/commit/f8d4486ae4fe8cbdff2fab632565d5a69f7084f6))
+
+
+### Bug Fixes
+
+* compute category in-use flag with a lightweight query ([3f521c5](https://github.com/allapcallapc/SplitBalance/commit/3f521c5ca92e647e7179570576f408ab296b2cc5))
+* ping a real table instead of the /rest/v1/ schema root for the staging Supabase keep-awake check ([#84](https://github.com/allapcallapc/SplitBalance/issues/84)) ([860edf3](https://github.com/allapcallapc/SplitBalance/commit/860edf3087601711cbd9123ff40b3d85ec4503a6))
+* retry pending deep-link check once config settles after cold start ([#83](https://github.com/allapcallapc/SplitBalance/issues/83)) ([7070a14](https://github.com/allapcallapc/SplitBalance/commit/7070a14ff7715812b0a1ec87d2eb973903dbe56c))
+
 ## [3.3.0](https://github.com/allapcallapc/SplitBalance/compare/v3.2.0...v3.3.0) (2026-09-05)
 
 
