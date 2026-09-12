@@ -51,10 +51,14 @@ class _GooglePayDetectionSectionState extends State<GooglePayDetectionSection>
     final provider = context.read<PendingPaymentsProvider>();
     if (!provider.isSupported) return;
 
-    final granted = await provider.isNotificationAccessGranted();
-    final packages = await provider.getWatchedPackages();
-    final removeOriginalNotification =
-        await provider.getRemoveOriginalNotification();
+    final results = await Future.wait([
+      provider.isNotificationAccessGranted(),
+      provider.getWatchedPackages(),
+      provider.getRemoveOriginalNotification(),
+    ]);
+    final granted = results[0] as bool;
+    final packages = results[1] as List<String>;
+    final removeOriginalNotification = results[2] as bool;
     if (granted) {
       // Fire-and-forget: only relevant on Android 13+, no-op otherwise.
       unawaited(provider.requestNotificationPermissionIfNeeded());

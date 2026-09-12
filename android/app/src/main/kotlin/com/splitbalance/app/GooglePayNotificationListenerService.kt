@@ -211,13 +211,17 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
 
     /**
      * Visible for testing - [context] is explicit so tests don't need to spy this
-     * Service. [cancelOriginal] defaults to the real [cancelNotification] but is
-     * injectable so unit tests can verify the opt-in dismissal without needing the
-     * real NotificationListenerService binder that only a live connection provides.
+     * Service. [hasPermission], [postAlert] and [cancelOriginal] default to the real
+     * [hasPostNotificationsPermission]/[showAlertNotification]/[cancelNotification]
+     * but are injectable so unit tests can exercise the permission-gated dismissal
+     * logic below without needing the real NotificationListenerService binder or
+     * NotificationManager that only a live connection/device provides.
      */
     internal fun handleNotification(
         sbn: StatusBarNotification,
         context: Context,
+        hasPermission: () -> Boolean = { hasPostNotificationsPermission() },
+        postAlert: (String, Double?, String) -> Unit = { id, amount, rawText -> showAlertNotification(id, amount, rawText) },
         cancelOriginal: (String) -> Unit = { key -> cancelNotification(key) }
     ) {
         val watched = getWatchedPackages(context)
@@ -241,14 +245,16 @@ class GooglePayNotificationListenerService : NotificationListenerService() {
 
         appendToQueue(entry, context)
 
-        if (hasPostNotificationsPermission()) {
-            // Only dismiss the original once we know our own alert can actually be
-            // posted in its place - otherwise a denied/missing permission would
-            // leave the payment with no visible notification at all.
+        if (hasPermission()) {
+            // postAlert() runs, and can throw, before the original is dismissed -
+            // if it fails to post (e.g. notify() throwing on some OEM), propagating
+            // that past this function (onNotificationPosted's caller swallows it)
+            // skips cancelOriginal below, so the user is never left with neither
+            // notification.
+            postAlert(id, amount, rawText)
             if (getRemoveOriginalNotification(context)) {
                 cancelOriginal(sbn.key)
             }
-            showAlertNotification(id, amount, rawText)
         }
         // Permission not granted; the in-app pending-payments banner (backed by
         // the queue write above) is still the fallback.

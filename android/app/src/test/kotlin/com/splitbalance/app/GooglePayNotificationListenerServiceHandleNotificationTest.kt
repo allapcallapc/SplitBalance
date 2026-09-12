@@ -26,10 +26,10 @@ import java.io.File
  * doesn't need to spy the Service itself - only its plain-mockable arguments. The one
  * path this can't cover - onNotificationPosted()'s applicationContext resolution -
  * is exercised separately in GooglePayNotificationListenerServiceRobolectricTest.
- * Only the queue-persistence path is verified; showAlertNotification()'s
- * PendingIntent/NotificationCompat calls need a real Android runtime and throw
- * against the stub android.jar used for local unit tests, so that expected failure
- * is caught after asserting the queue write already happened.
+ * [hasPermission] and [postAlert] are stubbed out (rather than left at their real
+ * defaults) precisely so these tests can exercise the permission-gated
+ * cancel/post logic without the real NotificationManager/PendingIntent calls that
+ * throw against the stub android.jar used for local unit tests outside Robolectric.
  */
 class GooglePayNotificationListenerServiceHandleNotificationTest {
 
@@ -84,23 +84,14 @@ class GooglePayNotificationListenerServiceHandleNotificationTest {
         return context
     }
 
-    /**
-     * showAlertNotification() (called after the queue write, still inside
-     * handleNotification) needs real PendingIntent/NotificationCompat/NotificationManager
-     * behavior that the stub android.jar throws on outside Robolectric. That's beyond
-     * what this test cares about - the queue write above it already happened by then -
-     * so the expected failure is swallowed here instead of chasing it into Robolectric.
-     */
     private fun invokeHandleNotification(
         sbn: StatusBarNotification,
         context: Context,
+        hasPermission: () -> Boolean = { true },
+        postAlert: (String, Double?, String) -> Unit = { _, _, _ -> },
         cancelOriginal: (String) -> Unit = {}
     ) {
-        try {
-            GooglePayNotificationListenerService().handleNotification(sbn, context, cancelOriginal)
-        } catch (e: Exception) {
-            // Expected past the queue write - see the function doc above.
-        }
+        GooglePayNotificationListenerService().handleNotification(sbn, context, hasPermission, postAlert, cancelOriginal)
     }
 
     @Test
@@ -192,6 +183,60 @@ class GooglePayNotificationListenerServiceHandleNotificationTest {
         var cancelCalled = false
 
         invokeHandleNotification(sbn, context) { cancelCalled = true }
+
+        assertFalse(cancelCalled)
+    }
+
+    @Test
+    fun `handleNotification neither posts nor cancels when notification permission is denied`() {
+        val queueDir = tempFolder.newFolder()
+        val context = contextWithQueueDir(queueDir, removeOriginalNotification = true)
+        val packageName = GooglePayNotificationListenerService.DEFAULT_WATCHED_PACKAGES.first()
+        val sbn = statusBarNotificationFor(
+            packageName = packageName,
+            title = "SAMPLE MERCHANT",
+            text = "\$31.20 with SOME BANK CARD ••1234",
+            bigText = null
+        )
+        var postAlertCalled = false
+        var cancelCalled = false
+
+        invokeHandleNotification(
+            sbn,
+            context,
+            hasPermission = { false },
+            postAlert = { _, _, _ -> postAlertCalled = true },
+            cancelOriginal = { cancelCalled = true }
+        )
+
+        assertFalse(postAlertCalled)
+        assertFalse(cancelCalled)
+    }
+
+    @Test
+    fun `handleNotification does not cancel the original notification when posting the alert fails`() {
+        val queueDir = tempFolder.newFolder()
+        val context = contextWithQueueDir(queueDir, removeOriginalNotification = true)
+        val packageName = GooglePayNotificationListenerService.DEFAULT_WATCHED_PACKAGES.first()
+        val sbn = statusBarNotificationFor(
+            packageName = packageName,
+            title = "SAMPLE MERCHANT",
+            text = "\$31.20 with SOME BANK CARD ••1234",
+            bigText = null
+        )
+        var cancelCalled = false
+
+        try {
+            invokeHandleNotification(
+                sbn,
+                context,
+                postAlert = { _, _, _ -> throw SecurityException("simulated notify() failure") },
+                cancelOriginal = { cancelCalled = true }
+            )
+        } catch (e: SecurityException) {
+            // Expected: propagates past handleNotification, same as it would past
+            // onNotificationPosted's own try/catch in production.
+        }
 
         assertFalse(cancelCalled)
     }
