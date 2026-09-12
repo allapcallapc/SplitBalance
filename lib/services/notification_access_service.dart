@@ -52,6 +52,26 @@ class NotificationAccessService {
     }
   }
 
+  Future<bool> getRemoveOriginalNotification() async {
+    if (!isSupported) return false;
+    try {
+      final enabled =
+          await _channel.invokeMethod<bool>('getRemoveOriginalNotification');
+      return enabled ?? false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<void> setRemoveOriginalNotification(bool enabled) async {
+    if (!isSupported) return;
+    try {
+      await _channel.invokeMethod('setRemoveOriginalNotification', enabled);
+    } catch (e) {
+      // Ignore - settings screen will show the previous state on next load.
+    }
+  }
+
   Future<String?> getPendingQueueFilePath() async {
     if (!isSupported) return null;
     try {

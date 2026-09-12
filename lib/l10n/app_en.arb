@@ -858,6 +858,14 @@
   "@addPackageName": {
     "description": "Hint for adding a new watched package name"
   },
+  "removeOriginalNotification": "Remove Google Pay notification",
+  "@removeOriginalNotification": {
+    "description": "Label for the toggle that dismisses the original payment app's notification once our own alert is shown"
+  },
+  "removeOriginalNotificationHint": "Dismiss the Google Pay/Wallet notification once a payment is detected",
+  "@removeOriginalNotificationHint": {
+    "description": "Explanation of the remove-original-notification toggle"
+  },
   "androidOnlyFeature": "This feature is only available on Android",
   "@androidOnlyFeature": {
     "description": "Message shown when a feature requires Android and the app is running elsewhere"

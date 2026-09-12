@@ -60,6 +60,14 @@ class PendingPaymentsProvider with ChangeNotifier {
     return _notificationAccessService.setWatchedPackages(packages);
   }
 
+  Future<bool> getRemoveOriginalNotification() {
+    return _notificationAccessService.getRemoveOriginalNotification();
+  }
+
+  Future<void> setRemoveOriginalNotification(bool enabled) {
+    return _notificationAccessService.setRemoveOriginalNotification(enabled);
+  }
+
   Future<void> requestNotificationPermissionIfNeeded() {
     return _notificationAccessService.requestNotificationPermissionIfNeeded();
   }
