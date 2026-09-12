@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.5.0](https://github.com/allapcallapc/SplitBalance/compare/v3.4.0...v3.5.0) (2026-09-12)
+
+
+### Features
+
+* add opt-in setting to dismiss Google Pay notification on detection ([#85](https://github.com/allapcallapc/SplitBalance/issues/85)) ([3c62f3c](https://github.com/allapcallapc/SplitBalance/commit/3c62f3cd80deffcde51bbc31faea339aef3da469))
+
 ## [3.4.0](https://github.com/allapcallapc/SplitBalance/compare/v3.3.0...v3.4.0) (2026-09-07)
 
 
