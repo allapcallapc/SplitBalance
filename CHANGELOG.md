@@ -1,5 +1,56 @@
 # Changelog
 
+## [4.0.0](https://github.com/allapcallapc/SplitBalance/compare/v3.5.0...v4.0.0) (2026-09-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* require Supabase URL/key via --dart-define for every build ([#52](https://github.com/allapcallapc/SplitBalance/issues/52))
+
+### Features
+
+* add live preview deployments for PRs and main ([#44](https://github.com/allapcallapc/SplitBalance/issues/44)) ([90152ba](https://github.com/allapcallapc/SplitBalance/commit/90152baa86f246685e129574f90df896a1ccf478))
+* add opt-in setting to dismiss Google Pay notification on detection ([#85](https://github.com/allapcallapc/SplitBalance/issues/85)) ([3c62f3c](https://github.com/allapcallapc/SplitBalance/commit/3c62f3cd80deffcde51bbc31faea339aef3da469))
+* Add shared folder support and empty state message ([bf34170](https://github.com/allapcallapc/SplitBalance/commit/bf34170d35170e216a75745beb1c35dc3a6b5d8c))
+* add sort control to the bills screen ([#48](https://github.com/allapcallapc/SplitBalance/issues/48)) ([ccebd2d](https://github.com/allapcallapc/SplitBalance/commit/ccebd2dd8eefca8fd3397dfa42f6e117bf2ee570))
+* flag potential duplicate bills on save and in the bills list ([#81](https://github.com/allapcallapc/SplitBalance/issues/81)) ([7fded89](https://github.com/allapcallapc/SplitBalance/commit/7fded894331b9a0d467a612502095170a066b73a))
+* include notification title in the Google Pay bill note ([#65](https://github.com/allapcallapc/SplitBalance/issues/65)) ([e1db84e](https://github.com/allapcallapc/SplitBalance/commit/e1db84e6c25a7d9b81c33c2d86c9996d9c046146))
+* jump from category summary to bills filtered by that category ([#71](https://github.com/allapcallapc/SplitBalance/issues/71)) ([f7f0aa8](https://github.com/allapcallapc/SplitBalance/commit/f7f0aa8dbcba109a26441fb9dbca0616f5766d4b))
+* make all built-in Material icons available for categories ([#80](https://github.com/allapcallapc/SplitBalance/issues/80)) ([42e99aa](https://github.com/allapcallapc/SplitBalance/commit/42e99aa1424bf665a368cc25333a032b1ebc46d8))
+* Make summary table responsive and rename navigation to Categories ([3891cf0](https://github.com/allapcallapc/SplitBalance/commit/3891cf0b6effc3452bbe394441782f488e96f8a9))
+* move summary balance calculation to narrow aggregated queries ([#55](https://github.com/allapcallapc/SplitBalance/issues/55)) ([0204404](https://github.com/allapcallapc/SplitBalance/commit/0204404d54efdc0a436961b97370c3c8af030f9d))
+* ping staging Supabase on a schedule to prevent auto-pause ([ed2d382](https://github.com/allapcallapc/SplitBalance/commit/ed2d3821a03e5b52044175eac01494d599cf5856))
+* replace app icon and automate icon generation with flutter_launcher_icons ([99d4c07](https://github.com/allapcallapc/SplitBalance/commit/99d4c074c3d861981c4aece2a64361a1a9c040b4))
+* require Supabase URL/key via --dart-define for every build ([#52](https://github.com/allapcallapc/SplitBalance/issues/52)) ([180947d](https://github.com/allapcallapc/SplitBalance/commit/180947dce58ebc3086b83f83ed4cb770b1466136))
+* search bills by date or date range on the bills list ([#78](https://github.com/allapcallapc/SplitBalance/issues/78)) ([f8d4486](https://github.com/allapcallapc/SplitBalance/commit/f8d4486ae4fe8cbdff2fab632565d5a69f7084f6))
+* show missing percentage in period warning tooltip ([3b6ef2f](https://github.com/allapcallapc/SplitBalance/commit/3b6ef2f21a1abc6bbacd446f94f28ef3466610ae))
+* show missing percentage in period warning tooltip ([b15b3fb](https://github.com/allapcallapc/SplitBalance/commit/b15b3fb76f7f7df1580780515a9809a099cd9228))
+* show per-person expense counts in Summary Statistics card ([#45](https://github.com/allapcallapc/SplitBalance/issues/45)) ([4d5fc43](https://github.com/allapcallapc/SplitBalance/commit/4d5fc431d931242873d8a16344d0f745be6bf625))
+* tappable Summary rows to drill into category and Total detail charts ([#61](https://github.com/allapcallapc/SplitBalance/issues/61)) ([66c7e20](https://github.com/allapcallapc/SplitBalance/commit/66c7e202f24436f5ec7a46f3943a4efbc2c6e428))
+* track recovered amounts against bills ([#76](https://github.com/allapcallapc/SplitBalance/issues/76)) ([876415f](https://github.com/allapcallapc/SplitBalance/commit/876415f61e0fa22f8244b8ab1d31811046b88377))
+
+
+### Bug Fixes
+
+* aggregate person/household bill totals server-side via Postgres RPCs ([#58](https://github.com/allapcallapc/SplitBalance/issues/58)) ([1f1bc10](https://github.com/allapcallapc/SplitBalance/commit/1f1bc10c7cb172c83663eebc4a2cf57bcd9afebf))
+* compute category in-use flag with a lightweight query ([3f521c5](https://github.com/allapcallapc/SplitBalance/commit/3f521c5ca92e647e7179570576f408ab296b2cc5))
+* correct category balance totals and prevent APK download sink leak ([952b28b](https://github.com/allapcallapc/SplitBalance/commit/952b28b86d40b86c286c5f36b51401a2d2d16f14))
+* correct category balance totals and prevent APK download sink leak ([73e395d](https://github.com/allapcallapc/SplitBalance/commit/73e395d10f13191c8fbaf568f41df17f2156f72d))
+* detect Google Wallet tap-to-pay notifications without a payment keyword ([#42](https://github.com/allapcallapc/SplitBalance/issues/42)) ([e9aeaa0](https://github.com/allapcallapc/SplitBalance/commit/e9aeaa0f9dc6df03d79d3235d404748b68dafa81))
+* dismiss pending-bill notification when tapped, not just "No" ([#75](https://github.com/allapcallapc/SplitBalance/issues/75)) ([d0b05f1](https://github.com/allapcallapc/SplitBalance/commit/d0b05f111cd39c5beed68c6e78dc5ba0a3c7736a))
+* fix summary screen color clashes in pink and teal themes ([#72](https://github.com/allapcallapc/SplitBalance/issues/72)) ([49846fb](https://github.com/allapcallapc/SplitBalance/commit/49846fb43319ae7a1e0760eaf7c295ea68964b51))
+* include commit sha in PR preview version string ([#51](https://github.com/allapcallapc/SplitBalance/issues/51)) ([23091fd](https://github.com/allapcallapc/SplitBalance/commit/23091fdd7ba61092e03cbe1a0193b2e8d9b43b4a))
+* Only check person_names.csv for person name validation, not bills/payment splits ([5e3821b](https://github.com/allapcallapc/SplitBalance/commit/5e3821b6139b4b389cb167775a9f41adcdb63854))
+* ping a real table instead of the /rest/v1/ schema root for the staging Supabase keep-awake check ([#84](https://github.com/allapcallapc/SplitBalance/issues/84)) ([860edf3](https://github.com/allapcallapc/SplitBalance/commit/860edf3087601711cbd9123ff40b3d85ec4503a6))
+* remove Clear All Configuration button from config screen ([#74](https://github.com/allapcallapc/SplitBalance/issues/74)) ([b2e4180](https://github.com/allapcallapc/SplitBalance/commit/b2e4180ea7c8930e298a1ed9c699d9f5f9ed4ecb))
+* replace summary table with compact proportional-bar ledger ([7cd1df4](https://github.com/allapcallapc/SplitBalance/commit/7cd1df4f9c874be5cb97d5dd4a8c107c88a03986))
+* restore previously selected tab after a refresh instead of forcing Bills ([#60](https://github.com/allapcallapc/SplitBalance/issues/60)) ([80adb7a](https://github.com/allapcallapc/SplitBalance/commit/80adb7a421ef39d71737f0eaeeb328b603e333b3))
+* retry pending deep-link check once config settles after cold start ([#83](https://github.com/allapcallapc/SplitBalance/issues/83)) ([7070a14](https://github.com/allapcallapc/SplitBalance/commit/7070a14ff7715812b0a1ec87d2eb973903dbe56c))
+* stop card panels from resizing when switching to dark theme ([#46](https://github.com/allapcallapc/SplitBalance/issues/46)) ([96a0666](https://github.com/allapcallapc/SplitBalance/commit/96a066682ab41d522b7168fa9527658ec6aa2fd0)), closes [#26](https://github.com/allapcallapc/SplitBalance/issues/26)
+* stop release-apk's push trigger from double-running itself ([5a9563b](https://github.com/allapcallapc/SplitBalance/commit/5a9563b68dad1166165bce67ced1d138e8277ef4))
+* stop release-apk's push trigger from double-running itself ([d449241](https://github.com/allapcallapc/SplitBalance/commit/d449241046d21da2b8e0c0b2cf37f191e0a6c1aa))
+* use distinct empty-state text when filters exclude all bills ([7bd906a](https://github.com/allapcallapc/SplitBalance/commit/7bd906a17c80d7c2480030bb6d6d3db214725286))
+
 ## [3.5.0](https://github.com/allapcallapc/SplitBalance/compare/v3.4.0...v3.5.0) (2026-09-12)
 
 
