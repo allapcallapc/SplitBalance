@@ -1,14 +1,16 @@
 name: Keep Supabase staging awake
 
-# Supabase free-tier projects auto-pause after ~7 days with no API
-# activity, which then requires manually unpausing from the dashboard.
-# This pings the staging project's REST endpoint twice a week - well
-# inside that window - so it's never idle long enough to pause. No
-# secrets needed: env/staging.json's URL and anon key are already public
-# (see lib/config/supabase_config.dart's doc comment on why that's safe).
+# Supabase free-tier projects auto-pause after a week of insufficient
+# activity. Per Supabase's own docs (Project Pausing guide), that's not
+# just "any successful request within 7 days" - it wants "a few user
+# requests to the database each day over the previous week". A twice-
+# weekly ping (the original schedule here) passed every run but the
+# project got paused anyway, so this now pings daily. No secrets needed:
+# env/staging.json's URL and anon key are already public (see
+# lib/config/supabase_config.dart's doc comment on why that's safe).
 on:
   schedule:
-    - cron: '0 6 * * 1,4'
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
 jobs:
