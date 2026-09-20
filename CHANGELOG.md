@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.5.1](https://github.com/allapcallapc/SplitBalance/compare/v3.5.0...v3.5.1) (2026-09-20)
+
+
+### Bug Fixes
+
+* ping staging Supabase daily instead of twice a week to prevent auto-pause ([#88](https://github.com/allapcallapc/SplitBalance/issues/88)) ([cbf60f2](https://github.com/allapcallapc/SplitBalance/commit/cbf60f2cb04f79a54ec508ba6a7e0d4e17c6b814))
+
 ## [3.5.0](https://github.com/allapcallapc/SplitBalance/compare/v3.4.0...v3.5.0) (2026-09-12)
 
 
