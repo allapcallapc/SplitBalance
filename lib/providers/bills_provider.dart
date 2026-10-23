@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -304,26 +306,40 @@ class BillsProvider with ChangeNotifier {
   }) async {
     if (billIds.isEmpty) return {};
 
-    // Paginated via the shared pageAndReduce helper (also used by
-    // AggregatedCalculationService._sumAmounts), in case a household's
-    // full bill set (loadAllBills) pushes this past PostgREST's max_rows
-    // cap.
-    return pageAndReduce<Map<String, Map<String, double>>>(
-      buildQuery: () => Supabase.instance.client
-          .from('bill_recovered_amounts')
-          .select('bill_id, received_by, amount')
-          .inFilter('bill_id', billIds),
-      initial: <String, Map<String, double>>{},
-      reduce: (byBill, row) {
-        final billId = row['bill_id'] as String;
-        final receivedBy = row['received_by'] as String;
-        final amount = (row['amount'] as num).toDouble();
-        final byReceiver = byBill.putIfAbsent(billId, () => <String, double>{});
-        byReceiver[receivedBy] = (byReceiver[receivedBy] ?? 0) + amount;
-        return byBill;
-      },
-    );
+    // The ids go into the request URL as a bill_id=in.(...) filter, so a
+    // household's full bill set (loadAllBills) can't be sent in one request:
+    // ~45 encoded characters per UUID, 1000 bills => a ~45KB URL that the
+    // API gateway rejects with a 400. Query in fixed-size id chunks instead,
+    // each also paginated via the shared pageAndReduce helper (also used by
+    // AggregatedCalculationService._sumAmounts) in case one chunk's
+    // recovered rows exceed PostgREST's max_rows cap.
+    final byBill = <String, Map<String, double>>{};
+    for (var i = 0; i < billIds.length; i += _recoveredBreakdownIdChunkSize) {
+      final chunk = billIds.sublist(
+          i, min(i + _recoveredBreakdownIdChunkSize, billIds.length));
+      await pageAndReduce<Map<String, Map<String, double>>>(
+        buildQuery: () => Supabase.instance.client
+            .from('bill_recovered_amounts')
+            .select('bill_id, received_by, amount')
+            .inFilter('bill_id', chunk),
+        initial: byBill,
+        reduce: (byBill, row) {
+          final billId = row['bill_id'] as String;
+          final receivedBy = row['received_by'] as String;
+          final amount = (row['amount'] as num).toDouble();
+          final byReceiver =
+              byBill.putIfAbsent(billId, () => <String, double>{});
+          byReceiver[receivedBy] = (byReceiver[receivedBy] ?? 0) + amount;
+          return byBill;
+        },
+      );
+    }
+    return byBill;
   }
+
+  // Bill ids per bill_recovered_amounts request in
+  // _defaultFetchRecoveredBreakdown - keeps each request URL around 5KB.
+  static const int _recoveredBreakdownIdChunkSize = 100;
 
   static double _sumRecovered(Map<String, double>? byReceiver) =>
       byReceiver == null ? 0 : byReceiver.values.fold(0.0, (a, b) => a + b);
@@ -476,18 +492,26 @@ class BillsProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final rows = await _supabase
-          .from('bills')
-          .select()
-          .eq('household_id', configProvider.householdId!)
-          .order('date', ascending: false);
+      // Paginated via pageAndReduce: an unpaginated .select() is silently
+      // capped at PostgREST's max_rows (1000), which would drop a large
+      // household's oldest bills. pageAndReduce pages in id order, so
+      // re-sort newest-first afterwards.
+      final rows = await pageAndReduce<List<Map<String, dynamic>>>(
+        buildQuery: () => _supabase
+            .from('bills')
+            .select()
+            .eq('household_id', configProvider.householdId!),
+        initial: <Map<String, dynamic>>[],
+        reduce: (rows, row) => rows..add(row),
+      );
 
       final loadedBills =
           await _withRecoveredTotals(rows.map(Bill.fromMap).toList());
 
       _allBills
         ..clear()
-        ..addAll(loadedBills);
+        ..addAll(loadedBills)
+        ..sort(_byDateThenId);
       _error = null;
     } catch (e) {
       _error = 'Failed to load bills: $e';
